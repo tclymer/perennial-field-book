@@ -5,7 +5,8 @@ import type { Feature, FeatureCollection, LineString, Point } from 'geojson'
 import type { FarmState, Row } from '@/model/types'
 import { live } from '@/events/reduce'
 import { fillOutline } from '@/engine/fill'
-import { autoNumberRows } from '@/engine/layout'
+import { autoNumberRows, positionsForRow } from '@/engine/layout'
+import { isIdentity, movePoint, movePoints } from '@/engine/transform'
 import { positionsAlong } from '@/engine/geo'
 import { blocksFC, featuresFC, planFC, positionsFC, rowsFC, type ColorBy } from './geojson'
 import type { OverlaySource } from './style'
@@ -80,6 +81,53 @@ export function fillPreviewFC(state: FarmState): FeatureCollection {
   return { type: 'FeatureCollection', features }
 }
 
+/** Every row, tree, and the outline of a block after the pending move, as a preview. */
+export function movePreviewFC(state: FarmState): FeatureCollection {
+  const move = useEditor.getState().move
+  if (!move || isIdentity(move)) return EMPTY
+  const block = state.blocks[move.blockId]
+  if (!block) return EMPTY
+  const features: Feature<LineString | Point>[] = []
+  for (const r of live.rows(state).filter((r) => r.blockId === move.blockId)) {
+    const line = movePoints(r.polyline, move)
+    features.push({
+      type: 'Feature',
+      properties: {},
+      geometry: { type: 'LineString', coordinates: line.map(([a, b]) => [a, b]) },
+    })
+    features.push({
+      type: 'Feature',
+      properties: { label: `${block.code}-${r.number}` },
+      geometry: { type: 'Point', coordinates: [line[0][0], line[0][1]] },
+    })
+    for (const p of positionsForRow(block, r, state.nudges)) {
+      const c = movePoint(p.coord, move)
+      features.push({
+        type: 'Feature',
+        properties: {},
+        geometry: { type: 'Point', coordinates: [c[0], c[1]] },
+      })
+    }
+  }
+  for (const p of live.loosePositions(state).filter((p) => p.blockId === move.blockId)) {
+    const c = movePoint(p.coord, move)
+    features.push({
+      type: 'Feature',
+      properties: {},
+      geometry: { type: 'Point', coordinates: [c[0], c[1]] },
+    })
+  }
+  if (block.outline) {
+    const ring = movePoints(block.outline, move).map(([a, b]) => [a, b])
+    features.push({
+      type: 'Feature',
+      properties: {},
+      geometry: { type: 'LineString', coordinates: [...ring, ring[0]] },
+    })
+  }
+  return { type: 'FeatureCollection', features }
+}
+
 export function useMapLayers(
   map: MlMap | null,
   state: FarmState,
@@ -88,6 +136,7 @@ export function useMapLayers(
   hidden: HiddenShapes = NOTHING_HIDDEN,
 ): void {
   const fill = useEditor((s) => s.fill)
+  const move = useEditor((s) => s.move)
   const data = useMemo(() => {
     const positions = positionsFC(state, {
       colorBy,
@@ -102,9 +151,9 @@ export function useMapLayers(
       positions,
       labels: positions,
       plan: planFC(state, planYear, hidden.positionsOfBlocks),
-      preview: fill ? fillPreviewFC(state) : EMPTY,
+      preview: fill ? fillPreviewFC(state) : move ? movePreviewFC(state) : EMPTY,
     }
-  }, [state, colorBy, planYear, hidden, fill])
+  }, [state, colorBy, planYear, hidden, fill, move])
 
   useEffect(() => {
     if (!map) return

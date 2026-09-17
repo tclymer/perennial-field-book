@@ -21,6 +21,7 @@ import type { NewEvent } from '@/events/types'
 import { polylineLengthFt, positionCount } from '@/engine/geo'
 import { autoNumberRows as orderRows, occupiedMaxIndex } from '@/engine/layout'
 import { fillOutline } from '@/engine/fill'
+import { isIdentity, movePoint, movePoints, type RigidMove } from '@/engine/transform'
 import { useFarmStore } from './store'
 
 export type Result = { ok: true } | { ok: false; reason: string }
@@ -583,4 +584,46 @@ export function applyRelayout(
   }
   commit(events)
   autoNumberRows(blockId)
+}
+
+/** Slide and turn a whole block: rows, loose trees, nudges, and the outline together. */
+export function moveBlock(blockId: string, move: RigidMove): number {
+  const s = state()
+  const block = s.blocks[blockId]
+  if (!block || isIdentity(move)) return 0
+  const events: NewEvent[] = []
+  for (const r of live.rows(s).filter((r) => r.blockId === blockId)) {
+    events.push({
+      type: 'row.patch',
+      payload: { id: r.id, polyline: movePoints(r.polyline, move) },
+    })
+    for (const [key, coord] of Object.entries(s.nudges)) {
+      if (key.startsWith(`${r.id}:`)) {
+        events.push({
+          type: 'position.nudge',
+          payload: { posKey: key, coord: movePoint(coord, move) },
+        })
+      }
+    }
+  }
+  for (const p of live.loosePositions(s).filter((p) => p.blockId === blockId)) {
+    events.push({ type: 'position.patch', payload: { id: p.id, coord: movePoint(p.coord, move) } })
+  }
+  if (block.outline) {
+    events.push({
+      type: 'block.patch',
+      payload: { id: blockId, outline: movePoints(block.outline, move) },
+    })
+  }
+  if (block.fill && move.rotateDeg !== 0) {
+    events.push({
+      type: 'block.patch',
+      payload: {
+        id: blockId,
+        fill: { ...block.fill, headingDeg: block.fill.headingDeg + move.rotateDeg },
+      },
+    })
+  }
+  if (events.length) commit(events)
+  return events.length
 }

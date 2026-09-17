@@ -31,8 +31,22 @@ export interface FillDraft {
   previewOutline: LngLat[] | null
 }
 
+/** A rigid move of a whole block while its sliders are open. */
+export interface MoveDraft {
+  blockId: string
+  headingDeg: number
+  alongFt: number
+  acrossFt: number
+  rotateDeg: number
+  pivot: LngLat
+}
+
 interface EditorState {
   map: MlMap | null
+  move: MoveDraft | null
+  openMove: (draft: MoveDraft) => void
+  updateMove: (patch: Partial<MoveDraft>) => void
+  closeMove: () => void
   selectedBlockId: string | null
   tool: Tool
   editMode: EditMode
@@ -60,6 +74,10 @@ interface EditorState {
 
 export const useEditor = create<EditorState>()((set) => ({
   map: null,
+  move: null,
+  openMove: (move) => set({ move, tool: 'none', editMode: 'none', fill: null, message: null }),
+  updateMove: (patch) => set((s) => (s.move ? { move: { ...s.move, ...patch } } : {})),
+  closeMove: () => set({ move: null }),
   selectedBlockId: null,
   tool: 'none',
   editMode: 'none',
@@ -71,7 +89,14 @@ export const useEditor = create<EditorState>()((set) => ({
   message: null,
   setMap: (map) => set({ map }),
   selectBlock: (id) =>
-    set({ selectedBlockId: id, tool: 'none', editMode: 'none', fill: null, message: null }),
+    set({
+      selectedBlockId: id,
+      tool: 'none',
+      editMode: 'none',
+      fill: null,
+      move: null,
+      message: null,
+    }),
   setTool: (tool) =>
     set((s) => ({
       tool,

@@ -15,6 +15,7 @@ import {
   deleteRow,
   applyRelayout,
   fillBlock,
+  moveBlock,
   refillBlock,
   reverseRow,
   setBlockOutline,
@@ -27,6 +28,7 @@ import { blockAreaSqFt, describeNumbering, rowLengthFt, rowUpBearing } from '@/e
 import { positionCount, sqFtToAcres } from '@/engine/geo'
 import { fillOutline, fillSummary, firstEdgeHeading } from '@/engine/fill'
 import { planRelayout } from '@/engine/relayout'
+import { centroidOf, isIdentity } from '@/engine/transform'
 import { VarietyPicker } from '@/ui/tree/VarietyPicker'
 import { Button, Field, NumberInput, Pill, inputClass } from '@/ui/components'
 import { TOOL_HINT, useEditor, type Tool } from './editorStore'
@@ -231,6 +233,7 @@ function BlockEditor({ blockId }: { blockId: string }) {
   const editMode = useEditor((s) => s.editMode)
   const setEditMode = useEditor((s) => s.setEditMode)
   const fill = useEditor((s) => s.fill)
+  const move = useEditor((s) => s.move)
   const say = useEditor((s) => s.say)
   const [confirmDelete, setConfirmDelete] = useState(false)
   if (!block || block.deleted) {
@@ -280,6 +283,8 @@ function BlockEditor({ blockId }: { blockId: string }) {
 
       {fill && fill.blockId === blockId ? (
         <FillForm blockId={blockId} />
+      ) : move && move.blockId === blockId ? (
+        <MoveForm blockId={blockId} />
       ) : empty && !block.outline && tool === 'none' ? (
         <LayoutChoice blockId={blockId} />
       ) : (
@@ -345,6 +350,29 @@ function BlockEditor({ blockId }: { blockId: string }) {
                     title="Reshape the outline or change spacing; trees keep their labels and records"
                   >
                     Adjust layout
+                  </Button>
+                )}
+                {(rows.length > 0 || loose.length > 0) && (
+                  <Button
+                    onClick={() => {
+                      const pts = [
+                        ...rows.flatMap((r) => r.polyline),
+                        ...loose.map((p) => p.coord),
+                        ...(block.outline ?? []),
+                      ]
+                      useEditor.getState().openMove({
+                        blockId,
+                        headingDeg:
+                          block.fill?.headingDeg ?? (rows.length ? rowUpBearing(rows) : 0),
+                        alongFt: 0,
+                        acrossFt: 0,
+                        rotateDeg: 0,
+                        pivot: centroidOf(pts),
+                      })
+                    }}
+                    title="Slide or turn the whole planting to line it up with the imagery; nothing changes relative to anything else"
+                  >
+                    Move planting
                   </Button>
                 )}
                 {toolButton('row', 'Add a row')}
@@ -843,6 +871,89 @@ function FillForm({ blockId }: { blockId: string }) {
             )}
           </>
         )}
+      </div>
+    </div>
+  )
+}
+
+/** Slide and turn a whole block with live preview. Records are untouched by construction. */
+function MoveForm({ blockId }: { blockId: string }) {
+  const move = useEditor((s) => s.move)!
+  const update = useEditor((s) => s.updateMove)
+  const close = useEditor((s) => s.closeMove)
+  const say = useEditor((s) => s.say)
+  const map = useEditor((s) => s.map)
+  useEffect(() => {
+    map?.easeTo({ bearing: move.headingDeg + move.rotateDeg, duration: 400 })
+  }, [map, move.headingDeg, move.rotateDeg])
+  const slider = (
+    label: string,
+    value: number,
+    min: number,
+    max: number,
+    step: number,
+    unit: string,
+    onChange: (v: number) => void,
+    hint?: string,
+  ) => (
+    <Field label={label} hint={hint}>
+      <div className="flex items-center gap-2">
+        <input
+          type="range"
+          className="w-full accent-lime-700"
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          onChange={(e) => onChange(Number(e.target.value))}
+          aria-label={label}
+        />
+        <NumberInput
+          value={value}
+          min={min}
+          max={max}
+          step={step}
+          unit={unit}
+          onChange={onChange}
+        />
+      </div>
+    </Field>
+  )
+  return (
+    <div className="space-y-2 rounded-md border border-lime-300 dark:border-lime-800 p-2.5">
+      <p className="text-xs text-stone-600 dark:text-stone-400">
+        The orange preview is the whole planting after the move. Slide it onto the real trees. Rows,
+        trees, and the outline move together; every label and record stays as it is.
+      </p>
+      {slider('Along the rows', move.alongFt, -200, 200, 0.5, 'ft', (v) => update({ alongFt: v }))}
+      {slider('Across the rows', move.acrossFt, -200, 200, 0.5, 'ft', (v) =>
+        update({ acrossFt: v }),
+      )}
+      {slider(
+        'Turn',
+        move.rotateDeg,
+        -30,
+        30,
+        0.1,
+        '°',
+        (v) => update({ rotateDeg: v }),
+        'About the middle of the planting',
+      )}
+      <div className="flex gap-2">
+        <Button
+          variant="primary"
+          disabled={isIdentity(move)}
+          onClick={() => {
+            moveBlock(blockId, move)
+            close()
+            say('Planting moved. Nothing changed relative to anything else.')
+          }}
+        >
+          Apply move
+        </Button>
+        <Button variant="ghost" onClick={close}>
+          Cancel
+        </Button>
       </div>
     </div>
   )
