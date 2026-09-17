@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import type { CompassSide, FeatureKind, FillParams, Row } from '@/model/types'
+import type { BlockStatus, CompassSide, FeatureKind, FillParams, Row } from '@/model/types'
 import { live } from '@/events/reduce'
 import { useFarmStore } from '@/state/store'
 import { blockSpecies, varietiesByName } from '@/state/derived'
@@ -17,6 +17,7 @@ import {
   fillBlock,
   moveBlock,
   refillBlock,
+  setBlockStatus,
   reverseRow,
   setBlockOutline,
   setRowDefaultVariety,
@@ -138,6 +139,7 @@ function NewBlockForm({ onDone }: { onDone: () => void }) {
   const [name, setName] = useState('')
   const [rowsFrom, setRowsFrom] = useState<CompassSide>('W')
   const [positionsFrom, setPositionsFrom] = useState('')
+  const [planted, setPlanted] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const submit = () => {
     const c = code.trim().toUpperCase()
@@ -153,7 +155,12 @@ function NewBlockForm({ onDone }: { onDone: () => void }) {
       setError('Give the block a name.')
       return
     }
-    const id = createBlock({ code: c, name: name.trim(), numbering: { rowsFrom, positionsFrom } })
+    const id = createBlock({
+      code: c,
+      name: name.trim(),
+      numbering: { rowsFrom, positionsFrom },
+      status: planted ? 'planted' : 'planned',
+    })
     select(id)
     onDone()
   }
@@ -207,6 +214,21 @@ function NewBlockForm({ onDone }: { onDone: () => void }) {
           />
         </Field>
       </div>
+      <label className="flex items-start gap-2 text-sm">
+        <input
+          type="checkbox"
+          className="mt-1"
+          checked={planted}
+          onChange={(e) => setPlanted(e.target.checked)}
+        />
+        <span>
+          Already in the ground
+          <span className="block text-xs text-stone-500 dark:text-stone-400">
+            Every position becomes a tree you can log against. Untick for a layout you are only
+            planning.
+          </span>
+        </span>
+      </label>
       {error && (
         <p role="alert" className="text-xs text-rose-700 dark:text-rose-400">
           {error}
@@ -278,6 +300,11 @@ function BlockEditor({ blockId }: { blockId: string }) {
         {rows.length} rows · {loose.length} loose trees
         {acres > 0 && ` · ${acres.toFixed(2)} ac`}
         {block.planner && ' · linked to the planner'}
+        {block.status === 'planned' && (
+          <Pill tone="info" className="ml-2">
+            planned
+          </Pill>
+        )}
       </p>
       <p className="mb-3 text-xs text-stone-600 dark:text-stone-400">{describeNumbering(block)}</p>
 
@@ -1092,6 +1119,7 @@ function AlignToggle({ rows }: { rows: Row[] }) {
 
 function BlockFields({ blockId }: { blockId: string }) {
   const block = useFarmStore((s) => s.state.blocks[blockId])
+  const say = useEditor((s) => s.say)
   const [code, setCode] = useState(block.code)
   const [name, setName] = useState(block.name)
   const [positionsFrom, setPositionsFrom] = useState(block.numbering.positionsFrom)
@@ -1197,6 +1225,19 @@ function BlockFields({ blockId }: { blockId: string }) {
               />
             </Field>
           </div>
+          <Field label="Status">
+            <select
+              className={inputClass}
+              value={block.status ?? 'planted'}
+              onChange={(e) => {
+                const n = setBlockStatus(blockId, e.target.value as BlockStatus)
+                if (n) say(`Recorded ${n} trees.`)
+              }}
+            >
+              <option value="planted">planted: every position is a tree</option>
+              <option value="planned">planned: a layout only</option>
+            </select>
+          </Field>
           <Field label="Species">
             <input
               className={inputClass}

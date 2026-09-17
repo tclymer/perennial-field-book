@@ -3,6 +3,7 @@ import { Navigate, NavLink, Outlet, useLocation } from 'react-router-dom'
 import clsx from 'clsx'
 import { APP_NAME, APP_VERSION } from '@/version'
 import { useFarmStore } from '@/state/store'
+import { reconcilePlantedBlocks } from '@/state/actions'
 import { ErrorBoundary } from './ErrorBoundary'
 import { UpdateToast } from './UpdateToast'
 import { nextTheme, themeLabel, useTheme } from './theme'
@@ -53,6 +54,11 @@ export default function Layout() {
   useEffect(() => {
     void hydrate()
   }, [hydrate])
+
+  // Blocks made before "planted by default" get their tree records the first time they open.
+  useEffect(() => {
+    if (hydrated && farmId) reconcilePlantedBlocks()
+  }, [hydrated, farmId])
 
   // Each page gets its own tab title, and focus moves to the page on navigation.
   useEffect(() => {

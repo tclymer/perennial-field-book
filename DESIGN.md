@@ -66,6 +66,7 @@ useful it might be to a farm.
 | 2026-09-16 | Google satellite imagery through the official Map Tiles API is the default online basemap, on desktop and phone. A Google Cloud billing account is accepted. Usage is held inside the free tier by a hard daily quota in the Cloud console, never by hoping. | Most consistently current imagery, and what people already know from their phones. The card on file must never be charged by accident. See §8.6. |
 | 2026-09-16 | When Google tiles are unavailable (daily quota reached, offline, or an error), the map falls back automatically to a free source (PEMA in Pennsylvania, Esri elsewhere) or to drawn features over a plain background. Google tiles are never stored by the service worker. | Google's terms forbid caching; the quota is a soft ceiling on Google, not on the app. |
 | 2026-09-16 | If the tool takes off, revisit paid Google usage or a bring-your-own-key option. Add a donation link on the About page at some point. | User's call. Not iteration one. |
+| 2026-09-17 | A block is planted by default: every position is a tree record from the moment a row exists, and a row's default variety flows to trees that have none of their own. "Planned" is an opt-in status for layouts on bare ground, and marking a planned block planted records everything at once. | Drawing rows over real trees felt like creating the trees, so having to declare them real afterwards was wrong. Planned stays for comparing layouts. |
 
 ---
 

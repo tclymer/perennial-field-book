@@ -13,7 +13,7 @@ import {
   assignVariety,
   commitEvents,
   planGrafts,
-  recordBlockPlanted,
+  setBlockStatus,
   setRowDefaultVariety,
   unplanGrafts,
 } from '@/state/actions'
@@ -80,10 +80,7 @@ export default function BlockGridPage() {
   const colors = varietyColors(state)
   const trees = currentTreeByPos(state)
   const varieties = varietiesByName(state)
-  const unrecorded = positions(state).filter(
-    (p) =>
-      p.blockId === id && p.rowId && !trees.has(p.posKey) && state.rows[p.rowId]?.defaultVarietyId,
-  ).length
+  const unrecorded = positions(state).filter((p) => p.blockId === id && !trees.has(p.posKey)).length
 
   if (!block || block.deleted) {
     return (
@@ -343,12 +340,15 @@ export default function BlockGridPage() {
         )}
       </Card>
 
-      {unrecorded > 0 && (
-        <Card>
-          <h2 className="font-semibold">Declare the planting real</h2>
+      {block.status === 'planned' && (
+        <Card className="border-sky-300 dark:border-sky-700">
+          <h2 className="font-semibold">
+            Planned layout <Pill tone="info">not in the ground</Pill>
+          </h2>
           <p className="mt-1 text-xs text-stone-600 dark:text-stone-400">
-            {unrecorded} positions carry a row default but no tree record yet. Recording them gives
-            each a tree of its row's variety, so deaths, grafts, and notes can be logged.
+            Positions show their row's variety but nothing is recorded as a tree yet. When this
+            block is planted, mark it so: every position ({unrecorded} without a record) becomes a
+            tree you can log against.
           </p>
           <div className="mt-2 flex flex-wrap items-end gap-2">
             <Field label="Planted in (optional)">
@@ -362,13 +362,14 @@ export default function BlockGridPage() {
             </Field>
             <Button
               variant="primary"
-              onClick={() =>
-                act('recorded as planted', () =>
-                  recordBlockPlanted(id, plantedYear > 0 ? plantedYear : undefined),
-                )
-              }
+              onClick={() => {
+                const n = setBlockStatus(id, 'planted', plantedYear > 0 ? plantedYear : undefined)
+                setUndo(null)
+                setSelected(new Set())
+                if (n) setPlantedYear(0)
+              }}
             >
-              Record all {unrecorded} as planted
+              Mark as planted
             </Button>
           </div>
         </Card>

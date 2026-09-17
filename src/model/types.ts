@@ -50,12 +50,17 @@ export interface FillParams {
   pattern: 'square' | 'diamond'
 }
 
+/** Planted blocks are real: every position is a tree. Planned ones are layouts only. */
+export type BlockStatus = 'planted' | 'planned'
+
 export interface Block extends Stamped {
   id: string
   /** Short code that starts every tree label: PP1, PER, Y. Letters and digits only. */
   code: string
   name: string
   numbering: Numbering
+  /** Absent means planted. */
+  status?: BlockStatus
   species?: string
   rowSpacingFt?: number
   inRowSpacingFt?: number

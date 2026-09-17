@@ -34,7 +34,7 @@ beforeEach(async () => {
   localStorage.clear()
   resetStoreForTests()
   await useFarmStore.getState().createFarm('Test', ORIGIN, 17)
-  const block = createBlock({ code: 'PP1', name: 'Pawpaws' })
+  const block = createBlock({ status: 'planned', code: 'PP1', name: 'Pawpaws' })
   rowId = createRow(block, [at(0, 0), at(0, 90)], { by: 'count', count: 10 })
   shen = createVariety({ species: 'pawpaw', name: 'Shenandoah' })
   wabash = createVariety({ species: 'pawpaw', name: 'Wabash' })

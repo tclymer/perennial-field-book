@@ -34,7 +34,7 @@ beforeEach(async () => {
 
 describe('blocks and rows', () => {
   it('creates a block with an upper-case code and numbers rows as they are drawn', () => {
-    const id = createBlock({ code: 'pp1', name: 'Pawpaws', inRowSpacingFt: 11 })
+    const id = createBlock({ status: 'planned', code: 'pp1', name: 'Pawpaws', inRowSpacingFt: 11 })
     expect(s().blocks[id].code).toBe('PP1')
     expect(codeAvailable('PP1')).toBe(false)
     expect(codeAvailable('pp1', id)).toBe(true)
@@ -48,13 +48,13 @@ describe('blocks and rows', () => {
   })
 
   it('guesses a count for a block without spacing', () => {
-    const id = createBlock({ code: 'X', name: 'x' })
+    const id = createBlock({ status: 'planned', code: 'X', name: 'x' })
     const r = createRow(id, [at(0, 0), at(150, 0)])
     expect(s().rows[r].layout).toEqual({ by: 'count', count: 11 })
   })
 
   it('refuses to drop a position that holds a tree', () => {
-    const id = createBlock({ code: 'X', name: 'x' })
+    const id = createBlock({ status: 'planned', code: 'X', name: 'x' })
     const r = createRow(id, [at(0, 0), at(90, 0)], { by: 'count', count: 10 })
     useFarmStore
       .getState()
@@ -70,7 +70,7 @@ describe('blocks and rows', () => {
   })
 
   it('reverses an empty row and clears its nudges, but not a planted one', () => {
-    const id = createBlock({ code: 'X', name: 'x' })
+    const id = createBlock({ status: 'planned', code: 'X', name: 'x' })
     const r = createRow(id, [at(0, 0), at(90, 0)], { by: 'count', count: 4 })
     nudgePosition(`${r}:2`, at(31, 1))
     expect(s().nudges[`${r}:2`]).toBeDefined()
@@ -104,7 +104,7 @@ describe('blocks and rows', () => {
 
 describe('loose positions, features, varieties', () => {
   it('numbers loose positions per block and records features and varieties', () => {
-    const y = createBlock({ code: 'Y', name: 'Yard' })
+    const y = createBlock({ status: 'planned', code: 'Y', name: 'Yard' })
     const p1 = createLoosePosition(y, at(5, 5))
     const p2 = createLoosePosition(y, at(50, 5))
     expect(s().loosePositions[p1].number).toBe(1)

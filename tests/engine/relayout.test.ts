@@ -31,7 +31,7 @@ beforeEach(async () => {
 
 describe('relayout', () => {
   it('keeps row identities and reports what moves when the outline grows', () => {
-    const block = createBlock({ code: 'B', name: 'b' })
+    const block = createBlock({ status: 'planned', code: 'B', name: 'b' })
     const rect = [at(0, 0), at(0, 200), at(100, 200), at(100, 0)]
     fillBlock(block, fillOutline(rect, base), base)
     const rows = live.rows(s()).filter((r) => r.blockId === block)
@@ -70,7 +70,7 @@ describe('relayout', () => {
   })
 
   it('removes unmatched empty rows and keeps unmatched planted ones', () => {
-    const block = createBlock({ code: 'B', name: 'b' })
+    const block = createBlock({ status: 'planned', code: 'B', name: 'b' })
     const rect = [at(0, 0), at(0, 200), at(100, 200), at(100, 0)]
     fillBlock(block, fillOutline(rect, base), base)
     const rows = live

@@ -4,7 +4,7 @@ import { live } from '@/events/reduce'
 import { currentTreeByPos, positions } from '@/state/derived'
 import { blockAreaSqFt } from '@/engine/layout'
 import { sqFtToAcres } from '@/engine/geo'
-import { Card, PageHeader } from '@/ui/components'
+import { Card, PageHeader, Pill } from '@/ui/components'
 import { useIsDesktop } from '@/ui/useIsDesktop'
 
 export default function BlocksPage() {
@@ -50,9 +50,16 @@ export default function BlocksPage() {
                   )}
                 </div>
                 <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
-                  {rows.length} {rows.length === 1 ? 'row' : 'rows'} · {planted} of {here.length}{' '}
-                  positions planted
+                  {rows.length} {rows.length === 1 ? 'row' : 'rows'} ·{' '}
+                  {b.status === 'planned'
+                    ? `${here.length} positions planned`
+                    : `${planted} ${planted === 1 ? 'tree' : 'trees'}${here.length > planted ? ` (${here.length - planted} empty)` : ''}`}
                   {acres > 0 && ` · ${acres.toFixed(2)} ac`}
+                  {b.status === 'planned' && (
+                    <Pill tone="info" className="ml-2">
+                      planned
+                    </Pill>
+                  )}
                 </p>
                 <div className="mt-3 flex flex-wrap gap-3 text-sm">
                   <Link to={`/blocks/${b.id}/grid`} className="underline decoration-dotted">

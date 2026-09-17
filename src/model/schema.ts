@@ -67,10 +67,13 @@ export const fillParams = z.object({
   pattern: z.enum(['square', 'diamond']),
 })
 
+const blockStatus = z.enum(['planted', 'planned'])
+
 const blockFields = {
   code: z.string().regex(CODE_RE),
   name: short.min(1),
   numbering,
+  status: blockStatus.optional(),
   species: short.optional(),
   rowSpacingFt: feet.optional(),
   inRowSpacingFt: feet.optional(),
@@ -86,6 +89,7 @@ export const blockPatch = z.object({
   code: blockFields.code.optional(),
   name: blockFields.name.optional(),
   numbering: numbering.optional(),
+  status: blockStatus.optional(),
   species: short.nullable().optional(),
   rowSpacingFt: feet.nullable().optional(),
   inRowSpacingFt: feet.nullable().optional(),

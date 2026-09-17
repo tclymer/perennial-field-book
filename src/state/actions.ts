@@ -4,6 +4,7 @@
  * page can say why, never as exceptions.
  */
 import type {
+  BlockStatus,
   FeatureGeometry,
   FillParams,
   FeatureKind,
@@ -44,6 +45,7 @@ export interface BlockInput {
   code: string
   name: string
   numbering?: Numbering
+  status?: BlockStatus
   species?: string
   rowSpacingFt?: number
   inRowSpacingFt?: number
@@ -121,7 +123,46 @@ export function createRow(blockId: string, polyline: Polyline, layout?: RowLayou
       },
     },
   ])
+  ensureTrees(blockId)
   return id
+}
+
+export function isPlanted(blockId: string): boolean {
+  return (state().blocks[blockId]?.status ?? 'planted') === 'planted'
+}
+
+/**
+ * In a planted block every position is a tree. Create a record for any position without
+ * one, taking the row's default variety when it has one. No-op for planned blocks.
+ */
+export function ensureTrees(blockId: string, plantedYear?: number): number {
+  if (!isPlanted(blockId)) return 0
+  const s = state()
+  const have = currentTreeByPos(s)
+  const events: NewEvent[] = []
+  const date = plantedYear ? `${plantedYear}-01-01` : undefined
+  for (const p of positions(s)) {
+    if (p.blockId !== blockId || have.has(p.posKey)) continue
+    const varietyId = p.rowId ? s.rows[p.rowId]?.defaultVarietyId : undefined
+    events.push({
+      type: 'tree.create',
+      payload: {
+        id: newId('tree'),
+        posKey: p.posKey,
+        status: 'alive',
+        ...(varietyId ? { varietyId } : {}),
+        ...(date ? { plantedDate: date } : {}),
+      },
+    })
+  }
+  if (events.length) commit(events)
+  return events.length
+}
+
+/** Planted or planned. Turning a block planted records every position as a tree. */
+export function setBlockStatus(blockId: string, status: BlockStatus, plantedYear?: number): number {
+  commit([{ type: 'block.patch', payload: { id: blockId, status } }])
+  return status === 'planted' ? ensureTrees(blockId, plantedYear) : 0
 }
 
 /** Refuses a layout that would drop a position holding a tree. */
@@ -136,6 +177,7 @@ export function setRowLayout(id: string, layout: RowLayout): Result {
     )
   }
   commit([{ type: 'row.patch', payload: { id, layout } }])
+  ensureTrees(row.blockId)
   return ok
 }
 
@@ -152,6 +194,7 @@ export function updateRowPolyline(id: string, polyline: Polyline): Result {
     }
   }
   commit([{ type: 'row.patch', payload: { id, polyline } }])
+  ensureTrees(row.blockId)
   return ok
 }
 
@@ -184,7 +227,16 @@ export function setRowNumber(id: string, number: number): void {
 }
 
 export function setRowDefaultVariety(id: string, varietyId: string | null): void {
-  commit([{ type: 'row.patch', payload: { id, defaultVarietyId: varietyId } }])
+  const events: NewEvent[] = [{ type: 'row.patch', payload: { id, defaultVarietyId: varietyId } }]
+  if (varietyId) {
+    // Trees in the row that have no variety of their own take the row's.
+    for (const t of currentTreeByPos(state()).values()) {
+      if (t.posKey.startsWith(`${id}:`) && !t.varietyId) {
+        events.push({ type: 'tree.patch', payload: { id: t.id, varietyId } })
+      }
+    }
+  }
+  commit(events)
 }
 
 export function setRowNotes(id: string, notes: string | null): void {
@@ -220,6 +272,7 @@ export function createLoosePosition(blockId: string, coord: LngLat): string {
     .map((p) => p.number)
   const number = nums.length ? Math.max(...nums) + 1 : 1
   commit([{ type: 'position.create', payload: { id, blockId, number, coord } }])
+  ensureTrees(blockId)
   return id
 }
 
@@ -514,6 +567,7 @@ export function fillBlock(
   }
   commit(events)
   autoNumberRows(blockId)
+  ensureTrees(blockId)
   return rows.length
 }
 
@@ -585,6 +639,7 @@ export function applyRelayout(
   }
   commit(events)
   autoNumberRows(blockId)
+  ensureTrees(blockId)
 }
 
 /** Slide and turn a whole block: rows, loose trees, nudges, and the outline together. */
@@ -658,4 +713,12 @@ export function recordBlockPlanted(blockId: string, plantedYear?: number): NewEv
   }
   if (events.length) commit(events)
   return inverse
+}
+
+/** Every planted block gets records for positions that lack one; run once a farm opens. */
+export function reconcilePlantedBlocks(): number {
+  let n = 0
+  for (const b of live.blocks(state()))
+    if ((b.status ?? 'planted') === 'planted') n += ensureTrees(b.id)
+  return n
 }
