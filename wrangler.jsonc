@@ -1,0 +1,12 @@
+// Cloudflare Workers deployment: the built site in dist/ is served as static assets.
+// There is no Worker script; requests never invoke code, and public/_headers still applies.
+{
+  "$schema": "https://unpkg.com/wrangler/config-schema.json",
+  "name": "perennial-field-book",
+  "compatibility_date": "2025-09-01",
+  "assets": {
+    "directory": "./dist",
+    // Every route is client-side (hash router), so unknown paths just get the 404 status.
+    "not_found_handling": "none",
+  },
+}

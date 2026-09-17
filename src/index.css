@@ -1,0 +1,34 @@
+@import 'tailwindcss';
+
+/* Dark mode follows a `dark` class on <html>, set from the theme toggle or the device setting. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --focus: #4d7c0f;
+}
+
+.dark {
+  color-scheme: dark;
+  --focus: #a3e635;
+}
+
+body {
+  background: var(--color-stone-50);
+  overscroll-behavior-y: none;
+}
+.dark body {
+  background: var(--color-stone-950);
+}
+
+/* Keyboard focus is always visible; mouse clicks do not show the ring. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+@media print {
+  body,
+  .dark body {
+    background: white;
+  }
+}

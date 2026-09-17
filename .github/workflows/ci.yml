@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+
+  # Publishes main to the Cloudflare Pages project once the tests pass. Skipped until the
+  # repository has the CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID secrets.
+  deploy:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    env:
+      HAS_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
+    steps:
+      - uses: actions/checkout@v4
+        if: env.HAS_TOKEN == 'true'
+      - uses: actions/setup-node@v4
+        if: env.HAS_TOKEN == 'true'
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+        if: env.HAS_TOKEN == 'true'
+      - run: npm run build
+        if: env.HAS_TOKEN == 'true'
+        env:
+          VITE_GOOGLE_MAPS_KEY: ${{ secrets.VITE_GOOGLE_MAPS_KEY }}
+      - name: Deploy to Cloudflare Pages
+        if: env.HAS_TOKEN == 'true'
+        # Run from dist so the Workers config at the repository root is not read.
+        working-directory: dist
+        run: npx --yes wrangler@4 pages deploy . --project-name=perennial-field-book --branch=main --commit-dirty=true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - if: env.HAS_TOKEN != 'true'
+        run: echo "No Cloudflare secrets set; skipping the Pages deploy."
