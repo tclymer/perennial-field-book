@@ -29,6 +29,8 @@ export interface FillDraft {
   adjust: boolean
   /** The outline as drawn so far, before it is committed to the block. */
   previewOutline: LngLat[] | null
+  /** The first corner and the heading of the first edge, locked once the second corner is placed. */
+  anchor?: { corner: LngLat; headingDeg: number } | null
 }
 
 /** A rigid move of a whole block while its sliders are open. */

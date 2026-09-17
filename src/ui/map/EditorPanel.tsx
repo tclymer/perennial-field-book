@@ -541,6 +541,7 @@ function LayoutChoice({ blockId }: { blockId: string }) {
         drawing: true,
         adjust: false,
         previewOutline: null,
+        anchor: null,
       },
       true,
     )
@@ -689,6 +690,25 @@ function FillForm({ blockId }: { blockId: string }) {
           rows until the orange trees sit on the real ones.
         </p>
       )}
+      <p className="sticky top-0 z-10 -mx-2.5 border-b border-lime-200 dark:border-lime-900 bg-white/95 dark:bg-stone-900/95 px-2.5 py-1.5 text-base">
+        {outline && outline.length >= 3 ? (
+          <>
+            <strong className="tabular-nums">{summary.rows}</strong> rows ·{' '}
+            <strong className="tabular-nums">{summary.trees}</strong> trees
+            {plan && (
+              <span className="ml-2 text-xs text-stone-500 dark:text-stone-400">
+                {plan.moves + plan.orphans === 0
+                  ? 'no tree moves'
+                  : `${plan.moves} move, ${plan.orphans} lose a spot`}
+              </span>
+            )}
+          </>
+        ) : (
+          <span className="text-sm text-stone-500 dark:text-stone-400">
+            Click the corners on the map; the preview appears from the third corner.
+          </span>
+        )}
+      </p>
       <div className="grid grid-cols-2 gap-2">
         {slider('Tree spacing', fill.treeSpacingFt, 1, 40, 0.5, 'ft', (v) =>
           update({ treeSpacingFt: v }),
@@ -789,17 +809,6 @@ function FillForm({ blockId }: { blockId: string }) {
           </select>
         </Field>
       </div>
-      <p className="text-sm">
-        {outline && outline.length >= 3 ? (
-          <>
-            <strong>{summary.rows}</strong> rows, <strong>{summary.trees}</strong> trees
-          </>
-        ) : (
-          <span className="text-stone-500 dark:text-stone-400">
-            Click the corners on the map; the preview appears from the third corner.
-          </span>
-        )}
-      </p>
       <div className="flex gap-2">
         {fill.drawing ? (
           <Button variant="ghost" onClick={() => setTool('none')}>
@@ -921,7 +930,7 @@ function Compass({
         <span />
         {arrow('Up, along the rows', '▲', 1, 0)}
         <span />
-        {arrow('Left, across the rows', '◀', 0, -1)}
+        {arrow('Left, across the rows', '◄', 0, -1)}
         <button
           type="button"
           title="Back to where it started"
@@ -930,7 +939,7 @@ function Compass({
         >
           ·
         </button>
-        {arrow('Right, across the rows', '▶', 0, 1)}
+        {arrow('Right, across the rows', '►', 0, 1)}
         <span />
         {arrow('Down, against the rows', '▼', -1, 0)}
         <span />

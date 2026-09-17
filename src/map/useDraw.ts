@@ -30,6 +30,30 @@ const SHAPE_OF: Record<Tool, DrawShape | null> = {
 
 const OUTLINE_PREFIX = 'outline:'
 
+function angleDiff(a: number, b: number): number {
+  const d = Math.abs(((a - b) % 360) + 360) % 360
+  return Math.min(d, 360 - d)
+}
+
+/** Start the ring at the corner nearest `anchor.corner`, running so its first edge matches the heading. */
+function normalizeRing(ring: LngLat[], anchor: { corner: LngLat; headingDeg: number }): LngLat[] {
+  if (ring.length < 3) return ring
+  let best = 0
+  let bestD = Infinity
+  ring.forEach((p, i) => {
+    const d = Math.hypot(p[0] - anchor.corner[0], p[1] - anchor.corner[1])
+    if (d < bestD) {
+      bestD = d
+      best = i
+    }
+  })
+  const rotated = [...ring.slice(best), ...ring.slice(0, best)]
+  const reversed = [rotated[0], ...rotated.slice(1).reverse()]
+  const dForward = angleDiff(firstEdgeHeading(rotated), anchor.headingDeg)
+  const dReverse = angleDiff(firstEdgeHeading(reversed), anchor.headingDeg)
+  return dReverse < dForward ? reversed : rotated
+}
+
 /** Which shapes the map should hide because the editor is showing them instead. */
 export function useHiddenShapes(state: FarmState): HiddenShapes {
   const editMode = useEditor((s) => s.editMode)
@@ -73,17 +97,9 @@ export function useDraw(map: MlMap | null, state: FarmState, enabled: boolean): 
         if (tool === 'outline' && blockId && g.shape === 'polygon') {
           if (g.coordinates.length < 3) return
           const fill = editor.fill
-          // Closing on the first corner can hand back the ring in the opposite direction.
-          // Restore the order it was drawn in, so the first edge stays the first edge.
-          let ring = g.coordinates
-          const drawn = fill?.previewOutline
-          if (drawn && drawn.length >= 2 && ring.length >= 3) {
-            const near = (a: LngLat, b: LngLat) =>
-              Math.abs(a[0] - b[0]) < 1e-7 && Math.abs(a[1] - b[1]) < 1e-7
-            if (!near(ring[1], drawn[1]) && near(ring[ring.length - 1], drawn[1])) {
-              ring = [ring[0], ...ring.slice(1).reverse()]
-            }
-          }
+          // Terra Draw may hand the finished ring back rotated or reversed. Put the locked
+          // first corner first and run the ring the way the first edge was drawn.
+          const ring = fill?.anchor ? normalizeRing(g.coordinates, fill.anchor) : g.coordinates
           setBlockOutline(blockId, ring)
           if (fill && fill.blockId === blockId && fill.drawing) {
             // The outline is done: keep the form open for tuning, with the outline itself
@@ -96,7 +112,7 @@ export function useDraw(map: MlMap | null, state: FarmState, enabled: boolean): 
                 drawing: false,
                 adjust: false,
                 previewOutline: null,
-                headingDeg: firstEdgeHeading(ring),
+                headingDeg: fill.anchor?.headingDeg ?? firstEdgeHeading(ring),
               },
             })
             return
@@ -134,13 +150,20 @@ export function useDraw(map: MlMap | null, state: FarmState, enabled: boolean): 
         const editor = useEditor.getState()
         const fill = editor.fill
         if (!fill?.drawing) return
-        if (!g || g.shape !== 'polygon' || g.coordinates.length < 3) {
+        if (!g || g.shape !== 'polygon' || g.coordinates.length < 2) {
           if (fill.previewOutline) editor.updateFill({ previewOutline: null })
           return
         }
-        editor.updateFill({
-          previewOutline: g.coordinates,
+        // The first two corners fix the row direction for good; Terra Draw may later hand
+        // the ring back rotated or reversed, and that must not change the heading.
+        const anchor = fill.anchor ?? {
+          corner: g.coordinates[0],
           headingDeg: firstEdgeHeading(g.coordinates),
+        }
+        editor.updateFill({
+          previewOutline: g.coordinates.length >= 3 ? g.coordinates : fill.previewOutline,
+          headingDeg: anchor.headingDeg,
+          anchor,
         })
       },
       onEditing: (id, g) => {
