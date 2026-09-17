@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import type { Map as MlMap } from 'maplibre-gl'
 import { MapView } from '@/map/MapView'
-import { presetFor } from '@/map/presets'
+import { useBasemap } from '@/map/useBasemap'
 import { useMapLayers } from '@/map/useMapLayers'
 import { useMapPopup } from '@/map/useMapPopup'
 import { useDraw, useHiddenShapes } from '@/map/useDraw'
@@ -11,11 +11,12 @@ import { coordOfPosKey } from '@/state/derived'
 import { useFarmStore } from '@/state/store'
 import { BasemapNotice } from '@/ui/map/BasemapNotice'
 import { EditorPanel } from '@/ui/map/EditorPanel'
+import { GoogleAttribution } from '@/ui/map/GoogleAttribution'
 import { useEditor } from '@/ui/map/editorStore'
 import { useIsDesktop } from '@/ui/useIsDesktop'
 
 export default function MapPage() {
-  const prefs = useDevice()
+  const lastView = useDevice((s) => s.lastView)
   const setPrefs = useDevice((s) => s.set)
   const farm = useFarmStore((s) => s.state.farm)
   const state = useFarmStore((s) => s.state)
@@ -27,12 +28,9 @@ export default function MapPage() {
   const hidden = useHiddenShapes(state)
   // Read once: the map owns its view after that and reports moves back.
   const start = useRef<View>(
-    prefs.lastView ?? (farm ? { center: farm.center, zoom: farm.zoom, bearing: 0 } : initialView()),
+    lastView ?? (farm ? { center: farm.center, zoom: farm.zoom, bearing: 0 } : initialView()),
   )
-  const basemap = useMemo(
-    () => presetFor(prefs, prefs.lastView?.center ?? start.current.center),
-    [prefs],
-  )
+  const basemap = useBasemap(map, start.current.center)
   const saveView = useRef<ReturnType<typeof setTimeout> | null>(null)
   const onMap = useCallback((m: MlMap | null) => setMap(m), [setMap])
 
@@ -49,6 +47,8 @@ export default function MapPage() {
     if (coord) map.easeTo({ center: coord, zoom: Math.max(map.getZoom(), 20), duration: 800 })
   }, [map, focus])
 
+  const showingGoogle = basemap.state.source === 'google' && basemap.spec?.id === 'google'
+
   return (
     <div className="absolute inset-0 flex">
       {isDesktop && <EditorPanel />}
@@ -56,22 +56,33 @@ export default function MapPage() {
         <MapView
           className="absolute inset-0"
           initialView={start.current}
-          basemap={basemap}
+          basemap={basemap.spec}
           onMap={onMap}
+          onSourceError={basemap.onSourceError}
           onViewChange={(view) => {
             if (saveView.current) clearTimeout(saveView.current)
             saveView.current = setTimeout(() => setPrefs({ lastView: view }), 500)
           }}
         >
-          {!basemap && (
+          {basemap.state.notice ? (
             <BasemapNotice>
-              No imagery selected.{' '}
-              <Link to="/settings" className="underline decoration-dotted">
-                Choose a source in Settings
-              </Link>
-              .
+              {basemap.state.notice}{' '}
+              <button className="underline decoration-dotted" onClick={basemap.retry}>
+                Try Google again
+              </button>
             </BasemapNotice>
+          ) : (
+            !basemap.spec && (
+              <BasemapNotice>
+                No imagery selected.{' '}
+                <Link to="/settings" className="underline decoration-dotted">
+                  Choose a source in Settings
+                </Link>
+                .
+              </BasemapNotice>
+            )
           )}
+          {showingGoogle && <GoogleAttribution copyright={basemap.copyright} />}
         </MapView>
       </div>
     </div>

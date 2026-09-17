@@ -68,18 +68,38 @@ function FarmSettings() {
   )
 }
 
+const HAS_GOOGLE_KEY = Boolean(import.meta.env.VITE_GOOGLE_MAPS_KEY)
+
 function ImagerySettings() {
   const basemap = useDevice((s) => s.basemap)
   const custom = useDevice((s) => s.customTiles)
+  const googleEnabled = useDevice((s) => s.googleEnabled)
   const set = useDevice((s) => s.set)
   const auto = autoPreset(initialView().center)
   const value = basemap ?? 'auto'
   return (
     <Card>
       <h2 className="font-semibold">Map imagery</h2>
-      <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
-        Free public imagery for tracing rows and for the field map. This choice is kept on this
-        device.
+      <label className="mt-2 flex items-start gap-2 text-sm">
+        <input
+          type="checkbox"
+          className="mt-1"
+          checked={googleEnabled && HAS_GOOGLE_KEY}
+          disabled={!HAS_GOOGLE_KEY}
+          onChange={(e) => set({ googleEnabled: e.target.checked })}
+        />
+        <span>
+          Google satellite imagery when online
+          <span className="block text-xs text-stone-500 dark:text-stone-400">
+            {HAS_GOOGLE_KEY
+              ? 'The most recent imagery. Held to the free tier by a daily limit; the map falls back to the free source below when the limit is reached, and never stores Google tiles.'
+              : 'This build has no Google key, so the free source below is used.'}
+          </span>
+        </span>
+      </label>
+      <p className="mt-3 text-sm text-stone-600 dark:text-stone-400">
+        Free public imagery, used offline and whenever Google is not showing. This choice is kept on
+        this device.
       </p>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         <Field label="Source">
