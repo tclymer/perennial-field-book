@@ -552,6 +552,12 @@ Steps 1 through 12 and 14 of §9 are built and committed; steps 12's console wor
   while it holds trees, because labels would move.
 - **Undo is per bulk action**: the grid's assign and plan actions return inverse events and
   offer them for eight seconds. Deletes are restored from Settings.
+- **Outline and fill** generates rows parallel to the outline's first edge, from its first
+  corner, with side and end insets and along/across shifts (`engine/fill.ts`). A block keeps
+  its fill settings. **Adjust layout** re-lays a filled block: old rows keep their identity when
+  a new row lands within 60% of a row spacing, so trees keep labels and history; the plan
+  reports stays, moves, and orphans before applying (`engine/relayout.ts`). Orphaned trees
+  stay on record and are listed on the block grid.
 - **The Google logo in `public/google-logo.svg` is a placeholder.** Replace it with the file
   from Google's brand kit when the key is set up; the attribution overlay already shows it
   with the copyright text from the viewport call.

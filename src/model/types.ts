@@ -44,6 +44,9 @@ export interface FillParams {
   rowSpacingFt: number
   treeSpacingFt: number
   insetFt: number
+  insetEndFt?: number
+  shiftAlongFt?: number
+  shiftAcrossFt?: number
   pattern: 'square' | 'diamond'
 }
 

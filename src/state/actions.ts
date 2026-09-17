@@ -538,3 +538,49 @@ export function refillBlock(blockId: string): Result {
   fillBlock(blockId, rows, block.fill)
   return ok
 }
+
+/** Apply a relayout plan: update matched rows, add new ones, drop empty unmatched ones. */
+export function applyRelayout(
+  blockId: string,
+  plan: import('@/engine/relayout').RelayoutPlan,
+  params: FillParams,
+): void {
+  const events: NewEvent[] = [
+    {
+      type: 'block.patch',
+      payload: {
+        id: blockId,
+        rowSpacingFt: params.rowSpacingFt,
+        inRowSpacingFt: params.treeSpacingFt,
+        fill: params,
+      },
+    },
+  ]
+  for (const u of plan.updates) {
+    events.push({
+      type: 'row.patch',
+      payload: { id: u.rowId, polyline: u.polyline, layout: { by: 'count', count: u.count } },
+    })
+    // Nudges belonged to the old geometry.
+    for (const key of Object.keys(state().nudges)) {
+      if (key.startsWith(`${u.rowId}:`))
+        events.push({ type: 'position.nudge', payload: { posKey: key, coord: null } })
+    }
+  }
+  for (const id of plan.deletes) events.push({ type: 'row.delete', payload: { id } })
+  let number = nextRowNumber(blockId)
+  for (const r of plan.creates) {
+    events.push({
+      type: 'row.create',
+      payload: {
+        id: newId('row'),
+        blockId,
+        number: number++,
+        polyline: r.polyline,
+        layout: { by: 'count', count: r.count },
+      },
+    })
+  }
+  commit(events)
+  autoNumberRows(blockId)
+}

@@ -199,6 +199,14 @@ export function createDraw(map: MlMap, handlers: DrawHandlers): DrawController {
       if (features.length) {
         draw.addFeatures(features.map((f) => toStore(f.id, f.geometry)))
         loaded = features.map((f) => f.id)
+        // A single shape is what the user came to edit: show its corners right away.
+        if (features.length === 1) {
+          try {
+            draw.selectFeature(features[0].id)
+          } catch {
+            // Selection is a convenience; the shape is still editable by clicking it.
+          }
+        }
       }
     },
     stopEditing: () => {

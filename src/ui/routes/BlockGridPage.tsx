@@ -17,6 +17,9 @@ import {
   unplanGrafts,
 } from '@/state/actions'
 import { live } from '@/events/reduce'
+import { blockIdOfPosKey } from '@/state/derived'
+import { parsePosKey, treeLabel } from '@/model/ids'
+import { deleteTree } from '@/state/actions'
 import type { NewEvent } from '@/events/types'
 import { EMPTY_COLOR, STATUS_COLOR, type ColorBy } from '@/map/geojson'
 import { describeNumbering } from '@/engine/layout'
@@ -60,6 +63,17 @@ export default function BlockGridPage() {
     return m
   }, [state, id])
   const loose = positions(state).filter((p) => p.blockId === id && !p.rowId)
+  // Trees whose position is no longer generated, after a row was shortened or re-laid out.
+  const known = new Set(positions(state).map((p) => p.posKey))
+  const orphans = live
+    .trees(state)
+    .filter((t) => !known.has(t.posKey) && blockIdOfPosKey(state, t.posKey) === id)
+    .map((t) => {
+      const parsed = parsePosKey(t.posKey)
+      const row = 'rowId' in parsed ? state.rows[parsed.rowId] : undefined
+      const label = row ? treeLabel(block?.code ?? '?', row.number, parsed.index) : t.posKey
+      return { tree: t, row, index: 'rowId' in parsed ? parsed.index : 0, label }
+    })
   const colors = varietyColors(state)
   const trees = currentTreeByPos(state)
   const varieties = varietiesByName(state)
@@ -350,6 +364,34 @@ export default function BlockGridPage() {
         </ul>
       </Card>
 
+      {orphans.length > 0 && (
+        <Card className="border-amber-300 dark:border-amber-700">
+          <h2 className="font-semibold">Trees without a position</h2>
+          <p className="mt-1 text-xs text-stone-600 dark:text-stone-400">
+            These trees are still on record, but their row no longer reaches their position.
+            Lengthen the row (more trees in the row's settings on the map) to bring them back, or
+            remove the tree if it never existed.
+          </p>
+          <ul className="mt-2 divide-y divide-stone-100 dark:divide-stone-800 text-sm">
+            {orphans.map(({ tree, row, index, label }) => (
+              <li key={tree.id} className="flex items-center justify-between gap-2 py-1.5">
+                <span>
+                  <span className="font-medium">{label}</span>{' '}
+                  <span className="text-stone-500 dark:text-stone-400">
+                    {tree.varietyId ? (state.varieties[tree.varietyId]?.name ?? '') : ''}
+                    {row
+                      ? ` · row ${row.number} now has ${positions(state).filter((p) => p.rowId === row.id).length} positions, this was ${index}`
+                      : ''}
+                  </span>
+                </span>
+                <Button variant="ghost" onClick={() => deleteTree(tree.id)}>
+                  Remove tree
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
       {planCounts.size > 0 && (
         <Card>
           <h2 className="font-semibold">Graft plan {planYear}: scionwood to gather</h2>

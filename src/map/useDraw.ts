@@ -83,6 +83,7 @@ export function useDraw(map: MlMap | null, state: FarmState, enabled: boolean): 
               fill: {
                 ...fill,
                 drawing: false,
+                adjust: false,
                 previewOutline: null,
                 headingDeg: firstEdgeHeading(g.coordinates),
               },

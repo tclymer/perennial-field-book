@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import type { CompassSide, FeatureKind, Row } from '@/model/types'
+import type { CompassSide, FeatureKind, FillParams, Row } from '@/model/types'
 import { live } from '@/events/reduce'
 import { useFarmStore } from '@/state/store'
 import { varietiesByName } from '@/state/derived'
@@ -13,6 +13,7 @@ import {
   deleteFeature,
   deleteLoosePosition,
   deleteRow,
+  applyRelayout,
   fillBlock,
   refillBlock,
   reverseRow,
@@ -25,6 +26,7 @@ import {
 import { blockAreaSqFt, describeNumbering, rowLengthFt, rowUpBearing } from '@/engine/layout'
 import { positionCount, sqFtToAcres } from '@/engine/geo'
 import { fillOutline, fillSummary, firstEdgeHeading } from '@/engine/fill'
+import { planRelayout } from '@/engine/relayout'
 import { VarietyPicker } from '@/ui/tree/VarietyPicker'
 import { Button, Field, NumberInput, Pill, inputClass } from '@/ui/components'
 import { TOOL_HINT, useEditor, type Tool } from './editorStore'
@@ -305,13 +307,44 @@ function BlockEditor({ blockId }: { blockId: string }) {
                         rowSpacingFt,
                         treeSpacingFt: block.inRowSpacingFt ?? 12,
                         insetFt: rowSpacingFt / 2,
+                        insetEndFt: rowSpacingFt / 2,
+                        shiftAlongFt: 0,
+                        shiftAcrossFt: 0,
                         pattern: 'square',
                         drawing: false,
+                        adjust: false,
                         previewOutline: null,
                       })
+                      useEditor.setState({ editMode: 'outline' })
                     }}
                   >
                     Fill outline with rows
+                  </Button>
+                )}
+                {block.outline && block.fill && rows.length > 0 && (
+                  <Button
+                    onClick={() => {
+                      const f = block.fill!
+                      useEditor.getState().openFill({
+                        blockId,
+                        headingDeg: f.headingDeg,
+                        rotateDeg: 0,
+                        rowSpacingFt: f.rowSpacingFt,
+                        treeSpacingFt: f.treeSpacingFt,
+                        insetFt: f.insetFt,
+                        insetEndFt: f.insetEndFt ?? f.insetFt,
+                        shiftAlongFt: f.shiftAlongFt ?? 0,
+                        shiftAcrossFt: f.shiftAcrossFt ?? 0,
+                        pattern: f.pattern,
+                        drawing: false,
+                        adjust: true,
+                        previewOutline: null,
+                      })
+                      useEditor.setState({ editMode: 'outline' })
+                    }}
+                    title="Reshape the outline or change spacing; trees keep their labels and records"
+                  >
+                    Adjust layout
                   </Button>
                 )}
                 {toolButton('row', 'Add a row')}
@@ -473,8 +506,12 @@ function LayoutChoice({ blockId }: { blockId: string }) {
         rowSpacingFt,
         treeSpacingFt: block?.inRowSpacingFt ?? 12,
         insetFt: rowSpacingFt / 2,
+        insetEndFt: rowSpacingFt / 2,
+        shiftAlongFt: 0,
+        shiftAcrossFt: 0,
         pattern: 'square',
         drawing: true,
+        adjust: false,
         previewOutline: null,
       },
       true,
@@ -526,11 +563,42 @@ function FillForm({ blockId }: { blockId: string }) {
             rowSpacingFt: fill.rowSpacingFt,
             treeSpacingFt: fill.treeSpacingFt,
             insetFt: fill.insetFt,
+            insetEndFt: fill.insetEndFt,
+            shiftAlongFt: fill.shiftAlongFt,
+            shiftAcrossFt: fill.shiftAcrossFt,
             pattern: fill.pattern,
           })
         : [],
-    [outline, heading, fill.rowSpacingFt, fill.treeSpacingFt, fill.insetFt, fill.pattern],
+    [
+      outline,
+      heading,
+      fill.rowSpacingFt,
+      fill.treeSpacingFt,
+      fill.insetFt,
+      fill.insetEndFt,
+      fill.shiftAlongFt,
+      fill.shiftAcrossFt,
+      fill.pattern,
+    ],
   )
+  const params: FillParams = {
+    headingDeg: heading,
+    rowSpacingFt: fill.rowSpacingFt,
+    treeSpacingFt: fill.treeSpacingFt,
+    insetFt: fill.insetFt,
+    insetEndFt: fill.insetEndFt,
+    shiftAlongFt: fill.shiftAlongFt,
+    shiftAcrossFt: fill.shiftAcrossFt,
+    pattern: fill.pattern,
+  }
+  const plan = useMemo(
+    () =>
+      fill.adjust && !fill.drawing
+        ? planRelayout(state, blockId, preview, fill.rowSpacingFt, fill.treeSpacingFt)
+        : null,
+    [fill.adjust, fill.drawing, state, blockId, preview, fill.rowSpacingFt, fill.treeSpacingFt],
+  )
+  const [confirming, setConfirming] = useState(false)
   const summary = fillSummary(preview)
   // Once the outline is closed, turn the map so the preview rows run upright.
   useEffect(() => {
@@ -578,6 +646,12 @@ function FillForm({ blockId }: { blockId: string }) {
           Set the spacing, then draw the outline on the map. Trees preview inside it as you go; you
           can fine-tune the rotation and inset after the outline is closed.
         </p>
+      ) : fill.adjust ? (
+        <p className="text-xs text-stone-600 dark:text-stone-400">
+          The orange preview is the new layout over the trees you have now. Drag corners, add points
+          on an edge, or slide the pattern; rows keep their identity where the new row lands nearby,
+          so trees keep their labels and records.
+        </p>
       ) : (
         <p className="text-xs text-stone-600 dark:text-stone-400">
           Slide until the orange trees sit on the real ones, and drag the outline's corners (or the
@@ -593,6 +667,7 @@ function FillForm({ blockId }: { blockId: string }) {
           update({
             rowSpacingFt: v,
             insetFt: fill.insetFt === fill.rowSpacingFt / 2 ? v / 2 : fill.insetFt,
+            insetEndFt: fill.insetEndFt === fill.rowSpacingFt / 2 ? v / 2 : fill.insetEndFt,
           }),
         )}
         {!fill.drawing &&
@@ -608,14 +683,47 @@ function FillForm({ blockId }: { blockId: string }) {
           )}
         {!fill.drawing &&
           slider(
-            'Inset from edge',
+            'Inset from sides',
             fill.insetFt,
             0,
             Math.max(fill.rowSpacingFt, 20),
             0.5,
             'ft',
             (v) => update({ insetFt: v }),
-            'Half the row spacing by default',
+            'Outline to the first row; half the row spacing by default',
+          )}
+        {!fill.drawing &&
+          slider(
+            'Inset from ends',
+            fill.insetEndFt,
+            0,
+            Math.max(fill.treeSpacingFt * 2, 20),
+            0.5,
+            'ft',
+            (v) => update({ insetEndFt: v }),
+            'Outline to the first and last trees',
+          )}
+        {!fill.drawing &&
+          slider(
+            'Shift along rows',
+            fill.shiftAlongFt,
+            -fill.treeSpacingFt,
+            fill.treeSpacingFt,
+            0.25,
+            'ft',
+            (v) => update({ shiftAlongFt: v }),
+            'Slides every tree toward the far end (+) or the start (-)',
+          )}
+        {!fill.drawing &&
+          slider(
+            'Shift across rows',
+            fill.shiftAcrossFt,
+            -fill.rowSpacingFt,
+            fill.rowSpacingFt,
+            0.25,
+            'ft',
+            (v) => update({ shiftAcrossFt: v }),
+            'Slides every row to the right of the heading (+) or left (-)',
           )}
         <Field label="Pattern">
           <select
@@ -663,28 +771,76 @@ function FillForm({ blockId }: { blockId: string }) {
           </Button>
         ) : (
           <>
-            <Button
-              variant="primary"
-              disabled={summary.trees === 0}
-              onClick={() => {
-                const n = fillBlock(blockId, preview, {
-                  headingDeg: heading,
-                  rowSpacingFt: fill.rowSpacingFt,
-                  treeSpacingFt: fill.treeSpacingFt,
-                  insetFt: fill.insetFt,
-                  pattern: fill.pattern,
-                })
-                close()
-                say(
-                  `Filled with ${n} rows and ${summary.trees} trees. Rows are numbered ${describeNumbering(block).slice(4).split(';')[0]}.`,
-                )
-              }}
-            >
-              Create {summary.rows} rows
-            </Button>
-            <Button variant="ghost" onClick={close}>
-              Keep only the outline
-            </Button>
+            {plan ? (
+              confirming ? (
+                <span className="flex flex-wrap items-center gap-2 text-xs">
+                  <span>
+                    {plan.stays} trees stay put, {plan.moves} will be drawn at a new spot,{' '}
+                    {plan.orphans} lose their position (kept on record, flagged in the grid).
+                    {plan.creates.length > 0 && ` ${plan.creates.length} new rows.`}
+                    {plan.deletes.length > 0 && ` ${plan.deletes.length} empty rows removed.`}
+                    {plan.kept.length > 0 && ` ${plan.kept.length} planted rows left as they were.`}
+                  </span>
+                  <Button
+                    variant="primary"
+                    onClick={() => {
+                      applyRelayout(blockId, plan, params)
+                      setConfirming(false)
+                      close()
+                      say('Layout adjusted. Every tree kept its label and history.')
+                    }}
+                  >
+                    Apply
+                  </Button>
+                  <Button variant="ghost" onClick={() => setConfirming(false)}>
+                    Back
+                  </Button>
+                </span>
+              ) : (
+                <>
+                  <Button
+                    variant="primary"
+                    disabled={summary.trees === 0}
+                    onClick={() => {
+                      if (plan.moves + plan.orphans + plan.deletes.length === 0) {
+                        applyRelayout(blockId, plan, params)
+                        close()
+                        say('Layout adjusted; no tree moved.')
+                      } else setConfirming(true)
+                    }}
+                  >
+                    Apply changes
+                  </Button>
+                  <Button variant="ghost" onClick={close}>
+                    Cancel
+                  </Button>
+                  <span className="text-xs text-stone-500 dark:text-stone-400">
+                    {plan.moves + plan.orphans === 0
+                      ? 'No tree would move.'
+                      : `${plan.moves} would move, ${plan.orphans} would lose a position.`}
+                  </span>
+                </>
+              )
+            ) : (
+              <>
+                <Button
+                  variant="primary"
+                  disabled={summary.trees === 0}
+                  onClick={() => {
+                    const n = fillBlock(blockId, preview, params)
+                    close()
+                    say(
+                      `Filled with ${n} rows and ${summary.trees} trees. Rows are numbered ${describeNumbering(block).slice(4).split(';')[0]}.`,
+                    )
+                  }}
+                >
+                  Create {summary.rows} rows
+                </Button>
+                <Button variant="ghost" onClick={close}>
+                  Keep only the outline
+                </Button>
+              </>
+            )}
           </>
         )}
       </div>

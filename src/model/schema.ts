@@ -61,6 +61,9 @@ export const fillParams = z.object({
   rowSpacingFt: feet,
   treeSpacingFt: feet,
   insetFt: z.number().min(0).max(5000),
+  insetEndFt: z.number().min(0).max(5000).optional(),
+  shiftAlongFt: z.number().min(-5000).max(5000).optional(),
+  shiftAcrossFt: z.number().min(-5000).max(5000).optional(),
   pattern: z.enum(['square', 'diamond']),
 })
 

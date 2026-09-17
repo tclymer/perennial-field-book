@@ -45,6 +45,9 @@ export function fillPreviewFC(state: FarmState): FeatureCollection {
     rowSpacingFt: fill.rowSpacingFt,
     treeSpacingFt: fill.treeSpacingFt,
     insetFt: fill.insetFt,
+    insetEndFt: fill.insetEndFt,
+    shiftAlongFt: fill.shiftAlongFt,
+    shiftAcrossFt: fill.shiftAcrossFt,
     pattern: fill.pattern,
   })
   // Number the preview the way the fill will, so the labels can be checked first.

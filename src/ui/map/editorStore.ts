@@ -19,9 +19,14 @@ export interface FillDraft {
   rowSpacingFt: number
   treeSpacingFt: number
   insetFt: number
+  insetEndFt: number
+  shiftAlongFt: number
+  shiftAcrossFt: number
   pattern: FillPattern
   /** True while the outline is still being drawn; the preview follows the cursor. */
   drawing: boolean
+  /** True when re-laying out a block that already has rows; applying reconciles them. */
+  adjust: boolean
   /** The outline as drawn so far, before it is committed to the block. */
   previewOutline: LngLat[] | null
 }

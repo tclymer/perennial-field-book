@@ -2,6 +2,7 @@
  * Fill a block outline with parallel rows of trees. Rows run along a heading (by default
  * the outline's first edge), spaced apart by the row spacing, inset from the outline, with
  * trees every in-row spacing. "Diamond" staggers every other row by half a tree spacing.
+ * Shifts slide the whole pattern along or across the rows without changing the margins.
  */
 import type { LngLat, Polyline, Ring } from '@/model/types'
 import { fromLocal, headingDeg, toLocal, type XY } from './geo'
@@ -13,8 +14,14 @@ export interface FillOptions {
   headingDeg: number
   rowSpacingFt: number
   treeSpacingFt: number
-  /** Distance from the outline to the first row and to the first and last trees. */
+  /** Distance from the outline's sides to the first and last rows. */
   insetFt: number
+  /** Distance from the outline's ends to the first and last trees. Defaults to `insetFt`. */
+  insetEndFt?: number
+  /** Slide every tree this far along the rows (positive toward the far end). */
+  shiftAlongFt?: number
+  /** Slide every row this far across (positive to the right of the heading). */
+  shiftAcrossFt?: number
   pattern: FillPattern
 }
 
@@ -59,6 +66,8 @@ function crossings(poly: XY[], v: number): [number, number][] {
   return out
 }
 
+const EPS = 1e-6
+
 export function fillOutline(outline: Ring, o: FillOptions): FilledRow[] {
   if (outline.length < 3 || o.rowSpacingFt <= 0 || o.treeSpacingFt <= 0) return []
   const origin = outline[0]
@@ -67,16 +76,30 @@ export function fillOutline(outline: Ring, o: FillOptions): FilledRow[] {
   const vs = poly.map((p) => p[1])
   const vMin = Math.min(...vs)
   const vMax = Math.max(...vs)
-  const inset = Math.max(0, o.insetFt)
+  const insetSide = Math.max(0, o.insetFt)
+  const insetEnd = Math.max(0, o.insetEndFt ?? o.insetFt)
+  const shiftAlong = o.shiftAlongFt ?? 0
+  const shiftAcross = o.shiftAcrossFt ?? 0
   const rows: FilledRow[] = []
   let index = 0
-  for (let v = vMin + inset; v <= vMax - inset + 1e-6; v += o.rowSpacingFt) {
+  // Rows start at the first side plus the inset, then step; a shift may push the first row
+  // past the inset or pull it back toward the edge, but never outside the outline.
+  const vStart = vMin + insetSide + shiftAcross
+  for (let v = vStart; v <= vMax - insetSide + EPS; v += o.rowSpacingFt) {
+    if (v < vMin - EPS) {
+      index += 1
+      continue
+    }
     for (const [u0, u1] of crossings(poly, v)) {
       const stagger = o.pattern === 'diamond' && index % 2 === 1 ? o.treeSpacingFt / 2 : 0
-      const start = u0 + inset + stagger
-      const end = u1 - inset
-      if (end < start - 1e-6) continue
-      const count = Math.floor((end - start) / o.treeSpacingFt + 1e-6) + 1
+      const lo = Math.max(u0, u0 + insetEnd + shiftAlong)
+      const hi = u1 - insetEnd
+      // First tree on the shifted grid at or after `lo`.
+      const gridStart = u0 + insetEnd + shiftAlong + stagger
+      const k0 = Math.max(0, Math.ceil((lo - gridStart) / o.treeSpacingFt - EPS))
+      const start = gridStart + k0 * o.treeSpacingFt
+      if (hi < start - EPS) continue
+      const count = Math.floor((hi - start) / o.treeSpacingFt + EPS) + 1
       const last = start + (count - 1) * o.treeSpacingFt
       const toLngLat = (u: number): LngLat => fromLocal(origin, fromRow([u, v], theta))
       const polyline: Polyline =
