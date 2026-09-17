@@ -25,6 +25,28 @@ body {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
+/* The page itself takes focus on navigation for screen readers; no ring for that. */
+main:focus-visible {
+  outline: none;
+}
+
+/* Map popups: MapLibre supplies the box; these style what goes inside. */
+.maplibregl-popup-content {
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--color-stone-900);
+}
+.fb-popup a {
+  display: inline-block;
+  margin-top: 4px;
+  color: var(--color-lime-700);
+  text-decoration: underline dotted;
+}
+.fb-status {
+  font-size: 11px;
+  color: var(--color-stone-500);
+}
 
 @media print {
   body,

@@ -1,6 +1,7 @@
 /** Ids, position keys, and tree labels. Labels are derived, never stored. */
 
-export type IdPrefix = 'farm' | 'blk' | 'row' | 'pos' | 'ftr' | 'var' | 'tree' | 'tev' | 'evt'
+export type IdPrefix =
+  'farm' | 'blk' | 'row' | 'pos' | 'ftr' | 'var' | 'tree' | 'tev' | 'evt' | 'pho'
 
 function uuid(): string {
   try {

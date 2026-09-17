@@ -1,0 +1,84 @@
+/** Tap a tree dot or a feature on the map to see what it is and jump to its page. */
+import { useEffect } from 'react'
+import type { Map as MlMap, MapMouseEvent, Popup } from 'maplibre-gl'
+import { useEditor } from '@/ui/map/editorStore'
+
+function esc(s: unknown): string {
+  return String(s ?? '').replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)
+}
+
+export function useMapPopup(map: MlMap | null): void {
+  useEffect(() => {
+    if (!map) return
+    let popup: Popup | null = null
+    let disposed = false
+    const canvas = map.getCanvas()
+
+    const idle = () => {
+      const e = useEditor.getState()
+      return e.tool === 'none' && e.editMode === 'none'
+    }
+
+    const onPosition = async (e: MapMouseEvent & { features?: GeoJSON.Feature[] }) => {
+      if (!idle()) return
+      const f = e.features?.[0]
+      if (!f) return
+      const p = f.properties as Record<string, unknown>
+      const label = String(p.label ?? '')
+      const line2 = p.variety ? esc(p.variety) : p.empty ? 'Empty position' : 'Variety unknown'
+      const line3 = p.status ? `<span class="fb-status">${esc(p.status)}</span>` : ''
+      const { Popup: PopupCtor } = await import('maplibre-gl')
+      if (disposed) return
+      popup?.remove()
+      popup = new PopupCtor({ closeButton: false, offset: 12, maxWidth: '240px' })
+        .setLngLat(e.lngLat)
+        .setHTML(
+          `<div class="fb-popup"><strong>${esc(label)}</strong><div>${line2} ${line3}</div>` +
+            `<a href="#/t/${encodeURIComponent(label)}">Open tree page →</a></div>`,
+        )
+        .addTo(map)
+    }
+
+    const onFeature = async (e: MapMouseEvent & { features?: GeoJSON.Feature[] }) => {
+      if (!idle()) return
+      const f = e.features?.[0]
+      if (!f) return
+      const p = f.properties as Record<string, unknown>
+      const { Popup: PopupCtor } = await import('maplibre-gl')
+      if (disposed) return
+      popup?.remove()
+      popup = new PopupCtor({ closeButton: false, offset: 12, maxWidth: '240px' })
+        .setLngLat(e.lngLat)
+        .setHTML(
+          `<div class="fb-popup"><strong>${esc(p.name)}</strong><div>${esc(p.kind)}</div></div>`,
+        )
+        .addTo(map)
+    }
+
+    const enter = () => {
+      if (idle()) canvas.style.cursor = 'pointer'
+    }
+    const leave = () => {
+      canvas.style.cursor = ''
+    }
+
+    map.on('click', 'position-dot', onPosition)
+    map.on('click', 'feature-point', onFeature)
+    map.on('click', 'feature-fill', onFeature)
+    map.on('mouseenter', 'position-dot', enter)
+    map.on('mouseleave', 'position-dot', leave)
+    map.on('mouseenter', 'feature-point', enter)
+    map.on('mouseleave', 'feature-point', leave)
+    return () => {
+      disposed = true
+      popup?.remove()
+      map.off('click', 'position-dot', onPosition)
+      map.off('click', 'feature-point', onFeature)
+      map.off('click', 'feature-fill', onFeature)
+      map.off('mouseenter', 'position-dot', enter)
+      map.off('mouseleave', 'position-dot', leave)
+      map.off('mouseenter', 'feature-point', enter)
+      map.off('mouseleave', 'feature-point', leave)
+    }
+  }, [map])
+}

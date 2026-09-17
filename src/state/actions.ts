@@ -277,3 +277,121 @@ export function deleteVariety(id: string): void {
 export function setFarmHome(center: LngLat, zoom: number): void {
   commit([{ type: 'farm.patch', payload: { center, zoom } }])
 }
+
+// Trees
+
+/** Today's date in the browser's own time zone, as YYYY-MM-DD. */
+export function today(): string {
+  const d = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
+export interface PlantInput {
+  varietyId?: string
+  /** When it went in, or was grafted. */
+  date?: string
+  /** Whether the tree was planted whole or grafted onto something already there. */
+  how?: 'planted' | 'grafted'
+  rootstock?: string
+  notes?: string
+}
+
+/** Put a tree at a position. Records a planted or grafted history event when dated. */
+export function plantTree(posKey: string, input: PlantInput): string {
+  const id = newId('tree')
+  const how = input.how ?? 'planted'
+  const events: NewEvent[] = [
+    {
+      type: 'tree.create',
+      payload: {
+        id,
+        posKey,
+        status: 'alive',
+        ...(input.varietyId ? { varietyId: input.varietyId } : {}),
+        ...(input.date && how === 'planted' ? { plantedDate: input.date } : {}),
+        ...(input.date && how === 'grafted' ? { graftedDate: input.date } : {}),
+        ...(input.rootstock ? { rootstock: input.rootstock } : {}),
+        ...(input.notes ? { notes: input.notes } : {}),
+      },
+    },
+  ]
+  if (input.date) {
+    events.push({
+      type: 'tree.event',
+      payload: {
+        id: newId('tev'),
+        treeId: id,
+        kind: how,
+        date: input.date,
+        ...(input.varietyId ? { varietyId: input.varietyId } : {}),
+      },
+    })
+  }
+  commit(events)
+  return id
+}
+
+/** The tree now at a position, if any is still standing. */
+export function currentTree(posKey: string) {
+  return live
+    .trees(state())
+    .filter((t) => t.posKey === posKey)
+    .sort((a, b) => b.createdAt - a.createdAt)[0]
+}
+
+/**
+ * A new tree in an occupied position. The old one is marked removed on the same date
+ * unless it is already dead or removed; both stay in the position's history.
+ */
+export function replaceTree(posKey: string, input: PlantInput): string {
+  const old = currentTree(posKey)
+  if (old && old.status !== 'dead' && old.status !== 'removed') {
+    addTreeEvent(old.id, 'removed', { date: input.date ?? today() })
+  }
+  return plantTree(posKey, input)
+}
+
+export interface TreeEventInput {
+  date?: string
+  varietyId?: string
+  status?: import('@/model/types').TreeStatus
+  note?: string
+  photoId?: string
+}
+
+export function addTreeEvent(
+  treeId: string,
+  kind: import('@/model/types').TreeEventKind,
+  input: TreeEventInput = {},
+): string {
+  const id = newId('tev')
+  commit([
+    {
+      type: 'tree.event',
+      payload: {
+        id,
+        treeId,
+        kind,
+        date: input.date ?? today(),
+        ...(input.varietyId ? { varietyId: input.varietyId } : {}),
+        ...(input.status ? { status: input.status } : {}),
+        ...(input.note ? { note: input.note } : {}),
+        ...(input.photoId ? { photoId: input.photoId } : {}),
+      },
+    },
+  ])
+  return id
+}
+
+export function deleteTreeEvent(id: string): void {
+  commit([{ type: 'tree.event.delete', payload: { id } }])
+}
+
+export function updateTree(id: string, patch: Omit<PayloadOf<'tree.patch'>, 'id'>): void {
+  commit([{ type: 'tree.patch', payload: { id, ...patch } }])
+}
+
+export function deleteTree(id: string): void {
+  commit([{ type: 'tree.delete', payload: { id } }])
+}

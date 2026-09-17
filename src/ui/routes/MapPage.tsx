@@ -1,11 +1,13 @@
-import { useCallback, useMemo, useRef } from 'react'
-import { Link } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import type { Map as MlMap } from 'maplibre-gl'
 import { MapView } from '@/map/MapView'
 import { presetFor } from '@/map/presets'
 import { useMapLayers } from '@/map/useMapLayers'
+import { useMapPopup } from '@/map/useMapPopup'
 import { useDraw, useHiddenShapes } from '@/map/useDraw'
 import { initialView, useDevice, type MapView as View } from '@/state/device'
+import { coordOfPosKey } from '@/state/derived'
 import { useFarmStore } from '@/state/store'
 import { BasemapNotice } from '@/ui/map/BasemapNotice'
 import { EditorPanel } from '@/ui/map/EditorPanel'
@@ -36,6 +38,16 @@ export default function MapPage() {
 
   useMapLayers(map, state, colorBy, planYear, hidden)
   useDraw(map, state, isDesktop)
+  useMapPopup(map)
+
+  // "Show on map" from a tree page: fly to the position once the map is up.
+  const [params] = useSearchParams()
+  const focus = params.get('focus')
+  useEffect(() => {
+    if (!map || !focus) return
+    const coord = coordOfPosKey(useFarmStore.getState().state, focus)
+    if (coord) map.easeTo({ center: coord, zoom: Math.max(map.getZoom(), 20), duration: 800 })
+  }, [map, focus])
 
   return (
     <div className="absolute inset-0 flex">
