@@ -627,6 +627,8 @@ function FillForm({ blockId }: { blockId: string }) {
     [fill.adjust, fill.drawing, state, blockId, preview, fill.rowSpacingFt, fill.treeSpacingFt],
   )
   const [confirming, setConfirming] = useState(false)
+  const [step, setStep] = useState(1)
+  const [showMargins, setShowMargins] = useState(false)
   const summary = fillSummary(preview)
   // Once the outline is closed, turn the map so the preview rows run upright.
   useEffect(() => {
@@ -682,9 +684,9 @@ function FillForm({ blockId }: { blockId: string }) {
         </p>
       ) : (
         <p className="text-xs text-stone-600 dark:text-stone-400">
-          Slide until the orange trees sit on the real ones, and drag the outline's corners (or the
-          midpoint of an edge to add one) if the shape is off. Rows run along the first edge you
-          drew, starting from its first corner.
+          The outline decides how many rows and trees fit; drag its corners (or the midpoint of an
+          edge to add one) until the count is right. Nudge the trees with the arrows and turn the
+          rows until the orange trees sit on the real ones.
         </p>
       )}
       <div className="grid grid-cols-2 gap-2">
@@ -709,50 +711,56 @@ function FillForm({ blockId }: { blockId: string }) {
             (v) => update({ rotateDeg: v }),
             `Heading ${Math.round((((heading % 360) + 360) % 360) * 10) / 10}°`,
           )}
-        {!fill.drawing &&
-          slider(
-            'Inset from sides',
-            fill.insetFt,
-            0,
-            Math.max(fill.rowSpacingFt, 20),
-            0.5,
-            'ft',
-            (v) => update({ insetFt: v }),
-            'Outline to the first row; half the row spacing by default',
-          )}
-        {!fill.drawing &&
-          slider(
-            'Inset from ends',
-            fill.insetEndFt,
-            0,
-            Math.max(fill.treeSpacingFt * 2, 20),
-            0.5,
-            'ft',
-            (v) => update({ insetEndFt: v }),
-            'Outline to the first and last trees',
-          )}
-        {!fill.drawing &&
-          slider(
-            'Shift along rows',
-            fill.shiftAlongFt,
-            -fill.treeSpacingFt,
-            fill.treeSpacingFt,
-            0.25,
-            'ft',
-            (v) => update({ shiftAlongFt: v }),
-            'Slides every tree toward the far end (+) or the start (-)',
-          )}
-        {!fill.drawing &&
-          slider(
-            'Shift across rows',
-            fill.shiftAcrossFt,
-            -fill.rowSpacingFt,
-            fill.rowSpacingFt,
-            0.25,
-            'ft',
-            (v) => update({ shiftAcrossFt: v }),
-            'Slides every row to the right of the heading (+) or left (-)',
-          )}
+        {!fill.drawing && (
+          <Field
+            label="Nudge the trees"
+            hint="Slides the pattern inside the outline; the outline decides how many fit"
+            className="col-span-2"
+          >
+            <Compass
+              along={fill.shiftAlongFt}
+              across={fill.shiftAcrossFt}
+              step={step}
+              setStep={setStep}
+              onChange={(shiftAlongFt, shiftAcrossFt) => update({ shiftAlongFt, shiftAcrossFt })}
+            />
+          </Field>
+        )}
+        {!fill.drawing && (
+          <div className="col-span-2">
+            <button
+              type="button"
+              className="text-xs underline decoration-dotted"
+              onClick={() => setShowMargins((v) => !v)}
+            >
+              {showMargins ? 'Hide margins' : 'Margins…'}
+            </button>
+            {showMargins && (
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                {slider(
+                  'From the sides',
+                  fill.insetFt,
+                  0,
+                  Math.max(fill.rowSpacingFt, 20),
+                  0.5,
+                  'ft',
+                  (v) => update({ insetFt: v }),
+                  'Outline to the first row',
+                )}
+                {slider(
+                  'From the ends',
+                  fill.insetEndFt,
+                  0,
+                  Math.max(fill.treeSpacingFt * 2, 20),
+                  0.5,
+                  'ft',
+                  (v) => update({ insetEndFt: v }),
+                  'Outline to the first tree',
+                )}
+              </div>
+            )}
+          </div>
+        )}
         <Field label="Pattern">
           <select
             className={inputClass}
@@ -876,8 +884,86 @@ function FillForm({ blockId }: { blockId: string }) {
   )
 }
 
+const STEPS = [0.5, 1, 5, 20]
+
+/**
+ * Four arrows that nudge something on the map by a chosen number of feet. With the map
+ * turned to the rows, up is along the rows and right is across them.
+ */
+function Compass({
+  along,
+  across,
+  onChange,
+  step,
+  setStep,
+}: {
+  along: number
+  across: number
+  onChange: (along: number, across: number) => void
+  step: number
+  setStep: (s: number) => void
+}) {
+  const round = (v: number) => Math.round(v * 100) / 100
+  const arrow = (label: string, glyph: string, dAlong: number, dAcross: number) => (
+    <button
+      type="button"
+      aria-label={label}
+      title={`${label} ${step} ft`}
+      className="h-8 w-8 rounded border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-900 text-base hover:bg-stone-100 dark:hover:bg-stone-800"
+      onClick={() => onChange(round(along + dAlong * step), round(across + dAcross * step))}
+    >
+      {glyph}
+    </button>
+  )
+  return (
+    <div className="flex items-center gap-3">
+      <div className="grid grid-cols-3 gap-1">
+        <span />
+        {arrow('Up, along the rows', '▲', 1, 0)}
+        <span />
+        {arrow('Left, across the rows', '◀', 0, -1)}
+        <button
+          type="button"
+          title="Back to where it started"
+          className="h-8 w-8 rounded border border-transparent text-xs text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-800"
+          onClick={() => onChange(0, 0)}
+        >
+          ·
+        </button>
+        {arrow('Right, across the rows', '▶', 0, 1)}
+        <span />
+        {arrow('Down, against the rows', '▼', -1, 0)}
+        <span />
+      </div>
+      <div className="text-xs text-stone-600 dark:text-stone-400">
+        <div className="mb-1">
+          Step{' '}
+          <select
+            className={`${inputClass} py-0.5`}
+            value={step}
+            onChange={(e) => setStep(Number(e.target.value))}
+            aria-label="Step in feet"
+          >
+            {STEPS.map((s) => (
+              <option key={s} value={s}>
+                {s} ft
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="tabular-nums">
+          along {along >= 0 ? '+' : ''}
+          {along} ft · across {across >= 0 ? '+' : ''}
+          {across} ft
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /** Slide and turn a whole block with live preview. Records are untouched by construction. */
 function MoveForm({ blockId }: { blockId: string }) {
+  const [step, setStep] = useState(1)
   const move = useEditor((s) => s.move)!
   const update = useEditor((s) => s.updateMove)
   const close = useEditor((s) => s.closeMove)
@@ -925,10 +1011,13 @@ function MoveForm({ blockId }: { blockId: string }) {
         The orange preview is the whole planting after the move. Slide it onto the real trees. Rows,
         trees, and the outline move together; every label and record stays as it is.
       </p>
-      {slider('Along the rows', move.alongFt, -200, 200, 0.5, 'ft', (v) => update({ alongFt: v }))}
-      {slider('Across the rows', move.acrossFt, -200, 200, 0.5, 'ft', (v) =>
-        update({ acrossFt: v }),
-      )}
+      <Compass
+        along={move.alongFt}
+        across={move.acrossFt}
+        step={step}
+        setStep={setStep}
+        onChange={(alongFt, acrossFt) => update({ alongFt, acrossFt })}
+      />
       {slider(
         'Turn',
         move.rotateDeg,

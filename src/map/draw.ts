@@ -33,6 +33,8 @@ export interface DrawHandlers {
   onEdited: (id: string, g: DrawnGeometry) => void
   /** The shape being drawn right now, after every click or cursor move. */
   onProvisional?: (g: DrawnGeometry | null) => void
+  /** A loaded shape while it is being dragged, before the drag ends. */
+  onEditing?: (id: string, g: DrawnGeometry) => void
 }
 
 export interface DrawController {
@@ -164,7 +166,17 @@ export function createDraw(map: MlMap, handlers: DrawHandlers): DrawController {
   })
 
   draw.on('change', (ids, type) => {
-    if (!handlers.onProvisional || editing) return
+    if (editing) {
+      if (!handlers.onEditing || type !== 'update') return
+      for (const id of ids) {
+        if (typeof id !== 'string' || !loaded.includes(id)) continue
+        const f = draw.getSnapshotFeature(id)
+        const g = f ? fromStore(f) : null
+        if (g) handlers.onEditing(id, g)
+      }
+      return
+    }
+    if (!handlers.onProvisional) return
     if (type === 'delete') {
       handlers.onProvisional(null)
       return

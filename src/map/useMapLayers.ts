@@ -39,7 +39,7 @@ export function fillPreviewFC(state: FarmState): FeatureCollection {
   const fill = useEditor.getState().fill
   if (!fill) return EMPTY
   const block = state.blocks[fill.blockId]
-  const outline = fill.drawing ? fill.previewOutline : block?.outline
+  const outline = fill.previewOutline ?? block?.outline
   if (!outline || outline.length < 3) return EMPTY
   const rows = fillOutline(outline, {
     headingDeg: fill.headingDeg + fill.rotateDeg,

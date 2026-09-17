@@ -1,7 +1,7 @@
 /** Connects the editor's tool and edit mode to Terra Draw and turns results into actions. */
 import { useEffect, useMemo, useRef } from 'react'
 import type { Map as MlMap } from 'maplibre-gl'
-import type { FarmState } from '@/model/types'
+import type { FarmState, LngLat } from '@/model/types'
 import { live } from '@/events/reduce'
 import { positions } from '@/state/derived'
 import {
@@ -72,8 +72,19 @@ export function useDraw(map: MlMap | null, state: FarmState, enabled: boolean): 
         }
         if (tool === 'outline' && blockId && g.shape === 'polygon') {
           if (g.coordinates.length < 3) return
-          setBlockOutline(blockId, g.coordinates)
           const fill = editor.fill
+          // Closing on the first corner can hand back the ring in the opposite direction.
+          // Restore the order it was drawn in, so the first edge stays the first edge.
+          let ring = g.coordinates
+          const drawn = fill?.previewOutline
+          if (drawn && drawn.length >= 2 && ring.length >= 3) {
+            const near = (a: LngLat, b: LngLat) =>
+              Math.abs(a[0] - b[0]) < 1e-7 && Math.abs(a[1] - b[1]) < 1e-7
+            if (!near(ring[1], drawn[1]) && near(ring[ring.length - 1], drawn[1])) {
+              ring = [ring[0], ...ring.slice(1).reverse()]
+            }
+          }
+          setBlockOutline(blockId, ring)
           if (fill && fill.blockId === blockId && fill.drawing) {
             // The outline is done: keep the form open for tuning, with the outline itself
             // editable so corners can be dragged while the preview follows.
@@ -85,7 +96,7 @@ export function useDraw(map: MlMap | null, state: FarmState, enabled: boolean): 
                 drawing: false,
                 adjust: false,
                 previewOutline: null,
-                headingDeg: firstEdgeHeading(g.coordinates),
+                headingDeg: firstEdgeHeading(ring),
               },
             })
             return
@@ -132,11 +143,19 @@ export function useDraw(map: MlMap | null, state: FarmState, enabled: boolean): 
           headingDeg: firstEdgeHeading(g.coordinates),
         })
       },
+      onEditing: (id, g) => {
+        // A corner of the outline mid-drag: let the fill preview follow it.
+        const editor = useEditor.getState()
+        if (id.startsWith(OUTLINE_PREFIX) && g.shape === 'polygon' && editor.fill) {
+          editor.updateFill({ previewOutline: g.coordinates })
+        }
+      },
       onEdited: (id, g) => {
         const editor = useEditor.getState()
         const s = latest.current.state
         if (id.startsWith(OUTLINE_PREFIX) && g.shape === 'polygon') {
           setBlockOutline(id.slice(OUTLINE_PREFIX.length), g.coordinates)
+          if (editor.fill) editor.updateFill({ previewOutline: null })
         } else if (s.rows[id] && g.shape === 'line') {
           const r = updateRowPolyline(id, g.coordinates)
           if (!r.ok) editor.say(r.reason)
