@@ -45,7 +45,7 @@ export default defineConfig({
       },
       workbox: {
         // Cache the app shell and its chunks so it opens without a connection.
-        globPatterns: ['**/*.{js,css,html,svg,png,json,pbf}'],
+        globPatterns: ['**/*.{js,mjs,css,html,svg,png,json,pbf}'],
         navigateFallback: 'index.html',
         // Public imagery may be kept for the field map without signal. Google tiles never
         // match this pattern (DESIGN.md §8.1).
@@ -63,6 +63,8 @@ export default defineConfig({
       },
     }),
   ],
+  // MapLibre loads its worker as a module worker; build it as one.
+  worker: { format: 'es' },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

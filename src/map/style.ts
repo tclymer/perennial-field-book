@@ -26,7 +26,7 @@ export type OverlaySource = (typeof OVERLAY_SOURCES)[number]
 /** The first overlay layer; the basemap layer is inserted beneath it. */
 export const FIRST_OVERLAY_LAYER = 'block-fill'
 
-const EMPTY = { type: 'FeatureCollection', features: [] } as const
+const EMPTY: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
 
 export function glyphsUrl(): string {
   const origin = typeof location !== 'undefined' ? location.origin : 'http://localhost'

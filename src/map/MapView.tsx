@@ -71,8 +71,15 @@ export function MapView({
     let map: MlMap | null = null
     void (async () => {
       // Loaded on demand so pages and tests without WebGL never import the library.
-      const maplibregl = await import('maplibre-gl')
+      const [maplibregl, { default: workerUrl }] = await Promise.all([
+        import('maplibre-gl'),
+        // MapLibre 6 runs GeoJSON and label work in a module worker it expects to find next
+        // to its own script. Bundling moves the script, so Vite bundles the worker (and the
+        // shared module it imports) and hands MapLibre the resulting URL.
+        import('maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'),
+      ])
       if (disposed || !container.current) return
+      if (maplibregl.getWorkerUrl() !== workerUrl) maplibregl.setWorkerUrl(workerUrl)
       const { basemap: spec, initialView: view } = latest.current
       map = new maplibregl.Map({
         container: container.current,
