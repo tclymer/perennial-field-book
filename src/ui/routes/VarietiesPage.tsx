@@ -1,6 +1,11 @@
 import { useState } from 'react'
 import { useFarmStore } from '@/state/store'
-import { treeCountByVariety, varietiesByName, varietyColors } from '@/state/derived'
+import {
+  positionCountByVariety,
+  treeCountByVariety,
+  varietiesByName,
+  varietyColors,
+} from '@/state/derived'
 import { createVariety, deleteVariety, updateVariety } from '@/state/actions'
 import { Button, Card, Field, PageHeader, Pill, inputClass } from '@/ui/components'
 import type { Variety } from '@/model/types'
@@ -8,7 +13,8 @@ import type { Variety } from '@/model/types'
 export default function VarietiesPage() {
   const state = useFarmStore((s) => s.state)
   const varieties = varietiesByName(state)
-  const counts = treeCountByVariety(state)
+  const counts = positionCountByVariety(state)
+  const recorded = treeCountByVariety(state)
   const colors = varietyColors(state)
   const [adding, setAdding] = useState(false)
   return (
@@ -29,7 +35,12 @@ export default function VarietiesPage() {
       <ul className="space-y-2">
         {varieties.map((v) => (
           <li key={v.id}>
-            <VarietyCard variety={v} count={counts.get(v.id) ?? 0} color={colors.get(v.id)} />
+            <VarietyCard
+              variety={v}
+              count={counts.get(v.id) ?? 0}
+              recorded={recorded.get(v.id) ?? 0}
+              color={colors.get(v.id)}
+            />
           </li>
         ))}
       </ul>
@@ -95,10 +106,14 @@ function NewVariety({ onDone }: { onDone: () => void }) {
 function VarietyCard({
   variety,
   count,
+  recorded,
   color,
 }: {
   variety: Variety
+  /** Positions the map shows in this variety, by tree or by row default. */
   count: number
+  /** Trees with their own record naming this variety. */
+  recorded: number
   color?: string
 }) {
   const [open, setOpen] = useState(false)
@@ -115,8 +130,13 @@ function VarietyCard({
           <span className="font-medium">{variety.name}</span>
           <span className="text-sm text-stone-500 dark:text-stone-400">{variety.species}</span>
         </button>
-        <Pill>
+        <Pill
+          title={`${recorded} with a tree record of their own; the rest come from a row default`}
+        >
           {count} {count === 1 ? 'tree' : 'trees'}
+          {recorded !== count && (
+            <span className="ml-1 text-stone-500 dark:text-stone-400">· {recorded} recorded</span>
+          )}
         </Pill>
       </div>
       {open && (

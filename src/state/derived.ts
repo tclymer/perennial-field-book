@@ -87,7 +87,7 @@ export const varietiesByName = memo((s) =>
   live.varieties(s).sort((a, b) => a.name.localeCompare(b.name)),
 )
 
-/** Tree counts per variety, by current trees. */
+/** Recorded trees per variety, by the tree's own variety. */
 export const treeCountByVariety = memo((s) => {
   const m = new Map<string, number>()
   for (const t of currentTreeByPos(s).values()) {
@@ -96,6 +96,32 @@ export const treeCountByVariety = memo((s) => {
   }
   return m
 })
+
+/** Positions per variety as the map shows them: a tree's own variety, else its row's default. */
+export const positionCountByVariety = memo((s) => {
+  const m = new Map<string, number>()
+  for (const p of positions(s)) {
+    const v = varietyAt(s, p)
+    if (v) m.set(v.id, (m.get(v.id) ?? 0) + 1)
+  }
+  return m
+})
+
+/** The species a block is mostly planted to: its own setting, else the commonest among its varieties. */
+export function blockSpecies(s: FarmState, blockId: string): string | undefined {
+  const block = s.blocks[blockId]
+  if (block?.species) return block.species
+  const tally = new Map<string, number>()
+  for (const p of positions(s)) {
+    if (p.blockId !== blockId) continue
+    const v = varietyAt(s, p)
+    if (v?.species) tally.set(v.species, (tally.get(v.species) ?? 0) + 1)
+  }
+  let best: string | undefined
+  let n = 0
+  for (const [sp, c] of tally) if (c > n) [best, n] = [sp, c]
+  return best
+}
 
 export const blocksByCode = memo((s) => {
   const m = new Map<string, string>()

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import type { CompassSide, FeatureKind, FillParams, Row } from '@/model/types'
 import { live } from '@/events/reduce'
 import { useFarmStore } from '@/state/store'
-import { varietiesByName } from '@/state/derived'
+import { blockSpecies, varietiesByName } from '@/state/derived'
 import {
   autoNumberRows,
   clearEmptyRows,
@@ -1309,8 +1309,9 @@ function RowEditor({ row, code }: { row: Row; code: string }) {
               {newVariety ? (
                 <VarietyPicker
                   value={null}
-                  species={state.blocks[row.blockId]?.species}
-                  autoFocus
+                  species={blockSpecies(state, row.blockId)}
+                  startAdding
+                  onCancel={() => setNewVariety(false)}
                   onChange={(id) => {
                     if (id) setRowDefaultVariety(row.id, id)
                     setNewVariety(false)
