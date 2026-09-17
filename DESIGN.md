@@ -571,6 +571,9 @@ Steps 1 through 12 and 14 of §9 are built and committed; steps 12's console wor
   service worker for offline use. If not, PEMA is the offline source in Pennsylvania and
   farms elsewhere get drawn features over a plain background when offline.
 - **Donation platform.** GitHub Sponsors, Ko-fi, or similar, for the About page. Later.
+- **Google only when zoomed in.** Use Google tiles from about zoom 16 up and the free preset
+  when zoomed out, where a pan pulls the most tiles and sharpness matters least. Noted
+  2026-09-17; not needed yet.
 - **Tag URL format** for a public tool: tree id only (resolved in the open farm) versus a farm
   id in the URL. Tree id only is simpler and is the current plan.
 - **Name** for the tool.

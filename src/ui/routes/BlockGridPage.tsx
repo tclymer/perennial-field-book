@@ -13,6 +13,7 @@ import {
   assignVariety,
   commitEvents,
   planGrafts,
+  recordBlockPlanted,
   setRowDefaultVariety,
   unplanGrafts,
 } from '@/state/actions'
@@ -37,6 +38,7 @@ export default function BlockGridPage() {
   const [anchor, setAnchor] = useState<string | null>(null)
   const [undo, setUndo] = useState<{ events: NewEvent[]; label: string } | null>(null)
   const [varietyId, setVarietyId] = useState<string | null>(null)
+  const [plantedYear, setPlantedYear] = useState(0)
 
   useEffect(() => {
     if (!undo) return
@@ -78,6 +80,10 @@ export default function BlockGridPage() {
   const colors = varietyColors(state)
   const trees = currentTreeByPos(state)
   const varieties = varietiesByName(state)
+  const unrecorded = positions(state).filter(
+    (p) =>
+      p.blockId === id && p.rowId && !trees.has(p.posKey) && state.rows[p.rowId]?.defaultVarietyId,
+  ).length
 
   if (!block || block.deleted) {
     return (
@@ -336,6 +342,37 @@ export default function BlockGridPage() {
           </p>
         )}
       </Card>
+
+      {unrecorded > 0 && (
+        <Card>
+          <h2 className="font-semibold">Declare the planting real</h2>
+          <p className="mt-1 text-xs text-stone-600 dark:text-stone-400">
+            {unrecorded} positions carry a row default but no tree record yet. Recording them gives
+            each a tree of its row's variety, so deaths, grafts, and notes can be logged.
+          </p>
+          <div className="mt-2 flex flex-wrap items-end gap-2">
+            <Field label="Planted in (optional)">
+              <NumberInput
+                value={plantedYear}
+                min={1900}
+                max={2100}
+                step={1}
+                onChange={setPlantedYear}
+              />
+            </Field>
+            <Button
+              variant="primary"
+              onClick={() =>
+                act('recorded as planted', () =>
+                  recordBlockPlanted(id, plantedYear > 0 ? plantedYear : undefined),
+                )
+              }
+            >
+              Record all {unrecorded} as planted
+            </Button>
+          </div>
+        </Card>
+      )}
 
       <Card>
         <h2 className="font-semibold">Row defaults</h2>

@@ -21,6 +21,7 @@ import type { NewEvent } from '@/events/types'
 import { polylineLengthFt, positionCount } from '@/engine/geo'
 import { autoNumberRows as orderRows, occupiedMaxIndex } from '@/engine/layout'
 import { fillOutline } from '@/engine/fill'
+import { currentTreeByPos, positions } from './derived'
 import { isIdentity, movePoint, movePoints, type RigidMove } from '@/engine/transform'
 import { useFarmStore } from './store'
 
@@ -626,4 +627,35 @@ export function moveBlock(blockId: string, move: RigidMove): number {
   }
   if (events.length) commit(events)
   return events.length
+}
+
+/**
+ * Every unrecorded position in a block that has a row default becomes a tree of that
+ * variety: the layout is declared real. Returns the inverse events for undo.
+ */
+export function recordBlockPlanted(blockId: string, plantedYear?: number): NewEvent[] {
+  const s = state()
+  const events: NewEvent[] = []
+  const inverse: NewEvent[] = []
+  const date = plantedYear ? `${plantedYear}-01-01` : undefined
+  for (const p of positions(s)) {
+    if (p.blockId !== blockId || !p.rowId) continue
+    if (currentTreeByPos(s).has(p.posKey)) continue
+    const varietyId = s.rows[p.rowId]?.defaultVarietyId
+    if (!varietyId) continue
+    const id = newId('tree')
+    events.push({
+      type: 'tree.create',
+      payload: {
+        id,
+        posKey: p.posKey,
+        varietyId,
+        status: 'alive',
+        ...(date ? { plantedDate: date } : {}),
+      },
+    })
+    inverse.push({ type: 'tree.delete', payload: { id } })
+  }
+  if (events.length) commit(events)
+  return inverse
 }
