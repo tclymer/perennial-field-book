@@ -15,6 +15,7 @@ export function seedEvents(farmId = 'farm_1'): AnyEvent[] {
         id: 'blk_pp1',
         code: 'PP1',
         name: 'Pawpaws Block 1',
+        status: 'planned',
         numbering: { rowsFrom: 'W', positionsFrom: 'the road end' },
         species: 'pawpaw',
         rowSpacingFt: 16,
