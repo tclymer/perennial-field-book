@@ -40,6 +40,8 @@ export interface DrawHandlers {
 export interface DrawController {
   /** Start drawing a shape, or stop drawing with null. */
   setShape: (shape: DrawShape | null) => void
+  /** Make sure the drawing mode is still the one asked for; returns true if it had to be restored. */
+  ensureShape: (shape: DrawShape) => boolean
   /** Load shapes for vertex and drag editing; replaces any previous set. */
   edit: (features: EditableFeature[]) => void
   stopEditing: () => void
@@ -203,6 +205,13 @@ export function createDraw(map: MlMap, handlers: DrawHandlers): DrawController {
         clearLoaded()
       }
       draw.setMode(shape ? MODE[shape] : 'static')
+    },
+    ensureShape: (shape) => {
+      if (editing || draw.getMode() === MODE[shape]) return false
+      if (import.meta.env.DEV)
+        console.warn(`Draw mode was ${draw.getMode()}; restoring ${MODE[shape]}`)
+      draw.setMode(MODE[shape])
+      return true
     },
     edit: (features) => {
       clearLoaded()

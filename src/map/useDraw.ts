@@ -210,6 +210,16 @@ export function useDraw(map: MlMap | null, state: FarmState, enabled: boolean): 
     c.setShape(SHAPE_OF[tool])
   }, [tool, editMode])
 
+  // While the fill form is open with the outline tool, its inputs re-render the panel and the
+  // map; make sure the drawing mode survives that, whatever knocks it off.
+  const fill = useEditor((s) => s.fill)
+  useEffect(() => {
+    const c = controller.current
+    if (!c || editMode !== 'none' || tool === 'none') return
+    const shape = SHAPE_OF[tool]
+    if (shape) c.ensureShape(shape)
+  }, [fill, tool, editMode])
+
   // Esc leaves whatever tool or edit session is active.
   useEffect(() => {
     if (!enabled) return
