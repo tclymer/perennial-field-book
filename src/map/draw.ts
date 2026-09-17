@@ -31,6 +31,8 @@ export interface EditableFeature {
 export interface DrawHandlers {
   onDrawn: (g: DrawnGeometry) => void
   onEdited: (id: string, g: DrawnGeometry) => void
+  /** The shape being drawn right now, after every click or cursor move. */
+  onProvisional?: (g: DrawnGeometry | null) => void
 }
 
 export interface DrawController {
@@ -159,6 +161,21 @@ export function createDraw(map: MlMap, handlers: DrawHandlers): DrawController {
       return
     }
     if (editing && typeof id === 'string' && loaded.includes(id)) handlers.onEdited(id, g)
+  })
+
+  draw.on('change', (ids, type) => {
+    if (!handlers.onProvisional || editing) return
+    if (type === 'delete') {
+      handlers.onProvisional(null)
+      return
+    }
+    for (const id of ids) {
+      const f = draw.getSnapshotFeature(id)
+      if (!f || f.properties.mode !== draw.getMode()) continue
+      const g = fromStore(f)
+      if (g) handlers.onProvisional(g)
+      return
+    }
   })
 
   const clearLoaded = () => {

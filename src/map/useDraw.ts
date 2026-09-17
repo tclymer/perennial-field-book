@@ -72,24 +72,21 @@ export function useDraw(map: MlMap | null, state: FarmState, enabled: boolean): 
         if (tool === 'outline' && blockId && g.shape === 'polygon') {
           if (g.coordinates.length < 3) return
           setBlockOutline(blockId, g.coordinates)
-          const s = latest.current.state
-          const block = s.blocks[blockId]
-          const hasRows = live.rows(s).some((r) => r.blockId === blockId)
-          if (hasRows) {
-            editor.setTool('none')
+          const fill = editor.fill
+          if (fill && fill.blockId === blockId && fill.drawing) {
+            // The outline is done: keep the form open for tuning, rows now upright.
+            useEditor.setState({
+              tool: 'none',
+              fill: {
+                ...fill,
+                drawing: false,
+                previewOutline: null,
+                headingDeg: firstEdgeHeading(g.coordinates),
+              },
+            })
             return
           }
-          // A fresh outline opens the fill form; the first edge sets the row heading.
-          const rowSpacingFt = block?.rowSpacingFt ?? 16
-          editor.openFill({
-            blockId,
-            headingDeg: firstEdgeHeading(g.coordinates),
-            rotateDeg: 0,
-            rowSpacingFt,
-            treeSpacingFt: block?.inRowSpacingFt ?? 12,
-            insetFt: rowSpacingFt / 2,
-            pattern: 'square',
-          })
+          editor.setTool('none')
           return
         }
         if (tool === 'loose' && blockId && g.shape === 'point') {
@@ -117,6 +114,19 @@ export function useDraw(map: MlMap | null, state: FarmState, enabled: boolean): 
           editor.setFeatureDraft({ name: '' })
           editor.setTool('none')
         }
+      },
+      onProvisional: (g) => {
+        const editor = useEditor.getState()
+        const fill = editor.fill
+        if (!fill?.drawing) return
+        if (!g || g.shape !== 'polygon' || g.coordinates.length < 3) {
+          if (fill.previewOutline) editor.updateFill({ previewOutline: null })
+          return
+        }
+        editor.updateFill({
+          previewOutline: g.coordinates,
+          headingDeg: firstEdgeHeading(g.coordinates),
+        })
       },
       onEdited: (id, g) => {
         const editor = useEditor.getState()

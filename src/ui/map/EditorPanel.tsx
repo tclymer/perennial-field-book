@@ -23,7 +23,8 @@ import {
 } from '@/state/actions'
 import { blockAreaSqFt, describeNumbering, rowLengthFt, rowUpBearing } from '@/engine/layout'
 import { positionCount, sqFtToAcres } from '@/engine/geo'
-import { fillOutline, fillSummary } from '@/engine/fill'
+import { fillOutline, fillSummary, firstEdgeHeading } from '@/engine/fill'
+import { VarietyPicker } from '@/ui/tree/VarietyPicker'
 import { Button, Field, NumberInput, Pill, inputClass } from '@/ui/components'
 import { TOOL_HINT, useEditor, type Tool } from './editorStore'
 
@@ -275,7 +276,7 @@ function BlockEditor({ blockId }: { blockId: string }) {
       {fill && fill.blockId === blockId ? (
         <FillForm blockId={blockId} />
       ) : empty && !block.outline && tool === 'none' ? (
-        <LayoutChoice />
+        <LayoutChoice blockId={blockId} />
       ) : (
         <>
           <div className="mb-3 flex flex-wrap gap-1.5">
@@ -296,12 +297,14 @@ function BlockEditor({ blockId }: { blockId: string }) {
                       const rowSpacingFt = block.rowSpacingFt ?? 16
                       useEditor.getState().openFill({
                         blockId,
-                        headingDeg: 0,
+                        headingDeg: firstEdgeHeading(block.outline!),
                         rotateDeg: 0,
                         rowSpacingFt,
                         treeSpacingFt: block.inRowSpacingFt ?? 12,
                         insetFt: rowSpacingFt / 2,
                         pattern: 'square',
+                        drawing: false,
+                        previewOutline: null,
                       })
                     }}
                   >
@@ -436,12 +439,36 @@ function BlockEditor({ blockId }: { blockId: string }) {
 }
 
 /** The first question for an empty block. */
-function LayoutChoice() {
+function LayoutChoice({ blockId }: { blockId: string }) {
   const setTool = useEditor((s) => s.setTool)
+  const openFill = useEditor((s) => s.openFill)
+  const block = useFarmStore((s) => s.state.blocks[blockId])
+  const start = (t: Tool) => {
+    if (t !== 'outline') {
+      setTool(t)
+      return
+    }
+    // Spacing comes first so trees can preview inside the outline as it is drawn.
+    const rowSpacingFt = block?.rowSpacingFt ?? 16
+    openFill(
+      {
+        blockId,
+        headingDeg: 0,
+        rotateDeg: 0,
+        rowSpacingFt,
+        treeSpacingFt: block?.inRowSpacingFt ?? 12,
+        insetFt: rowSpacingFt / 2,
+        pattern: 'square',
+        drawing: true,
+        previewOutline: null,
+      },
+      true,
+    )
+  }
   const card = (t: Tool, title: string, body: string) => (
     <button
       className="w-full rounded-md border border-stone-200 dark:border-stone-700 p-2.5 text-left hover:border-lime-600 hover:bg-lime-50 dark:hover:bg-lime-950/30"
-      onClick={() => setTool(t)}
+      onClick={() => start(t)}
     >
       <span className="block font-medium">{title}</span>
       <span className="block text-xs text-stone-600 dark:text-stone-400">{body}</span>
@@ -472,12 +499,14 @@ function FillForm({ blockId }: { blockId: string }) {
   const close = useEditor((s) => s.closeFill)
   const say = useEditor((s) => s.say)
   const map = useEditor((s) => s.map)
+  const setTool = useEditor((s) => s.setTool)
   const block = state.blocks[blockId]
   const heading = fill.headingDeg + fill.rotateDeg
+  const outline = fill.drawing ? fill.previewOutline : (block?.outline ?? null)
   const preview = useMemo(
     () =>
-      block?.outline
-        ? fillOutline(block.outline, {
+      outline && outline.length >= 3
+        ? fillOutline(outline, {
             headingDeg: heading,
             rowSpacingFt: fill.rowSpacingFt,
             treeSpacingFt: fill.treeSpacingFt,
@@ -485,88 +514,160 @@ function FillForm({ blockId }: { blockId: string }) {
             pattern: fill.pattern,
           })
         : [],
-    [block?.outline, heading, fill.rowSpacingFt, fill.treeSpacingFt, fill.insetFt, fill.pattern],
+    [outline, heading, fill.rowSpacingFt, fill.treeSpacingFt, fill.insetFt, fill.pattern],
   )
   const summary = fillSummary(preview)
-  // Turn the map so the preview rows run upright while the form is open.
+  // Once the outline is closed, turn the map so the preview rows run upright.
   useEffect(() => {
-    map?.easeTo({ bearing: heading, duration: 400 })
-  }, [map, heading])
+    if (!fill.drawing) map?.easeTo({ bearing: heading, duration: 400 })
+  }, [map, heading, fill.drawing])
+
+  const slider = (
+    label: string,
+    value: number,
+    min: number,
+    max: number,
+    step: number,
+    unit: string,
+    onChange: (v: number) => void,
+    hint?: string,
+  ) => (
+    <Field label={label} hint={hint} className="col-span-2">
+      <div className="flex items-center gap-2">
+        <input
+          type="range"
+          className="w-full accent-lime-700"
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          onChange={(e) => onChange(Number(e.target.value))}
+          aria-label={label}
+        />
+        <NumberInput
+          value={value}
+          min={min}
+          max={max}
+          step={step}
+          unit={unit}
+          onChange={onChange}
+        />
+      </div>
+    </Field>
+  )
+
   return (
     <div className="space-y-2 rounded-md border border-lime-300 dark:border-lime-800 p-2.5">
-      <p className="text-xs text-stone-600 dark:text-stone-400">
-        Rows run along the first edge you drew, from its start. Adjust until the orange preview sits
-        on the trees.
-      </p>
+      {fill.drawing ? (
+        <p className="text-xs text-stone-600 dark:text-stone-400">
+          Set the spacing, then draw the outline on the map. Trees preview inside it as you go; you
+          can fine-tune the rotation and inset after the outline is closed.
+        </p>
+      ) : (
+        <p className="text-xs text-stone-600 dark:text-stone-400">
+          Slide until the orange trees sit on the real ones. Rows run along the first edge you drew,
+          starting from its first corner.
+        </p>
+      )}
       <div className="grid grid-cols-2 gap-2">
-        <Field label="Tree spacing">
-          <NumberInput
-            value={fill.treeSpacingFt}
-            min={0.5}
-            unit="ft"
-            onChange={(v) => update({ treeSpacingFt: v })}
-          />
-        </Field>
-        <Field label="Row spacing">
-          <NumberInput
-            value={fill.rowSpacingFt}
-            min={0.5}
-            unit="ft"
-            onChange={(v) => update({ rowSpacingFt: v })}
-          />
-        </Field>
-        <Field label="Turn rows" hint={`Heading ${(((heading % 360) + 360) % 360) | 0}°`}>
-          <NumberInput
-            value={fill.rotateDeg}
-            min={-180}
-            max={180}
-            step={0.5}
-            unit="°"
-            onChange={(v) => update({ rotateDeg: v })}
-          />
-        </Field>
-        <Field label="Inset from edge" hint="Half the row spacing by default">
-          <NumberInput
-            value={fill.insetFt}
-            min={0}
-            unit="ft"
-            onChange={(v) => update({ insetFt: v })}
-          />
-        </Field>
-        <Field label="Pattern" className="col-span-2">
+        {slider('Tree spacing', fill.treeSpacingFt, 1, 40, 0.5, 'ft', (v) =>
+          update({ treeSpacingFt: v }),
+        )}
+        {slider('Row spacing', fill.rowSpacingFt, 1, 40, 0.5, 'ft', (v) =>
+          update({
+            rowSpacingFt: v,
+            insetFt: fill.insetFt === fill.rowSpacingFt / 2 ? v / 2 : fill.insetFt,
+          }),
+        )}
+        {!fill.drawing &&
+          slider(
+            'Turn rows',
+            fill.rotateDeg,
+            -45,
+            45,
+            0.25,
+            '°',
+            (v) => update({ rotateDeg: v }),
+            `Heading ${Math.round((((heading % 360) + 360) % 360) * 10) / 10}°`,
+          )}
+        {!fill.drawing &&
+          slider(
+            'Inset from edge',
+            fill.insetFt,
+            0,
+            Math.max(fill.rowSpacingFt, 20),
+            0.5,
+            'ft',
+            (v) => update({ insetFt: v }),
+            'Half the row spacing by default',
+          )}
+        <Field label="Pattern">
           <select
             className={inputClass}
             value={fill.pattern}
             onChange={(e) => update({ pattern: e.target.value as typeof fill.pattern })}
           >
-            <option value="square">square: trees line up across rows</option>
-            <option value="diamond">diamond: every other row offset by half</option>
+            <option value="square">square</option>
+            <option value="diamond">diamond</option>
+          </select>
+        </Field>
+        <Field label="Rows numbered from the">
+          <select
+            className={inputClass}
+            value={block.numbering.rowsFrom}
+            onChange={(e) =>
+              updateBlock(blockId, {
+                numbering: { ...block.numbering, rowsFrom: e.target.value as CompassSide },
+              })
+            }
+          >
+            {SIDES.map(([v, w]) => (
+              <option key={v} value={v}>
+                {w}
+              </option>
+            ))}
           </select>
         </Field>
       </div>
       <p className="text-sm">
-        <strong>{summary.rows}</strong> rows, <strong>{summary.trees}</strong> trees
+        {outline && outline.length >= 3 ? (
+          <>
+            <strong>{summary.rows}</strong> rows, <strong>{summary.trees}</strong> trees
+          </>
+        ) : (
+          <span className="text-stone-500 dark:text-stone-400">
+            Click the corners on the map; the preview appears from the third corner.
+          </span>
+        )}
       </p>
       <div className="flex gap-2">
-        <Button
-          variant="primary"
-          disabled={summary.trees === 0}
-          onClick={() => {
-            const n = fillBlock(blockId, preview, {
-              rowSpacingFt: fill.rowSpacingFt,
-              inRowSpacingFt: fill.treeSpacingFt,
-            })
-            close()
-            say(
-              `Filled with ${n} rows and ${summary.trees} trees. Rows are numbered ${describeNumbering(block).slice(4).split(';')[0]}.`,
-            )
-          }}
-        >
-          Create {summary.rows} rows
-        </Button>
-        <Button variant="ghost" onClick={close}>
-          Keep only the outline
-        </Button>
+        {fill.drawing ? (
+          <Button variant="ghost" onClick={() => setTool('none')}>
+            Cancel
+          </Button>
+        ) : (
+          <>
+            <Button
+              variant="primary"
+              disabled={summary.trees === 0}
+              onClick={() => {
+                const n = fillBlock(blockId, preview, {
+                  rowSpacingFt: fill.rowSpacingFt,
+                  inRowSpacingFt: fill.treeSpacingFt,
+                })
+                close()
+                say(
+                  `Filled with ${n} rows and ${summary.trees} trees. Rows are numbered ${describeNumbering(block).slice(4).split(';')[0]}.`,
+                )
+              }}
+            >
+              Create {summary.rows} rows
+            </Button>
+            <Button variant="ghost" onClick={close}>
+              Keep only the outline
+            </Button>
+          </>
+        )}
       </div>
     </div>
   )
@@ -738,6 +839,7 @@ function RowEditor({ row, code }: { row: Row; code: string }) {
   const say = useEditor((s) => s.say)
   const varieties = varietiesByName(state)
   const [open, setOpen] = useState(false)
+  const [newVariety, setNewVariety] = useState(false)
   const count = positionCount(row.polyline, row.layout)
   const length = rowLengthFt(row)
   const setBy = (by: 'count' | 'spacing') => {
@@ -752,9 +854,13 @@ function RowEditor({ row, code }: { row: Row; code: string }) {
     if (!r.ok) say(r.reason)
   }
   return (
-    <li className="py-1.5">
-      <div className="flex items-center justify-between gap-2">
-        <button className="text-left" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+    <li className="py-0.5">
+      <button
+        className="flex w-full items-center justify-between gap-2 rounded px-1 py-1 text-left hover:bg-stone-50 dark:hover:bg-stone-800"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+      >
+        <span>
           <span className="font-medium">
             {code}-{row.number}
           </span>{' '}
@@ -764,11 +870,11 @@ function RowEditor({ row, code }: { row: Row; code: string }) {
               ? ` · ${state.varieties[row.defaultVarietyId].name}`
               : ''}
           </span>
-        </button>
+        </span>
         <span aria-hidden className="text-xs text-stone-400">
           {open ? '▾' : '▸'}
         </span>
-      </div>
+      </button>
       {open && (
         <div className="mt-2 space-y-2 rounded-md bg-stone-50 dark:bg-stone-800/60 p-2">
           <div className="grid grid-cols-2 gap-2">
@@ -816,18 +922,34 @@ function RowEditor({ row, code }: { row: Row; code: string }) {
               </Field>
             )}
             <Field label="Default variety" className="col-span-2">
-              <select
-                className={inputClass}
-                value={row.defaultVarietyId ?? ''}
-                onChange={(e) => setRowDefaultVariety(row.id, e.target.value || null)}
-              >
-                <option value="">none (mixed row)</option>
-                {varieties.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {v.name}
-                  </option>
-                ))}
-              </select>
+              {newVariety ? (
+                <VarietyPicker
+                  value={null}
+                  species={state.blocks[row.blockId]?.species}
+                  autoFocus
+                  onChange={(id) => {
+                    if (id) setRowDefaultVariety(row.id, id)
+                    setNewVariety(false)
+                  }}
+                />
+              ) : (
+                <select
+                  className={inputClass}
+                  value={row.defaultVarietyId ?? ''}
+                  onChange={(e) => {
+                    if (e.target.value === '__new') setNewVariety(true)
+                    else setRowDefaultVariety(row.id, e.target.value || null)
+                  }}
+                >
+                  <option value="">none (mixed row)</option>
+                  {varieties.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.name}
+                    </option>
+                  ))}
+                  <option value="__new">+ new variety…</option>
+                </select>
+              )}
             </Field>
           </div>
           <div className="flex flex-wrap gap-1.5">

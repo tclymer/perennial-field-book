@@ -1,7 +1,7 @@
 /** What the map editor is doing right now. Not persisted. */
 import { create } from 'zustand'
 import type { Map as MlMap } from 'maplibre-gl'
-import type { FeatureKind } from '@/model/types'
+import type { FeatureKind, LngLat } from '@/model/types'
 import type { ColorBy } from '@/map/geojson'
 import type { FillPattern } from '@/engine/fill'
 
@@ -20,6 +20,10 @@ export interface FillDraft {
   treeSpacingFt: number
   insetFt: number
   pattern: FillPattern
+  /** True while the outline is still being drawn; the preview follows the cursor. */
+  drawing: boolean
+  /** The outline as drawn so far, before it is committed to the block. */
+  previewOutline: LngLat[] | null
 }
 
 interface EditorState {
@@ -38,7 +42,8 @@ interface EditorState {
   selectBlock: (id: string | null) => void
   setTool: (tool: Tool) => void
   setEditMode: (mode: EditMode) => void
-  openFill: (draft: FillDraft) => void
+  /** Open the fill form; with `draw` the outline tool is active so the preview follows the cursor. */
+  openFill: (draft: FillDraft, draw?: boolean) => void
   updateFill: (patch: Partial<FillDraft>) => void
   closeFill: () => void
   setAligned: (aligned: boolean) => void
@@ -62,9 +67,17 @@ export const useEditor = create<EditorState>()((set) => ({
   setMap: (map) => set({ map }),
   selectBlock: (id) =>
     set({ selectedBlockId: id, tool: 'none', editMode: 'none', fill: null, message: null }),
-  setTool: (tool) => set({ tool, editMode: 'none', message: null }),
+  setTool: (tool) =>
+    set((s) => ({
+      tool,
+      editMode: 'none',
+      message: null,
+      // Leaving the outline tool mid-draw abandons the fill.
+      fill: s.fill?.drawing && tool !== 'outline' ? null : s.fill,
+    })),
   setEditMode: (editMode) => set({ editMode, tool: 'none', message: null }),
-  openFill: (fill) => set({ fill, tool: 'none', editMode: 'none', message: null }),
+  openFill: (fill, draw = false) =>
+    set({ fill, tool: draw ? 'outline' : 'none', editMode: 'none', message: null }),
   updateFill: (patch) => set((s) => (s.fill ? { fill: { ...s.fill, ...patch } } : {})),
   closeFill: () => set({ fill: null }),
   setAligned: (aligned) => set({ aligned }),
@@ -78,7 +91,7 @@ export const TOOL_HINT: Record<Tool, string> = {
   none: '',
   row: 'Drawing a row: click at position 1, click at each turn, click the last tree, then press Enter. Esc cancels.',
   outline:
-    'Drawing the outline: start at the corner where position 1 of row 1 will be, click the next corner along the rows, then the rest. Press Enter to close. Esc cancels.',
+    'Drawing the outline: click the corner where position 1 will be, then the corner at the far end of that first row (this sets the row direction), then the remaining corners. Press Enter to close. Esc cancels.',
   loose: 'Click where the tree stands. Esc when done.',
   'feature-point': 'Click where it is. Esc cancels.',
   'feature-polygon': 'Click each corner, then press Enter to close. Esc cancels.',

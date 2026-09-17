@@ -44,22 +44,31 @@ export function blocksFC(state: FarmState, hide: ReadonlySet<string> = new Set()
   return fc(out)
 }
 
+/** Row lines, plus a labeled point at each row's start so numbering can be read on the map. */
 export function rowsFC(state: FarmState, hide: ReadonlySet<string> = new Set()) {
-  const out: Feature<LineString>[] = []
+  const out: Feature<LineString | Point>[] = []
   for (const r of live.rows(state)) {
     if (hide.has(r.id)) continue
     const block = state.blocks[r.blockId]
+    const label = `${block?.code ?? ''}-${r.number}`
+    const props = {
+      id: r.id,
+      blockId: r.blockId,
+      number: r.number,
+      label,
+      color: block?.color ?? '#fef08a',
+    }
     out.push({
       type: 'Feature',
       id: r.id,
-      properties: {
-        id: r.id,
-        blockId: r.blockId,
-        number: r.number,
-        label: `${block?.code ?? ''}-${r.number}`,
-        color: block?.color ?? '#fef08a',
-      },
+      properties: props,
       geometry: { type: 'LineString', coordinates: r.polyline.map(([lon, lat]) => [lon, lat]) },
+    })
+    out.push({
+      type: 'Feature',
+      id: `${r.id}:label`,
+      properties: props,
+      geometry: { type: 'Point', coordinates: [r.polyline[0][0], r.polyline[0][1]] },
     })
   }
   return fc(out)

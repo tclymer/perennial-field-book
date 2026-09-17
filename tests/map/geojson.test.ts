@@ -8,7 +8,12 @@ const state = materialize(seedEvents())
 
 describe('geojson builders', () => {
   it('draws rows, positions, and features from state', () => {
-    expect(rowsFC(state).features.map((f) => f.properties?.label)).toEqual(['PP1-1', 'PP1-2'])
+    const rows = rowsFC(state).features
+    expect(
+      rows.filter((f) => f.geometry.type === 'LineString').map((f) => f.properties?.label),
+    ).toEqual(['PP1-1', 'PP1-2'])
+    // Each row also carries a labeled point at its start for the map label.
+    expect(rows.filter((f) => f.geometry.type === 'Point')).toHaveLength(2)
     const pts = positionsFC(state, { colorBy: 'variety' })
     expect(pts.features).toHaveLength(20)
     expect(pts.features[0].properties?.label).toBe('PP1-1-1')
@@ -32,7 +37,7 @@ describe('geojson builders', () => {
     const pts = positionsFC(state, { colorBy: 'status', hideRows: new Set(['row_2']) }).features
     expect(pts).toHaveLength(10)
     expect(pts[0].properties?.status).toBe('alive')
-    expect(rowsFC(state, new Set(['row_1'])).features).toHaveLength(1)
+    expect(rowsFC(state, new Set(['row_1'])).features).toHaveLength(2)
   })
 
   it('shows plans for the chosen year only', () => {

@@ -2,9 +2,10 @@
 import { useEffect, useMemo } from 'react'
 import type { GeoJSONSource, Map as MlMap } from 'maplibre-gl'
 import type { Feature, FeatureCollection, LineString, Point } from 'geojson'
-import type { FarmState } from '@/model/types'
+import type { FarmState, Row } from '@/model/types'
 import { live } from '@/events/reduce'
 import { fillOutline } from '@/engine/fill'
+import { autoNumberRows } from '@/engine/layout'
 import { positionsAlong } from '@/engine/geo'
 import { blocksFC, featuresFC, planFC, positionsFC, rowsFC, type ColorBy } from './geojson'
 import type { OverlaySource } from './style'
@@ -36,8 +37,9 @@ function setData(map: MlMap, id: OverlaySource, data: FeatureCollection) {
 export function fillPreviewFC(state: FarmState): FeatureCollection {
   const fill = useEditor.getState().fill
   if (!fill) return EMPTY
-  const outline = state.blocks[fill.blockId]?.outline
-  if (!outline) return EMPTY
+  const block = state.blocks[fill.blockId]
+  const outline = fill.drawing ? fill.previewOutline : block?.outline
+  if (!outline || outline.length < 3) return EMPTY
   const rows = fillOutline(outline, {
     headingDeg: fill.headingDeg + fill.rotateDeg,
     rowSpacingFt: fill.rowSpacingFt,
@@ -45,6 +47,12 @@ export function fillPreviewFC(state: FarmState): FeatureCollection {
     insetFt: fill.insetFt,
     pattern: fill.pattern,
   })
+  // Number the preview the way the fill will, so the labels can be checked first.
+  const order = autoNumberRows(
+    rows.map((r, i) => ({ id: String(i), polyline: r.polyline }) as Row),
+    block?.numbering.rowsFrom ?? 'W',
+  )
+  const numberOf = new Map(order.map((o) => [Number(o.id), o.number]))
   const features: Feature<LineString | Point>[] = []
   rows.forEach((r, i) => {
     features.push({
@@ -52,6 +60,11 @@ export function fillPreviewFC(state: FarmState): FeatureCollection {
       id: `pr-${i}`,
       properties: {},
       geometry: { type: 'LineString', coordinates: r.polyline.map(([a, b]) => [a, b]) },
+    })
+    features.push({
+      type: 'Feature',
+      properties: { label: `${block?.code ?? ''}-${numberOf.get(i) ?? i + 1}` },
+      geometry: { type: 'Point', coordinates: [r.polyline[0][0], r.polyline[0][1]] },
     })
     for (const c of positionsAlong(r.polyline, { by: 'count', count: r.count })) {
       features.push({
