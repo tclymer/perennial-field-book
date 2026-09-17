@@ -395,3 +395,82 @@ export function updateTree(id: string, patch: Omit<PayloadOf<'tree.patch'>, 'id'
 export function deleteTree(id: string): void {
   commit([{ type: 'tree.delete', payload: { id } }])
 }
+
+// Bulk changes from the block grid. Each returns the events that undo it.
+
+/** Give every selected position this variety: patch its tree, or plant one without a date. */
+export function assignVariety(posKeys: string[], varietyId: string | null): NewEvent[] {
+  const events: NewEvent[] = []
+  const inverse: NewEvent[] = []
+  for (const key of posKeys) {
+    const tree = currentTree(key)
+    if (tree) {
+      if ((tree.varietyId ?? null) === varietyId) continue
+      events.push({ type: 'tree.patch', payload: { id: tree.id, varietyId } })
+      inverse.push({
+        type: 'tree.patch',
+        payload: { id: tree.id, varietyId: tree.varietyId ?? null },
+      })
+    } else if (varietyId) {
+      const id = newId('tree')
+      events.push({ type: 'tree.create', payload: { id, posKey: key, varietyId, status: 'alive' } })
+      inverse.push({ type: 'tree.delete', payload: { id } })
+    }
+  }
+  if (events.length) commit(events)
+  return inverse
+}
+
+export function planGrafts(year: number, posKeys: string[], varietyId: string): NewEvent[] {
+  const events: NewEvent[] = []
+  const inverse: NewEvent[] = []
+  for (const posKey of posKeys) {
+    const prev = state().plans[`${year}:${posKey}`]
+    if (prev && prev.varietyId === varietyId && !prev.doneEventId) continue
+    events.push({ type: 'graft.plan', payload: { year, posKey, varietyId } })
+    inverse.push(
+      prev
+        ? { type: 'graft.plan', payload: { year, posKey, varietyId: prev.varietyId } }
+        : { type: 'graft.unplan', payload: { year, posKey } },
+    )
+  }
+  if (events.length) commit(events)
+  return inverse
+}
+
+export function unplanGrafts(year: number, posKeys: string[]): NewEvent[] {
+  const events: NewEvent[] = []
+  const inverse: NewEvent[] = []
+  for (const posKey of posKeys) {
+    const prev = state().plans[`${year}:${posKey}`]
+    if (!prev) continue
+    events.push({ type: 'graft.unplan', payload: { year, posKey } })
+    inverse.push({ type: 'graft.plan', payload: { year, posKey, varietyId: prev.varietyId } })
+  }
+  if (events.length) commit(events)
+  return inverse
+}
+
+/**
+ * The planned graft happened: record it on the tree (or plant a grafted tree in an empty
+ * position) and mark the plan done.
+ */
+export function completePlannedGraft(year: number, posKey: string, date = today()): Result {
+  const plan = state().plans[`${year}:${posKey}`]
+  if (!plan) return refuse('There is no graft planned here for that year.')
+  const tree = currentTree(posKey)
+  let eventId: string
+  if (tree && tree.status !== 'dead' && tree.status !== 'removed') {
+    eventId = addTreeEvent(tree.id, 'grafted', { date, varietyId: plan.varietyId })
+  } else {
+    const treeId = plantTree(posKey, { varietyId: plan.varietyId, date, how: 'grafted' })
+    eventId = live.treeEvents(state(), treeId)[0]?.id ?? treeId
+  }
+  commit([{ type: 'graft.done', payload: { year, posKey, treeEventId: eventId } }])
+  return ok
+}
+
+/** Commit a batch of events, used for undo. */
+export function commitEvents(events: NewEvent[]): void {
+  if (events.length) commit(events)
+}

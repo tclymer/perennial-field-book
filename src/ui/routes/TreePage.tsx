@@ -10,7 +10,7 @@ import { Button, Card, PageHeader, Pill, inputClass, type Tone } from '@/ui/comp
 import { ActionSheet } from '@/ui/tree/ActionSheet'
 import { History } from '@/ui/tree/History'
 import { PhotoStrip } from '@/ui/tree/PhotoStrip'
-import { updateTree } from '@/state/actions'
+import { completePlannedGraft, updateTree } from '@/state/actions'
 
 const STATUS_TONE: Record<Tree['status'], Tone> = {
   alive: 'good',
@@ -142,6 +142,7 @@ export default function TreePage() {
             />
           </label>
         )}
+        <PlannedGraft posKey={position.posKey} onDone={setMessage} />
         <div className="mt-4">
           <ActionSheet
             posKey={position.posKey}
@@ -170,6 +171,38 @@ export default function TreePage() {
       {block && (
         <p className="text-xs text-stone-500 dark:text-stone-400">{describeNumbering(block)}</p>
       )}
+    </div>
+  )
+}
+
+/** Open graft plans for this position, with a one-tap "done" that records the graft. */
+function PlannedGraft({ posKey, onDone }: { posKey: string; onDone: (m: string) => void }) {
+  const state = useFarmStore((s) => s.state)
+  const plans = Object.values(state.plans)
+    .filter((p) => p.posKey === posKey && !p.doneEventId)
+    .sort((a, b) => a.year - b.year)
+  if (plans.length === 0) return null
+  return (
+    <div className="mt-3 space-y-1">
+      {plans.map((p) => (
+        <div
+          key={p.year}
+          className="flex flex-wrap items-center gap-2 rounded-md bg-amber-50 dark:bg-amber-950/40 px-2.5 py-1.5 text-sm"
+        >
+          <span>
+            Planned for {p.year}: graft to{' '}
+            <strong>{state.varieties[p.varietyId]?.name ?? 'unknown'}</strong>
+          </span>
+          <Button
+            onClick={() => {
+              const r = completePlannedGraft(p.year, posKey)
+              onDone(r.ok ? 'Graft recorded and the plan marked done.' : r.reason)
+            }}
+          >
+            Grafted today
+          </Button>
+        </div>
+      ))}
     </div>
   )
 }
