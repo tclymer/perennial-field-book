@@ -71,8 +71,9 @@ export default function BlockGridPage() {
     .map((t) => {
       const parsed = parsePosKey(t.posKey)
       const row = 'rowId' in parsed ? state.rows[parsed.rowId] : undefined
-      const label = row ? treeLabel(block?.code ?? '?', row.number, parsed.index) : t.posKey
-      return { tree: t, row, index: 'rowId' in parsed ? parsed.index : 0, label }
+      const index = 'rowId' in parsed ? parsed.index : 0
+      const label = row ? treeLabel(block?.code ?? '?', row.number, index) : t.posKey
+      return { tree: t, row, index, label }
     })
   const colors = varietyColors(state)
   const trees = currentTreeByPos(state)
