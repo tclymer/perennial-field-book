@@ -5,6 +5,7 @@
  */
 import type {
   FeatureGeometry,
+  FillParams,
   FeatureKind,
   LngLat,
   Numbering,
@@ -19,6 +20,7 @@ import { live } from '@/events/reduce'
 import type { NewEvent } from '@/events/types'
 import { polylineLengthFt, positionCount } from '@/engine/geo'
 import { autoNumberRows as orderRows, occupiedMaxIndex } from '@/engine/layout'
+import { fillOutline } from '@/engine/fill'
 import { useFarmStore } from './store'
 
 export type Result = { ok: true } | { ok: false; reason: string }
@@ -481,7 +483,7 @@ export function commitEvents(events: NewEvent[]): void {
 export function fillBlock(
   blockId: string,
   rows: { polyline: Polyline; count: number }[],
-  spacing: { rowSpacingFt: number; inRowSpacingFt: number },
+  params: FillParams,
 ): number {
   if (rows.length === 0) return 0
   const events: NewEvent[] = [
@@ -489,8 +491,9 @@ export function fillBlock(
       type: 'block.patch',
       payload: {
         id: blockId,
-        rowSpacingFt: spacing.rowSpacingFt,
-        inRowSpacingFt: spacing.inRowSpacingFt,
+        rowSpacingFt: params.rowSpacingFt,
+        inRowSpacingFt: params.treeSpacingFt,
+        fill: params,
       },
     },
   ]
@@ -521,4 +524,17 @@ export function clearEmptyRows(blockId: string): number {
   }
   if (events.length) commit(events)
   return events.length
+}
+
+/**
+ * The outline changed after a fill: drop rows that hold no trees and generate them again
+ * from the remembered settings. Rows with trees are kept where they are.
+ */
+export function refillBlock(blockId: string): Result {
+  const block = state().blocks[blockId]
+  if (!block?.outline || !block.fill) return refuse('This block was not filled from an outline.')
+  clearEmptyRows(blockId)
+  const rows = fillOutline(block.outline, block.fill)
+  fillBlock(blockId, rows, block.fill)
+  return ok
 }

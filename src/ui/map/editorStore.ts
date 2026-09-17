@@ -8,7 +8,7 @@ import type { FillPattern } from '@/engine/fill'
 export type Tool = 'none' | 'row' | 'outline' | 'loose' | 'feature-point' | 'feature-polygon'
 
 /** What is loaded into Terra Draw for editing. */
-export type EditMode = 'none' | 'shapes' | 'trees'
+export type EditMode = 'none' | 'shapes' | 'trees' | 'outline'
 
 /** The fill form's values while an outline is being filled with rows. */
 export interface FillDraft {
@@ -79,7 +79,7 @@ export const useEditor = create<EditorState>()((set) => ({
   openFill: (fill, draw = false) =>
     set({ fill, tool: draw ? 'outline' : 'none', editMode: 'none', message: null }),
   updateFill: (patch) => set((s) => (s.fill ? { fill: { ...s.fill, ...patch } } : {})),
-  closeFill: () => set({ fill: null }),
+  closeFill: () => set({ fill: null, editMode: 'none' }),
   setAligned: (aligned) => set({ aligned }),
   setColorBy: (colorBy) => set({ colorBy }),
   setPlanYear: (planYear) => set({ planYear }),

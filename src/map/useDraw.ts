@@ -39,6 +39,7 @@ export function useHiddenShapes(state: FarmState): HiddenShapes {
     if (editMode === 'trees') {
       return { ...NOTHING_HIDDEN, positionsOfBlocks: new Set([blockId]) }
     }
+    if (editMode === 'outline') return { ...NOTHING_HIDDEN, blocks: new Set([blockId]) }
     const rows = new Set(
       live
         .rows(state)
@@ -74,9 +75,11 @@ export function useDraw(map: MlMap | null, state: FarmState, enabled: boolean): 
           setBlockOutline(blockId, g.coordinates)
           const fill = editor.fill
           if (fill && fill.blockId === blockId && fill.drawing) {
-            // The outline is done: keep the form open for tuning, rows now upright.
+            // The outline is done: keep the form open for tuning, with the outline itself
+            // editable so corners can be dragged while the preview follows.
             useEditor.setState({
               tool: 'none',
+              editMode: 'outline',
               fill: {
                 ...fill,
                 drawing: false,
@@ -187,7 +190,15 @@ export function useDraw(map: MlMap | null, state: FarmState, enabled: boolean): 
     }
     const s = latest.current.state
     const features: EditableFeature[] = []
-    if (editMode === 'shapes') {
+    if (editMode === 'outline') {
+      const block = s.blocks[blockId]
+      if (block?.outline && block.outline.length >= 3) {
+        features.push({
+          id: `${OUTLINE_PREFIX}${blockId}`,
+          geometry: { shape: 'polygon', coordinates: block.outline },
+        })
+      }
+    } else if (editMode === 'shapes') {
       const block = s.blocks[blockId]
       if (block?.outline && block.outline.length >= 3) {
         features.push({

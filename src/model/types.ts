@@ -38,6 +38,15 @@ interface Stamped {
   deleted?: boolean
 }
 
+/** How a block's rows were generated from its outline, kept so a reshaped outline can refill. */
+export interface FillParams {
+  headingDeg: number
+  rowSpacingFt: number
+  treeSpacingFt: number
+  insetFt: number
+  pattern: 'square' | 'diamond'
+}
+
 export interface Block extends Stamped {
   id: string
   /** Short code that starts every tree label: PP1, PER, Y. Letters and digits only. */
@@ -50,6 +59,7 @@ export interface Block extends Stamped {
   notes?: string
   planner?: PlannerLink
   outline?: Ring
+  fill?: FillParams
   color?: string
 }
 

@@ -14,6 +14,7 @@ import {
   deleteLoosePosition,
   deleteRow,
   fillBlock,
+  refillBlock,
   reverseRow,
   setBlockOutline,
   setRowDefaultVariety,
@@ -56,7 +57,9 @@ export function EditorPanel() {
       ? 'Reshaping: drag a vertex, drag the midpoint of a segment to add one, or select a vertex and press Delete. Esc when done.'
       : editMode === 'trees'
         ? 'Moving trees: drag any tree to where it really stands. Esc when done.'
-        : ''
+        : editMode === 'outline'
+          ? 'Drag a corner of the outline, or the midpoint of an edge to add one; the preview follows.'
+          : ''
   return (
     <aside className="flex w-80 shrink-0 flex-col border-r border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900">
       <div className="flex-1 overflow-y-auto p-3 text-sm">
@@ -386,6 +389,18 @@ function BlockEditor({ blockId }: { blockId: string }) {
         <Link to={`/blocks/${blockId}/grid`} className="text-xs underline decoration-dotted">
           Open the block grid
         </Link>
+        {block.outline && block.fill && rows.length > 0 && (
+          <button
+            className="text-xs underline decoration-dotted"
+            title="After reshaping the outline: rows without trees are generated again"
+            onClick={() => {
+              const r = refillBlock(blockId)
+              say(r.ok ? 'Empty rows regenerated from the outline.' : r.reason)
+            }}
+          >
+            Refill from outline
+          </button>
+        )}
         {block.outline && rows.length > 0 && (
           <button
             className="text-xs underline decoration-dotted"
@@ -565,8 +580,9 @@ function FillForm({ blockId }: { blockId: string }) {
         </p>
       ) : (
         <p className="text-xs text-stone-600 dark:text-stone-400">
-          Slide until the orange trees sit on the real ones. Rows run along the first edge you drew,
-          starting from its first corner.
+          Slide until the orange trees sit on the real ones, and drag the outline's corners (or the
+          midpoint of an edge to add one) if the shape is off. Rows run along the first edge you
+          drew, starting from its first corner.
         </p>
       )}
       <div className="grid grid-cols-2 gap-2">
@@ -652,8 +668,11 @@ function FillForm({ blockId }: { blockId: string }) {
               disabled={summary.trees === 0}
               onClick={() => {
                 const n = fillBlock(blockId, preview, {
+                  headingDeg: heading,
                   rowSpacingFt: fill.rowSpacingFt,
-                  inRowSpacingFt: fill.treeSpacingFt,
+                  treeSpacingFt: fill.treeSpacingFt,
+                  insetFt: fill.insetFt,
+                  pattern: fill.pattern,
                 })
                 close()
                 say(

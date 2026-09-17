@@ -56,6 +56,14 @@ export const featureGeometry = z.discriminatedUnion('type', [
 // Payloads. `create` payloads carry every field; `patch` payloads carry any subset, with
 // `null` meaning "clear this field".
 
+export const fillParams = z.object({
+  headingDeg: z.number().min(-360).max(720),
+  rowSpacingFt: feet,
+  treeSpacingFt: feet,
+  insetFt: z.number().min(0).max(5000),
+  pattern: z.enum(['square', 'diamond']),
+})
+
 const blockFields = {
   code: z.string().regex(CODE_RE),
   name: short.min(1),
@@ -66,6 +74,7 @@ const blockFields = {
   notes: text.optional(),
   planner: plannerLink.optional(),
   outline: ring.optional(),
+  fill: fillParams.optional(),
   color: short.optional(),
 }
 export const blockCreate = z.object({ id, ...blockFields })
@@ -80,6 +89,7 @@ export const blockPatch = z.object({
   notes: text.nullable().optional(),
   planner: plannerLink.nullable().optional(),
   outline: ring.nullable().optional(),
+  fill: fillParams.nullable().optional(),
   color: short.nullable().optional(),
 })
 
