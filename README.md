@@ -4,6 +4,8 @@ Map your orchard, find every tree, keep its history. A companion to the
 [Perennial Profit Planner](https://planner.theorganicorchard.org): the planner says what a
 planting should earn, the field book records where everything is and what actually happened.
 
+**Live:** https://fieldbook.theorganicorchard.org
+
 Status: iteration one (map, places, trees) built; sync, tasks, and harvest follow. The
 product design lives in [DESIGN.md](DESIGN.md).
 

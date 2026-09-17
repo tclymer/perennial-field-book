@@ -563,7 +563,14 @@ Steps 1 through 12 and 14 of §9 are built and committed; steps 12's console wor
   from Google's brand kit when the key is set up; the attribution overlay already shows it
   with the copyright text from the viewport call.
 - **Screenshots of the WebGL map through browser automation are unreliable**; the map's
-  own state (`loaded()`, source features, the tile cache) is the thing to check.
+  own state (`loaded()`, source features, the tile cache) is the thing to check. A hidden
+  tab never gets an animation frame, and MapLibre waits for one before loading its style.
+- **Deployed 2026-09-17** at https://fieldbook.theorganicorchard.org (Cloudflare Pages from
+  github.com/tclymer/perennial-field-book, custom domain by external CNAME). The Google key
+  is a Pages build variable; the key's website list carries the domain.
+- **Esri World Imagery over the farm is roughly 2023 vintage** by Tim's eye, newer than PEMA.
+  It is selectable as the fallback in Settings; offline saving stays PEMA-only until Esri's
+  caching terms are checked.
 
 ## 10. Open questions
 
