@@ -535,6 +535,29 @@ Each iteration is usable on its own.
 
 ---
 
+## 9a. Iteration one build notes (2026-09-17)
+
+Steps 1 through 12 and 14 of §9 are built and committed; steps 12's console work and 13
+(deploy) wait on Tim. Things learned while building, worth knowing before touching the code:
+
+- **MapLibre 6 loads its worker from a separate module file** next to its own script and
+  processes every GeoJSON source in it. Under Vite the script moves, so `MapView.tsx` imports
+  `maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url` and calls `setWorkerUrl` before creating
+  the map. Without this the map draws raster tiles but never fires `load`, and nothing built
+  on GeoJSON sources appears.
+- **Terra Draw finishes a line on Enter or by clicking the last vertex again**; a double
+  click leaves a duplicate vertex, which `draw.ts` removes.
+- **Row positions are not entities.** A position is `rowId:index`; its coordinate is
+  generated from the row's polyline unless a nudge overrides it. Reversing a row is refused
+  while it holds trees, because labels would move.
+- **Undo is per bulk action**: the grid's assign and plan actions return inverse events and
+  offer them for eight seconds. Deletes are restored from Settings.
+- **The Google logo in `public/google-logo.svg` is a placeholder.** Replace it with the file
+  from Google's brand kit when the key is set up; the attribution overlay already shows it
+  with the copyright text from the viewport call.
+- **Screenshots of the WebGL map through browser automation are unreliable**; the map's
+  own state (`loaded()`, source features, the tile cache) is the thing to check.
+
 ## 10. Open questions
 
 - **Farm-wide split.** By area, or by row-feet? Area is the default.
