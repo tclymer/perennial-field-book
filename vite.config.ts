@@ -5,6 +5,7 @@ import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import { fileURLToPath } from 'node:url'
 import { readFileSync } from 'node:fs'
+import { CACHEABLE_TILE_RE, TILE_CACHE_NAME } from './src/map/cacheable.ts'
 
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as {
   version: string
@@ -46,6 +47,19 @@ export default defineConfig({
         // Cache the app shell and its chunks so it opens without a connection.
         globPatterns: ['**/*.{js,css,html,svg,png,json,pbf}'],
         navigateFallback: 'index.html',
+        // Public imagery may be kept for the field map without signal. Google tiles never
+        // match this pattern (DESIGN.md §8.1).
+        runtimeCaching: [
+          {
+            urlPattern: CACHEABLE_TILE_RE,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: TILE_CACHE_NAME,
+              expiration: { maxEntries: 20000, maxAgeSeconds: 365 * 24 * 60 * 60 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+        ],
       },
     }),
   ],

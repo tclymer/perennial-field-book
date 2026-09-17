@@ -21,7 +21,7 @@ async function open(hash: string) {
 }
 
 const routes: [string, RegExp | string][] = [
-  ['#/', /farm map/i],
+  ['#/', /cannot draw the map/i],
   ['#/start', /Set up your farm/i],
   ['#/blocks', /No blocks yet/i],
   ['#/blocks/blk_x/grid', /Block grid/i],
