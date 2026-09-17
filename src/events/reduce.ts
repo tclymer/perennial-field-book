@@ -85,7 +85,12 @@ function upsert(
   status?: TreeStatus,
 ): void {
   const existing = (draft[coll] as Record<string, Entity>)[id]
-  const base = existing ?? { id, createdAt: ts, ...(status ? { status } : {}) }
+  const base = existing ?? {
+    id,
+    createdAt: ts,
+    ...(status ? { status } : {}),
+    ...(coll === 'varieties' ? { aliases: [] } : {}),
+  }
   const next = { ...merge(base, fields), updatedAt: ts } as Entity
   ;(draft[coll] as Record<string, Entity>)[id] = next
 }

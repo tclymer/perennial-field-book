@@ -127,7 +127,14 @@ export default function BlockGridPage() {
   return (
     <div className="space-y-4">
       <PageHeader title={`${block.code} · ${block.name}`} subtitle={describeNumbering(block)}>
-        <Link to={`/?focus=`} className="text-sm underline decoration-dotted">
+        <Link
+          to={
+            rows[0] && byRow.get(rows[0].id)?.[0]
+              ? `/?focus=${encodeURIComponent(byRow.get(rows[0].id)![0].posKey)}`
+              : '/'
+          }
+          className="text-sm underline decoration-dotted"
+        >
           Map
         </Link>
         <Field label="Color by">
