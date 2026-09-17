@@ -8,6 +8,7 @@ const prefs = (patch: Partial<DevicePrefs> = {}): DevicePrefs => ({
   customTiles: null,
   googleEnabled: true,
   lastView: null,
+  offlineMap: null,
   ...patch,
 })
 

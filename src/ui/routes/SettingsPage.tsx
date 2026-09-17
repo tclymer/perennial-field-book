@@ -7,6 +7,7 @@ import { useFarmStore } from '@/state/store'
 import { exportCurrentFarm } from '@/state/exporter'
 import { parseImport } from '@/events/bundle'
 import { nextTheme, themeLabel, useTheme } from '@/ui/theme'
+import { OfflineSave } from '@/ui/map/OfflineSave'
 import type { EntityKind } from '@/model/types'
 
 export default function SettingsPage() {
@@ -15,6 +16,7 @@ export default function SettingsPage() {
       <PageHeader title="Settings" />
       <FarmSettings />
       <ImagerySettings />
+      <OfflineSave />
       <DataSettings />
       <RecentlyDeleted />
       <Appearance />

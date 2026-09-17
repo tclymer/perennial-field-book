@@ -17,12 +17,22 @@ export interface MapView {
   bearing: number
 }
 
+export interface OfflineMap {
+  presetId: string
+  presetName: string
+  vintage: string | null
+  savedAt: number
+  tiles: number
+}
+
 export interface DevicePrefs {
   /** A preset id, 'none', 'custom', or null for "pick by location". */
   basemap: PresetId | 'none' | 'custom' | null
   customTiles: CustomTiles | null
   googleEnabled: boolean
   lastView: MapView | null
+  /** What "Save map for offline" last kept, if anything. */
+  offlineMap: OfflineMap | null
 }
 
 const PREFS_KEY = 'fieldbook:device'
@@ -33,6 +43,7 @@ const DEFAULTS: DevicePrefs = {
   customTiles: null,
   googleEnabled: true,
   lastView: null,
+  offlineMap: null,
 }
 
 function randomId(): string {
@@ -91,6 +102,7 @@ function pick(s: DeviceStore): DevicePrefs {
     customTiles: s.customTiles,
     googleEnabled: s.googleEnabled,
     lastView: s.lastView,
+    offlineMap: s.offlineMap,
   }
 }
 
