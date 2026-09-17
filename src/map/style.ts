@@ -20,6 +20,7 @@ export const OVERLAY_SOURCES = [
   'positions',
   'plan',
   'labels',
+  'preview',
 ] as const
 export type OverlaySource = (typeof OVERLAY_SOURCES)[number]
 
@@ -122,6 +123,25 @@ export function overlayLayers(): LayerSpecification[] {
         'circle-color': 'rgba(0,0,0,0)',
         'circle-stroke-color': ['coalesce', ['get', 'color'], '#fbbf24'],
         'circle-stroke-width': 2,
+      },
+    },
+    {
+      id: 'preview-row',
+      type: 'line',
+      source: 'preview',
+      filter: ['==', ['geometry-type'], 'LineString'],
+      paint: { 'line-color': '#f97316', 'line-width': 2, 'line-dasharray': [2, 2] },
+    },
+    {
+      id: 'preview-dot',
+      type: 'circle',
+      source: 'preview',
+      filter: ['==', ['geometry-type'], 'Point'],
+      paint: {
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 16, 2, 19, 5, 21, 8],
+        'circle-color': '#f97316',
+        'circle-stroke-color': '#1c1917',
+        'circle-stroke-width': 1,
       },
     },
     {

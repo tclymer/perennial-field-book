@@ -474,3 +474,51 @@ export function completePlannedGraft(year: number, posKey: string, date = today(
 export function commitEvents(events: NewEvent[]): void {
   if (events.length) commit(events)
 }
+
+// Filling a block from its outline
+
+/** Create every generated row in one commit, record the spacings, and number the rows. */
+export function fillBlock(
+  blockId: string,
+  rows: { polyline: Polyline; count: number }[],
+  spacing: { rowSpacingFt: number; inRowSpacingFt: number },
+): number {
+  if (rows.length === 0) return 0
+  const events: NewEvent[] = [
+    {
+      type: 'block.patch',
+      payload: {
+        id: blockId,
+        rowSpacingFt: spacing.rowSpacingFt,
+        inRowSpacingFt: spacing.inRowSpacingFt,
+      },
+    },
+  ]
+  let number = nextRowNumber(blockId)
+  for (const r of rows) {
+    events.push({
+      type: 'row.create',
+      payload: {
+        id: newId('row'),
+        blockId,
+        number: number++,
+        polyline: r.polyline,
+        layout: { by: 'count', count: r.count },
+      },
+    })
+  }
+  commit(events)
+  autoNumberRows(blockId)
+  return rows.length
+}
+
+/** Remove every row of a block that holds no trees, so a fill can be redone. */
+export function clearEmptyRows(blockId: string): number {
+  const events: NewEvent[] = []
+  for (const r of live.rows(state()).filter((r) => r.blockId === blockId)) {
+    if (occupiedMaxIndex(state(), r.id) === 0)
+      events.push({ type: 'row.delete', payload: { id: r.id } })
+  }
+  if (events.length) commit(events)
+  return events.length
+}

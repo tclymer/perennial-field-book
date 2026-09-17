@@ -59,9 +59,10 @@ export default function FirstRunPage() {
         </Field>
         <div>
           <p className="mb-1 text-sm text-stone-600 dark:text-stone-400">
-            Pan and zoom until the orchard fills the map. This becomes the home view.
+            Pan and zoom to roughly where the farm is. Once blocks are drawn, the map opens fitted
+            to them.
           </p>
-          <div className="relative h-[50vh] overflow-hidden rounded-lg border border-stone-200 dark:border-stone-700">
+          <div className="relative aspect-square max-h-[65vh] w-full overflow-hidden rounded-lg border border-stone-200 dark:border-stone-700 sm:aspect-[5/4]">
             <MapView
               className="absolute inset-0"
               initialView={start.current}

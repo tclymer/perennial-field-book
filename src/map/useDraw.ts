@@ -14,6 +14,7 @@ import {
   updateFeature,
   updateRowPolyline,
 } from '@/state/actions'
+import { firstEdgeHeading } from '@/engine/fill'
 import { createDraw, type DrawController, type DrawShape, type EditableFeature } from './draw'
 import { useEditor, type Tool } from '@/ui/map/editorStore'
 import { NOTHING_HIDDEN, type HiddenShapes } from './useMapLayers'
@@ -71,7 +72,24 @@ export function useDraw(map: MlMap | null, state: FarmState, enabled: boolean): 
         if (tool === 'outline' && blockId && g.shape === 'polygon') {
           if (g.coordinates.length < 3) return
           setBlockOutline(blockId, g.coordinates)
-          editor.setTool('none')
+          const s = latest.current.state
+          const block = s.blocks[blockId]
+          const hasRows = live.rows(s).some((r) => r.blockId === blockId)
+          if (hasRows) {
+            editor.setTool('none')
+            return
+          }
+          // A fresh outline opens the fill form; the first edge sets the row heading.
+          const rowSpacingFt = block?.rowSpacingFt ?? 16
+          editor.openFill({
+            blockId,
+            headingDeg: firstEdgeHeading(g.coordinates),
+            rotateDeg: 0,
+            rowSpacingFt,
+            treeSpacingFt: block?.inRowSpacingFt ?? 12,
+            insetFt: rowSpacingFt / 2,
+            pattern: 'square',
+          })
           return
         }
         if (tool === 'loose' && blockId && g.shape === 'point') {
@@ -135,6 +153,19 @@ export function useDraw(map: MlMap | null, state: FarmState, enabled: boolean): 
     if (!c || editMode !== 'none') return
     c.setShape(SHAPE_OF[tool])
   }, [tool, editMode])
+
+  // Esc leaves whatever tool or edit session is active.
+  useEffect(() => {
+    if (!enabled) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      const ed = useEditor.getState()
+      if (ed.tool !== 'none') ed.setTool('none')
+      else if (ed.editMode !== 'none') ed.setEditMode('none')
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [enabled])
 
   // Edit sessions: load the selected block's shapes or tree positions.
   useEffect(() => {

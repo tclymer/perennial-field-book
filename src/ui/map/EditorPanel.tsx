@@ -1,5 +1,4 @@
-import { useState } from 'react'
-import clsx from 'clsx'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { CompassSide, FeatureKind, Row } from '@/model/types'
 import { live } from '@/events/reduce'
@@ -7,12 +6,14 @@ import { useFarmStore } from '@/state/store'
 import { varietiesByName } from '@/state/derived'
 import {
   autoNumberRows,
+  clearEmptyRows,
   codeAvailable,
   createBlock,
   deleteBlock,
   deleteFeature,
   deleteLoosePosition,
   deleteRow,
+  fillBlock,
   reverseRow,
   setBlockOutline,
   setRowDefaultVariety,
@@ -22,6 +23,7 @@ import {
 } from '@/state/actions'
 import { blockAreaSqFt, describeNumbering, rowLengthFt, rowUpBearing } from '@/engine/layout'
 import { positionCount, sqFtToAcres } from '@/engine/geo'
+import { fillOutline, fillSummary } from '@/engine/fill'
 import { Button, Field, NumberInput, Pill, inputClass } from '@/ui/components'
 import { TOOL_HINT, useEditor, type Tool } from './editorStore'
 
@@ -46,19 +48,27 @@ export function EditorPanel() {
   const selectedBlockId = useEditor((s) => s.selectedBlockId)
   const message = useEditor((s) => s.message)
   const tool = useEditor((s) => s.tool)
+  const editMode = useEditor((s) => s.editMode)
+  const hint = message ?? TOOL_HINT[tool] ?? ''
+  const modeHint =
+    editMode === 'shapes'
+      ? 'Reshaping: drag a vertex, drag the midpoint of a segment to add one, or select a vertex and press Delete. Esc when done.'
+      : editMode === 'trees'
+        ? 'Moving trees: drag any tree to where it really stands. Esc when done.'
+        : ''
   return (
     <aside className="flex w-80 shrink-0 flex-col border-r border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900">
       <div className="flex-1 overflow-y-auto p-3 text-sm">
-        {(message || TOOL_HINT[tool]) && (
+        {(hint || modeHint) && (
           <p
             role="status"
             className="mb-3 rounded-md bg-lime-50 dark:bg-lime-950/40 px-2.5 py-2 text-xs text-lime-900 dark:text-lime-200"
           >
-            {message ?? TOOL_HINT[tool]}
+            {hint || modeHint}
           </p>
         )}
         {selectedBlockId ? <BlockEditor blockId={selectedBlockId} /> : <BlockList />}
-        <FeatureSection />
+        {!selectedBlockId && <FeatureSection />}
         <ViewSection />
       </div>
     </aside>
@@ -69,12 +79,14 @@ function BlockList() {
   const state = useFarmStore((s) => s.state)
   const select = useEditor((s) => s.selectBlock)
   const blocks = live.blocks(state).sort((a, b) => a.code.localeCompare(b.code))
-  const [adding, setAdding] = useState(blocks.length === 0)
+  const [adding, setAdding] = useState(false)
   return (
     <section>
       <h2 className="mb-2 font-semibold">Blocks</h2>
       {blocks.length === 0 && !adding && (
-        <p className="text-stone-500 dark:text-stone-400">No blocks yet.</p>
+        <p className="text-stone-500 dark:text-stone-400">
+          No blocks yet. A block is a group of rows, or a place for loose trees.
+        </p>
       )}
       <ul className="divide-y divide-stone-100 dark:divide-stone-800">
         {blocks.map((b) => {
@@ -212,7 +224,7 @@ function BlockEditor({ blockId }: { blockId: string }) {
   const setTool = useEditor((s) => s.setTool)
   const editMode = useEditor((s) => s.editMode)
   const setEditMode = useEditor((s) => s.setEditMode)
-  const map = useEditor((s) => s.map)
+  const fill = useEditor((s) => s.fill)
   const say = useEditor((s) => s.say)
   const [confirmDelete, setConfirmDelete] = useState(false)
   if (!block || block.deleted) {
@@ -231,14 +243,17 @@ function BlockEditor({ blockId }: { blockId: string }) {
     .sort((a, b) => a.number - b.number)
   const loose = live.loosePositions(state).filter((p) => p.blockId === blockId)
   const acres = sqFtToAcres(blockAreaSqFt(block, rows))
-  const toolButton = (t: Tool, label: string) => (
+  const empty = rows.length === 0 && loose.length === 0
+  const toolButton = (t: Tool, label: string, title?: string) => (
     <Button
       variant={tool === t ? 'primary' : 'secondary'}
       onClick={() => setTool(tool === t ? 'none' : t)}
+      title={title}
     >
-      {label}
+      {tool === t ? 'Cancel' : label}
     </Button>
   )
+
   return (
     <section>
       <button
@@ -257,64 +272,93 @@ function BlockEditor({ blockId }: { blockId: string }) {
       </p>
       <p className="mb-3 text-xs text-stone-600 dark:text-stone-400">{describeNumbering(block)}</p>
 
-      <div className="mb-3 flex flex-wrap gap-1.5">
-        {toolButton('row', 'Draw a row')}
-        {toolButton('outline', block.outline ? 'Redraw outline' : 'Draw outline')}
-        {toolButton('loose', 'Add a loose tree')}
-        <Button
-          variant={editMode === 'shapes' ? 'primary' : 'secondary'}
-          onClick={() => setEditMode(editMode === 'shapes' ? 'none' : 'shapes')}
-          disabled={rows.length + loose.length === 0 && !block.outline}
-          title="Drag vertices of rows and the outline"
-        >
-          {editMode === 'shapes' ? 'Done editing shapes' : 'Edit shapes'}
-        </Button>
-        <Button
-          variant={editMode === 'trees' ? 'primary' : 'secondary'}
-          onClick={() => setEditMode(editMode === 'trees' ? 'none' : 'trees')}
-          disabled={rows.length === 0}
-          title="Drag individual trees to where they really stand"
-        >
-          {editMode === 'trees' ? 'Done adjusting trees' : 'Adjust trees'}
-        </Button>
-        <Button
-          onClick={() => {
-            if (!map || rows.length === 0) return
-            map.easeTo({ bearing: rowUpBearing(rows), duration: 600 })
-          }}
-          disabled={rows.length === 0}
-        >
-          Rows up
-        </Button>
-        <Button
-          onClick={() => {
-            const n = autoNumberRows(blockId)
-            say(
-              n
-                ? `Renumbered ${n} rows from the ${describeNumbering(block).split(' ')[5]}.`
-                : 'Rows are already in order.',
-            )
-          }}
-          disabled={rows.length < 2}
-        >
-          Number rows
-        </Button>
-      </div>
+      {fill && fill.blockId === blockId ? (
+        <FillForm blockId={blockId} />
+      ) : empty && !block.outline && tool === 'none' ? (
+        <LayoutChoice />
+      ) : (
+        <>
+          <div className="mb-3 flex flex-wrap gap-1.5">
+            {tool !== 'none' ? (
+              <Button variant="primary" onClick={() => setTool('none')}>
+                Cancel
+              </Button>
+            ) : editMode !== 'none' ? (
+              <Button variant="primary" onClick={() => setEditMode('none')}>
+                Done
+              </Button>
+            ) : (
+              <>
+                {block.outline && rows.length === 0 && (
+                  <Button
+                    variant="primary"
+                    onClick={() => {
+                      const rowSpacingFt = block.rowSpacingFt ?? 16
+                      useEditor.getState().openFill({
+                        blockId,
+                        headingDeg: 0,
+                        rotateDeg: 0,
+                        rowSpacingFt,
+                        treeSpacingFt: block.inRowSpacingFt ?? 12,
+                        insetFt: rowSpacingFt / 2,
+                        pattern: 'square',
+                      })
+                    }}
+                  >
+                    Fill outline with rows
+                  </Button>
+                )}
+                {toolButton('row', 'Add a row')}
+                {toolButton('loose', 'Add a loose tree')}
+                {!block.outline && rows.length > 0 && toolButton('outline', 'Draw outline')}
+                {(rows.length > 0 || loose.length > 0 || block.outline) && (
+                  <Button
+                    onClick={() => setEditMode('shapes')}
+                    title="Drag vertices of rows and the outline"
+                  >
+                    Reshape rows and outline
+                  </Button>
+                )}
+                {rows.length > 0 && (
+                  <Button
+                    onClick={() => setEditMode('trees')}
+                    title="Drag individual trees to where they really stand"
+                  >
+                    Move trees
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
+          <AlignToggle rows={rows} />
+        </>
+      )}
 
       <BlockFields blockId={blockId} />
 
-      <h3 className="mt-4 mb-1 font-semibold">Rows</h3>
-      {rows.length === 0 ? (
-        <p className="text-xs text-stone-500 dark:text-stone-400">
-          Draw the first row over the trees on the map: click at position 1, click at any turn, then
-          double-click on the last tree.
-        </p>
-      ) : (
-        <ul className="divide-y divide-stone-100 dark:divide-stone-800">
-          {rows.map((r) => (
-            <RowEditor key={r.id} row={r} code={block.code} />
-          ))}
-        </ul>
+      {rows.length > 0 && (
+        <>
+          <div className="mt-4 mb-1 flex items-center justify-between">
+            <h3 className="font-semibold">Rows</h3>
+            {rows.length > 1 && (
+              <button
+                className="text-xs underline decoration-dotted"
+                onClick={() => {
+                  const n = autoNumberRows(blockId)
+                  say(n ? `Renumbered ${n} rows.` : 'Rows are already in order.')
+                }}
+                title={describeNumbering(block)}
+              >
+                Renumber
+              </button>
+            )}
+          </div>
+          <ul className="divide-y divide-stone-100 dark:divide-stone-800">
+            {rows.map((r) => (
+              <RowEditor key={r.id} row={r} code={block.code} />
+            ))}
+          </ul>
+        </>
       )}
 
       {loose.length > 0 && (
@@ -339,10 +383,28 @@ function BlockEditor({ blockId }: { blockId: string }) {
         <Link to={`/blocks/${blockId}/grid`} className="text-xs underline decoration-dotted">
           Open the block grid
         </Link>
+        {block.outline && rows.length > 0 && (
+          <button
+            className="text-xs underline decoration-dotted"
+            onClick={() => {
+              const n = clearEmptyRows(blockId)
+              say(
+                n
+                  ? `Removed ${n} empty rows. Fill the outline again.`
+                  : 'Every row holds a tree; nothing removed.',
+              )
+            }}
+          >
+            Remove empty rows
+          </button>
+        )}
         {block.outline && (
-          <Button variant="ghost" onClick={() => setBlockOutline(blockId, null)}>
+          <button
+            className="text-xs underline decoration-dotted"
+            onClick={() => setBlockOutline(blockId, null)}
+          >
             Clear outline
-          </Button>
+          </button>
         )}
         {confirmDelete ? (
           <span className="flex items-center gap-1 text-xs">
@@ -361,12 +423,185 @@ function BlockEditor({ blockId }: { blockId: string }) {
             </Button>
           </span>
         ) : (
-          <Button variant="ghost" onClick={() => setConfirmDelete(true)}>
+          <button
+            className="text-xs underline decoration-dotted"
+            onClick={() => setConfirmDelete(true)}
+          >
             Delete block
-          </Button>
+          </button>
         )}
       </div>
     </section>
+  )
+}
+
+/** The first question for an empty block. */
+function LayoutChoice() {
+  const setTool = useEditor((s) => s.setTool)
+  const card = (t: Tool, title: string, body: string) => (
+    <button
+      className="w-full rounded-md border border-stone-200 dark:border-stone-700 p-2.5 text-left hover:border-lime-600 hover:bg-lime-50 dark:hover:bg-lime-950/30"
+      onClick={() => setTool(t)}
+    >
+      <span className="block font-medium">{title}</span>
+      <span className="block text-xs text-stone-600 dark:text-stone-400">{body}</span>
+    </button>
+  )
+  return (
+    <div className="space-y-2">
+      <p className="text-xs text-stone-600 dark:text-stone-400">How is this block laid out?</p>
+      {card(
+        'outline',
+        'Outline and fill',
+        'Draw the edge of the block; rows and trees fill it on your spacing. Best for a regular planting.',
+      )}
+      {card(
+        'row',
+        'Rows one at a time',
+        'Draw each row as a line over the trees. Best when rows differ.',
+      )}
+      {card('loose', 'Single trees', 'Click each tree. For yard trees and one-offs.')}
+    </div>
+  )
+}
+
+function FillForm({ blockId }: { blockId: string }) {
+  const state = useFarmStore((s) => s.state)
+  const fill = useEditor((s) => s.fill)!
+  const update = useEditor((s) => s.updateFill)
+  const close = useEditor((s) => s.closeFill)
+  const say = useEditor((s) => s.say)
+  const map = useEditor((s) => s.map)
+  const block = state.blocks[blockId]
+  const heading = fill.headingDeg + fill.rotateDeg
+  const preview = useMemo(
+    () =>
+      block?.outline
+        ? fillOutline(block.outline, {
+            headingDeg: heading,
+            rowSpacingFt: fill.rowSpacingFt,
+            treeSpacingFt: fill.treeSpacingFt,
+            insetFt: fill.insetFt,
+            pattern: fill.pattern,
+          })
+        : [],
+    [block?.outline, heading, fill.rowSpacingFt, fill.treeSpacingFt, fill.insetFt, fill.pattern],
+  )
+  const summary = fillSummary(preview)
+  // Turn the map so the preview rows run upright while the form is open.
+  useEffect(() => {
+    map?.easeTo({ bearing: heading, duration: 400 })
+  }, [map, heading])
+  return (
+    <div className="space-y-2 rounded-md border border-lime-300 dark:border-lime-800 p-2.5">
+      <p className="text-xs text-stone-600 dark:text-stone-400">
+        Rows run along the first edge you drew, from its start. Adjust until the orange preview sits
+        on the trees.
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="Tree spacing">
+          <NumberInput
+            value={fill.treeSpacingFt}
+            min={0.5}
+            unit="ft"
+            onChange={(v) => update({ treeSpacingFt: v })}
+          />
+        </Field>
+        <Field label="Row spacing">
+          <NumberInput
+            value={fill.rowSpacingFt}
+            min={0.5}
+            unit="ft"
+            onChange={(v) => update({ rowSpacingFt: v })}
+          />
+        </Field>
+        <Field label="Turn rows" hint={`Heading ${(((heading % 360) + 360) % 360) | 0}°`}>
+          <NumberInput
+            value={fill.rotateDeg}
+            min={-180}
+            max={180}
+            step={0.5}
+            unit="°"
+            onChange={(v) => update({ rotateDeg: v })}
+          />
+        </Field>
+        <Field label="Inset from edge" hint="Half the row spacing by default">
+          <NumberInput
+            value={fill.insetFt}
+            min={0}
+            unit="ft"
+            onChange={(v) => update({ insetFt: v })}
+          />
+        </Field>
+        <Field label="Pattern" className="col-span-2">
+          <select
+            className={inputClass}
+            value={fill.pattern}
+            onChange={(e) => update({ pattern: e.target.value as typeof fill.pattern })}
+          >
+            <option value="square">square: trees line up across rows</option>
+            <option value="diamond">diamond: every other row offset by half</option>
+          </select>
+        </Field>
+      </div>
+      <p className="text-sm">
+        <strong>{summary.rows}</strong> rows, <strong>{summary.trees}</strong> trees
+      </p>
+      <div className="flex gap-2">
+        <Button
+          variant="primary"
+          disabled={summary.trees === 0}
+          onClick={() => {
+            const n = fillBlock(blockId, preview, {
+              rowSpacingFt: fill.rowSpacingFt,
+              inRowSpacingFt: fill.treeSpacingFt,
+            })
+            close()
+            say(
+              `Filled with ${n} rows and ${summary.trees} trees. Rows are numbered ${describeNumbering(block).slice(4).split(';')[0]}.`,
+            )
+          }}
+        >
+          Create {summary.rows} rows
+        </Button>
+        <Button variant="ghost" onClick={close}>
+          Keep only the outline
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+function AlignToggle({ rows }: { rows: Row[] }) {
+  const map = useEditor((s) => s.map)
+  const aligned = useEditor((s) => s.aligned)
+  const setAligned = useEditor((s) => s.setAligned)
+  const bearing = rows.length ? rowUpBearing(rows) : 0
+  // The compass button also resets north; follow whatever the map is actually doing.
+  useEffect(() => {
+    if (!map) return
+    const onRotate = () => {
+      const diff = Math.abs(((((map.getBearing() - bearing) % 360) + 540) % 360) - 180)
+      setAligned(rows.length > 0 && diff < 1)
+    }
+    map.on('rotateend', onRotate)
+    return () => {
+      map.off('rotateend', onRotate)
+    }
+  }, [map, bearing, rows.length, setAligned])
+  if (rows.length === 0 || !map) return null
+  return (
+    <label className="flex items-center gap-2 text-xs text-stone-600 dark:text-stone-400">
+      <input
+        type="checkbox"
+        checked={aligned}
+        onChange={(e) => {
+          map.easeTo({ bearing: e.target.checked ? bearing : 0, duration: 600 })
+          setAligned(e.target.checked)
+        }}
+      />
+      Turn the map so rows run bottom to top
+    </label>
   )
 }
 
@@ -378,7 +613,7 @@ function BlockFields({ blockId }: { blockId: string }) {
   const [error, setError] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
   return (
-    <div className="rounded-md border border-stone-200 dark:border-stone-700">
+    <div className="mt-3 rounded-md border border-stone-200 dark:border-stone-700">
       <button
         className="flex w-full items-center justify-between px-2 py-1.5 text-xs font-medium"
         onClick={() => setOpen((o) => !o)}
@@ -675,13 +910,13 @@ function FeatureSection() {
               variant={tool === 'feature-point' ? 'primary' : 'secondary'}
               onClick={() => setTool(tool === 'feature-point' ? 'none' : 'feature-point')}
             >
-              Place a point
+              {tool === 'feature-point' ? 'Cancel' : 'Place a point'}
             </Button>
             <Button
               variant={tool === 'feature-polygon' ? 'primary' : 'secondary'}
               onClick={() => setTool(tool === 'feature-polygon' ? 'none' : 'feature-polygon')}
             >
-              Draw an area
+              {tool === 'feature-polygon' ? 'Cancel' : 'Draw an area'}
             </Button>
           </div>
         </div>
@@ -695,11 +930,10 @@ function ViewSection() {
   const setColorBy = useEditor((s) => s.setColorBy)
   const planYear = useEditor((s) => s.planYear)
   const setPlanYear = useEditor((s) => s.setPlanYear)
-  const map = useEditor((s) => s.map)
   return (
     <section className="mt-5 border-t border-stone-200 dark:border-stone-700 pt-3">
       <h2 className="mb-2 font-semibold">View</h2>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-end gap-2">
         <Field label="Color trees by">
           <select
             className={inputClass}
@@ -716,13 +950,6 @@ function ViewSection() {
             <NumberInput value={planYear} min={2000} max={2100} step={1} onChange={setPlanYear} />
           </Field>
         )}
-        <Button
-          className={clsx('self-end')}
-          onClick={() => map?.easeTo({ bearing: 0, duration: 600 })}
-          disabled={!map}
-        >
-          North up
-        </Button>
       </div>
     </section>
   )

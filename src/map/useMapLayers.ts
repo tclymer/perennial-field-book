@@ -1,10 +1,14 @@
 /** Keeps the map's GeoJSON sources in step with state and the editor's hidden shapes. */
 import { useEffect, useMemo } from 'react'
 import type { GeoJSONSource, Map as MlMap } from 'maplibre-gl'
+import type { Feature, FeatureCollection, LineString, Point } from 'geojson'
 import type { FarmState } from '@/model/types'
 import { live } from '@/events/reduce'
+import { fillOutline } from '@/engine/fill'
+import { positionsAlong } from '@/engine/geo'
 import { blocksFC, featuresFC, planFC, positionsFC, rowsFC, type ColorBy } from './geojson'
 import type { OverlaySource } from './style'
+import { useEditor } from '@/ui/map/editorStore'
 
 export interface HiddenShapes {
   blocks: ReadonlySet<string>
@@ -21,9 +25,43 @@ export const NOTHING_HIDDEN: HiddenShapes = {
   positionsOfBlocks: new Set(),
 }
 
-function setData(map: MlMap, id: OverlaySource, data: GeoJSON.FeatureCollection) {
+const EMPTY: FeatureCollection = { type: 'FeatureCollection', features: [] }
+
+function setData(map: MlMap, id: OverlaySource, data: FeatureCollection) {
   const src = map.getSource(id) as GeoJSONSource | undefined
   src?.setData(data)
+}
+
+/** The rows and trees a fill would create, drawn as a preview while the form is open. */
+export function fillPreviewFC(state: FarmState): FeatureCollection {
+  const fill = useEditor.getState().fill
+  if (!fill) return EMPTY
+  const outline = state.blocks[fill.blockId]?.outline
+  if (!outline) return EMPTY
+  const rows = fillOutline(outline, {
+    headingDeg: fill.headingDeg + fill.rotateDeg,
+    rowSpacingFt: fill.rowSpacingFt,
+    treeSpacingFt: fill.treeSpacingFt,
+    insetFt: fill.insetFt,
+    pattern: fill.pattern,
+  })
+  const features: Feature<LineString | Point>[] = []
+  rows.forEach((r, i) => {
+    features.push({
+      type: 'Feature',
+      id: `pr-${i}`,
+      properties: {},
+      geometry: { type: 'LineString', coordinates: r.polyline.map(([a, b]) => [a, b]) },
+    })
+    for (const c of positionsAlong(r.polyline, { by: 'count', count: r.count })) {
+      features.push({
+        type: 'Feature',
+        properties: {},
+        geometry: { type: 'Point', coordinates: [c[0], c[1]] },
+      })
+    }
+  })
+  return { type: 'FeatureCollection', features }
 }
 
 export function useMapLayers(
@@ -33,6 +71,7 @@ export function useMapLayers(
   planYear: number,
   hidden: HiddenShapes = NOTHING_HIDDEN,
 ): void {
+  const fill = useEditor((s) => s.fill)
   const data = useMemo(() => {
     const positions = positionsFC(state, {
       colorBy,
@@ -47,8 +86,9 @@ export function useMapLayers(
       positions,
       labels: positions,
       plan: planFC(state, planYear, hidden.positionsOfBlocks),
+      preview: fill ? fillPreviewFC(state) : EMPTY,
     }
-  }, [state, colorBy, planYear, hidden])
+  }, [state, colorBy, planYear, hidden, fill])
 
   useEffect(() => {
     if (!map) return

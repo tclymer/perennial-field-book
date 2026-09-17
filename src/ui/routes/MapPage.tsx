@@ -12,6 +12,7 @@ import { useFarmStore } from '@/state/store'
 import { BasemapNotice } from '@/ui/map/BasemapNotice'
 import { EditorPanel } from '@/ui/map/EditorPanel'
 import { GoogleAttribution } from '@/ui/map/GoogleAttribution'
+import { HomeButton, goHome } from '@/ui/map/HomeButton'
 import { useEditor } from '@/ui/map/editorStore'
 import { useIsDesktop } from '@/ui/useIsDesktop'
 
@@ -46,6 +47,14 @@ export default function MapPage() {
     const coord = coordOfPosKey(useFarmStore.getState().state, focus)
     if (coord) map.easeTo({ center: coord, zoom: Math.max(map.getZoom(), 20), duration: 800 })
   }, [map, focus])
+
+  // First open on this device: fit to whatever has been drawn rather than a remembered view.
+  useEffect(() => {
+    if (!map || focus || lastView) return
+    goHome(map, useFarmStore.getState().state)
+    // Only once, when the map first appears.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map])
 
   const showingGoogle = basemap.state.source === 'google' && basemap.spec?.id === 'google'
 
@@ -83,6 +92,7 @@ export default function MapPage() {
             )
           )}
           {showingGoogle && <GoogleAttribution copyright={basemap.copyright} />}
+          <HomeButton map={map} state={state} />
         </MapView>
       </div>
     </div>
