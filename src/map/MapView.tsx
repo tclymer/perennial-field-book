@@ -123,6 +123,8 @@ export function MapView({
         setReady(true)
         latest.current.onMap?.(map)
       })
+      // Handy in the browser console while developing; never present in a build.
+      if (import.meta.env.DEV) (window as unknown as { __map?: MlMap }).__map = map
     })()
     return () => {
       disposed = true
