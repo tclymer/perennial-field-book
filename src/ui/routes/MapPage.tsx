@@ -3,13 +3,17 @@ import { Link } from 'react-router-dom'
 import { MapView } from '@/map/MapView'
 import { presetFor } from '@/map/presets'
 import { initialView, useDevice, type MapView as View } from '@/state/device'
+import { useFarmStore } from '@/state/store'
 import { BasemapNotice } from '@/ui/map/BasemapNotice'
 
 export default function MapPage() {
   const prefs = useDevice()
   const setPrefs = useDevice((s) => s.set)
+  const farm = useFarmStore((s) => s.state.farm)
   // Read once: the map owns its view after that and reports moves back.
-  const start = useRef<View>(initialView())
+  const start = useRef<View>(
+    prefs.lastView ?? (farm ? { center: farm.center, zoom: farm.zoom, bearing: 0 } : initialView()),
+  )
   const basemap = useMemo(
     () => presetFor(prefs, prefs.lastView?.center ?? start.current.center),
     [prefs],

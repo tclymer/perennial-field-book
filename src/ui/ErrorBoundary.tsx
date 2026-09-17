@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
+import { exportCurrentFarm } from '@/state/exporter'
 
 interface Props {
   children: ReactNode
@@ -58,6 +59,12 @@ export class ErrorBoundary extends Component<Props, State> {
             onClick={() => location.reload()}
           >
             Reload
+          </button>
+          <button
+            className="rounded-md border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-900 px-3 py-1.5 text-sm font-medium text-stone-800 dark:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800"
+            onClick={() => void exportCurrentFarm()}
+          >
+            Export a copy
           </button>
           <button
             className="rounded-md border border-transparent px-3 py-1.5 text-sm font-medium text-stone-600 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800"

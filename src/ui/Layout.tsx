@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react'
-import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { Navigate, NavLink, Outlet, useLocation } from 'react-router-dom'
 import clsx from 'clsx'
 import { APP_NAME, APP_VERSION } from '@/version'
+import { useFarmStore } from '@/state/store'
 import { ErrorBoundary } from './ErrorBoundary'
 import { UpdateToast } from './UpdateToast'
 import { nextTheme, themeLabel, useTheme } from './theme'
@@ -35,12 +36,23 @@ const PHONE_TABS: [string, string, string][] = [
   ['/settings', 'Settings', '⚙'],
 ]
 
+/** Pages that work before a farm exists. */
+const NO_FARM_OK = ['/start', '/about']
+
 export default function Layout() {
   const [theme, setTheme] = useTheme()
   const { pathname } = useLocation()
   const mainRef = useRef<HTMLElement>(null)
+  const hydrated = useFarmStore((s) => s.hydrated)
+  const farmId = useFarmStore((s) => s.farmId)
+  const hydrate = useFarmStore((s) => s.hydrate)
   // The map fills the space between the header and the phone tabs; other pages scroll.
   const fullBleed = pathname === '/' || pathname === ''
+  const needsFarm = hydrated && !farmId && !NO_FARM_OK.some((p) => pathname.startsWith(p))
+
+  useEffect(() => {
+    void hydrate()
+  }, [hydrate])
 
   // Each page gets its own tab title, and focus moves to the page on navigation.
   useEffect(() => {
@@ -104,9 +116,15 @@ export default function Layout() {
           fullBleed ? 'relative min-h-0 flex-1' : 'mx-auto w-full max-w-6xl flex-1 px-4 py-5',
         )}
       >
-        <ErrorBoundary resetKey={pathname}>
-          <Outlet />
-        </ErrorBoundary>
+        {!hydrated ? (
+          <p className="p-4 text-stone-500 dark:text-stone-400">Loading your farm…</p>
+        ) : needsFarm ? (
+          <Navigate to="/start" replace />
+        ) : (
+          <ErrorBoundary resetKey={pathname}>
+            <Outlet />
+          </ErrorBoundary>
+        )}
       </main>
       {!fullBleed && (
         <footer className="mx-auto w-full max-w-6xl px-4 py-6 text-xs text-stone-400 dark:text-stone-500 print:hidden">

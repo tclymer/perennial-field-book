@@ -1,13 +1,70 @@
-import { Button, Card, Field, NumberInput, PageHeader, inputClass } from '@/ui/components'
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Button, Card, Field, NumberInput, PageHeader, Pill, inputClass } from '@/ui/components'
 import { PRESETS, PRESET_IDS, autoPreset } from '@/map/presets'
 import { initialView, useDevice } from '@/state/device'
+import { useFarmStore } from '@/state/store'
+import { exportCurrentFarm } from '@/state/exporter'
+import { parseImport } from '@/events/bundle'
+import { nextTheme, themeLabel, useTheme } from '@/ui/theme'
+import type { EntityKind } from '@/model/types'
 
 export default function SettingsPage() {
   return (
     <div className="space-y-4">
       <PageHeader title="Settings" />
+      <FarmSettings />
       <ImagerySettings />
+      <DataSettings />
+      <RecentlyDeleted />
+      <Appearance />
     </div>
+  )
+}
+
+function FarmSettings() {
+  const farm = useFarmStore((s) => s.state.farm)
+  const commit = useFarmStore((s) => s.commit)
+  const lastView = useDevice((s) => s.lastView)
+  const [name, setName] = useState(farm?.name ?? '')
+  if (!farm) return null
+  return (
+    <Card>
+      <h2 className="font-semibold">Farm</h2>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <Field label="Name">
+          <input
+            className={inputClass}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onBlur={() => {
+              const v = name.trim()
+              if (v && v !== farm.name) commit([{ type: 'farm.patch', payload: { name: v } }])
+              else setName(farm.name)
+            }}
+          />
+        </Field>
+        <Field
+          label="Home view"
+          hint="Where the map opens for everyone. Uses the spot this device last left the map."
+        >
+          <Button
+            disabled={!lastView}
+            onClick={() =>
+              lastView &&
+              commit([
+                {
+                  type: 'farm.patch',
+                  payload: { center: lastView.center, zoom: lastView.zoom },
+                },
+              ])
+            }
+          >
+            Set home view to the last map position
+          </Button>
+        </Field>
+      </div>
+    </Card>
   )
 }
 
@@ -101,9 +158,154 @@ function ImagerySettings() {
           </Field>
         </div>
       )}
-      <div className="mt-3">
-        <Button variant="ghost" onClick={() => set({ lastView: null })}>
-          Forget the last map position
+    </Card>
+  )
+}
+
+function DataSettings() {
+  const navigate = useNavigate()
+  const importLog = useFarmStore((s) => s.importLog)
+  const deleteFarm = useFarmStore((s) => s.deleteFarm)
+  const applied = useFarmStore((s) => s.state.applied)
+  const storageUnavailable = useFarmStore((s) => s.storageUnavailable)
+  const [message, setMessage] = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+
+  const restore = async (file: File) => {
+    setMessage(null)
+    try {
+      const parsed = parseImport(await file.text())
+      const ok = await importLog(parsed.farmId, parsed.events)
+      if (!ok) throw new Error('The file could not be saved in this browser.')
+      setMessage(`Imported ${parsed.events.length} events.`)
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'That file could not be read.')
+    }
+  }
+
+  return (
+    <Card>
+      <h2 className="font-semibold">Your data</h2>
+      <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
+        {applied} recorded changes live in this browser. Export a copy now and then; nothing else
+        keeps one until sync arrives.
+      </p>
+      {storageUnavailable && (
+        <p role="alert" className="mt-2 text-sm text-amber-700 dark:text-amber-400">
+          This browser refused to save. Changes will be lost when the page closes, so export now.
+        </p>
+      )}
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <Button variant="primary" onClick={() => void exportCurrentFarm()}>
+          Export a copy
+        </Button>
+        <label className="text-sm text-stone-600 dark:text-stone-400">
+          Import an export:{' '}
+          <input
+            type="file"
+            accept=".json,application/json"
+            className="text-sm"
+            onChange={(e) => {
+              const f = e.target.files?.[0]
+              if (f) void restore(f)
+              e.target.value = ''
+            }}
+          />
+        </label>
+      </div>
+      {message && (
+        <p role="status" className="mt-2 text-sm text-stone-700 dark:text-stone-300">
+          {message}
+        </p>
+      )}
+      <div className="mt-4 border-t border-stone-100 dark:border-stone-800 pt-3">
+        {confirmDelete ? (
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span>Delete this farm from this browser? Export first if you want to keep it.</span>
+            <Button
+              variant="danger"
+              onClick={() => {
+                void deleteFarm().then(() => navigate('/start'))
+              }}
+            >
+              Yes, delete it
+            </Button>
+            <Button variant="ghost" onClick={() => setConfirmDelete(false)}>
+              Keep it
+            </Button>
+          </div>
+        ) : (
+          <Button variant="danger" onClick={() => setConfirmDelete(true)}>
+            Delete this farm from this browser
+          </Button>
+        )}
+      </div>
+    </Card>
+  )
+}
+
+const KIND_LABEL: Record<EntityKind, string> = {
+  block: 'Block',
+  row: 'Row',
+  position: 'Position',
+  feature: 'Feature',
+  variety: 'Variety',
+  tree: 'Tree',
+}
+
+function RecentlyDeleted() {
+  const state = useFarmStore((s) => s.state)
+  const commit = useFarmStore((s) => s.commit)
+  const items: { kind: EntityKind; id: string; label: string; at: number }[] = []
+  for (const b of Object.values(state.blocks))
+    if (b.deleted)
+      items.push({ kind: 'block', id: b.id, label: `${b.code} ${b.name}`, at: b.updatedAt })
+  for (const r of Object.values(state.rows))
+    if (r.deleted) items.push({ kind: 'row', id: r.id, label: `Row ${r.number}`, at: r.updatedAt })
+  for (const p of Object.values(state.loosePositions))
+    if (p.deleted)
+      items.push({ kind: 'position', id: p.id, label: `Position ${p.number}`, at: p.updatedAt })
+  for (const f of Object.values(state.features))
+    if (f.deleted) items.push({ kind: 'feature', id: f.id, label: f.name, at: f.updatedAt })
+  for (const v of Object.values(state.varieties))
+    if (v.deleted) items.push({ kind: 'variety', id: v.id, label: v.name, at: v.updatedAt })
+  for (const t of Object.values(state.trees))
+    if (t.deleted) items.push({ kind: 'tree', id: t.id, label: t.posKey, at: t.updatedAt })
+  if (items.length === 0) return null
+  items.sort((a, b) => b.at - a.at)
+  return (
+    <Card>
+      <h2 className="font-semibold">Recently deleted</h2>
+      <ul className="mt-2 divide-y divide-stone-100 dark:divide-stone-800 text-sm">
+        {items.map((it) => (
+          <li key={it.id} className="flex items-center justify-between gap-2 py-1.5">
+            <span>
+              <Pill className="mr-2">{KIND_LABEL[it.kind]}</Pill>
+              {it.label}
+            </span>
+            <Button
+              onClick={() =>
+                commit([{ type: `${it.kind}.restore`, payload: { id: it.id } } as never])
+              }
+            >
+              Restore
+            </Button>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  )
+}
+
+function Appearance() {
+  const [theme, setTheme] = useTheme()
+  return (
+    <Card>
+      <h2 className="font-semibold">Appearance</h2>
+      <div className="mt-2 flex items-center gap-2 text-sm">
+        <span>Theme: {themeLabel[theme]}</span>
+        <Button onClick={() => setTheme(nextTheme[theme])}>
+          Switch to {themeLabel[nextTheme[theme]].toLowerCase()}
         </Button>
       </div>
     </Card>
