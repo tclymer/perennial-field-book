@@ -6,6 +6,7 @@ import { initialView, useDevice, type MapView as View } from '@/state/device'
 import { useFarmStore } from '@/state/store'
 import { parseImport } from '@/events/bundle'
 import { Button, Card, Field, PageHeader, inputClass } from '@/ui/components'
+import { RemoteFarms } from '@/ui/settings/RemoteFarms'
 
 export default function FirstRunPage() {
   const navigate = useNavigate()
@@ -97,6 +98,7 @@ export default function FirstRunPage() {
           </p>
         )}
       </Card>
+      <RemoteFarms onOpened={() => navigate('/')} returnTo="/start" />
     </div>
   )
 }

@@ -1,7 +1,13 @@
-/** Photos live in IndexedDB next to the events, resized so a farm's worth stays small. */
+/**
+ * Photos live in IndexedDB next to the events, resized so a farm's worth stays small. A
+ * photo taken on another device is fetched from the server the first time it is shown.
+ */
 import { useEffect, useState } from 'react'
-import { getPhoto, putPhoto } from '@/events/db'
+import { getPhoto, getSync, putPhoto, type PhotoRow } from '@/events/db'
 import { newId } from '@/model/ids'
+import { api } from '@/sync/api'
+import { useSync } from '@/sync/store'
+import { useFarmStore } from './store'
 
 const MAX_PX = 1600
 
@@ -33,14 +39,47 @@ export async function resizeImage(file: Blob, maxPx = MAX_PX): Promise<Blob> {
 export async function addPhoto(farmId: string, file: Blob): Promise<string | null> {
   const blob = await resizeImage(file)
   const id = newId('pho')
-  const ok = await putPhoto({
-    id,
-    farmId,
-    mime: blob.type || 'image/jpeg',
-    blob,
-    createdAt: Date.now(),
-  })
+  const ok = await putPhoto(
+    {
+      id,
+      farmId,
+      mime: blob.type || 'image/jpeg',
+      blob,
+      createdAt: Date.now(),
+    },
+    { outbox: true },
+  )
   return ok ? id : null
+}
+
+const fetching = new Map<string, Promise<PhotoRow | null>>()
+
+/** A photo that is not here yet, from the server, if this device syncs the open farm. */
+function fetchPhoto(id: string): Promise<PhotoRow | null> {
+  const inFlight = fetching.get(id)
+  if (inFlight) return inFlight
+  const p = (async () => {
+    const { farmId } = useFarmStore.getState()
+    if (!farmId || !useSync.getState().session || !(await getSync(farmId))) return null
+    try {
+      const blob = await api<Blob>('GET', `/api/farms/${farmId}/photos/${id}`)
+      const row: PhotoRow = {
+        id,
+        farmId,
+        mime: blob.type || 'image/jpeg',
+        blob,
+        createdAt: Date.now(),
+      }
+      await putPhoto(row, { outbox: false })
+      return row
+    } catch {
+      return null
+    } finally {
+      fetching.delete(id)
+    }
+  })()
+  fetching.set(id, p)
+  return p
 }
 
 const urls = new Map<string, string>()
@@ -49,7 +88,7 @@ const urls = new Map<string, string>()
 export async function photoUrl(id: string): Promise<string | null> {
   const hit = urls.get(id)
   if (hit) return hit
-  const row = await getPhoto(id)
+  const row = (await getPhoto(id)) ?? (await fetchPhoto(id))
   if (!row) return null
   const url = URL.createObjectURL(row.blob)
   urls.set(id, url)

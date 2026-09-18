@@ -4,6 +4,8 @@ import clsx from 'clsx'
 import { APP_NAME, APP_VERSION } from '@/version'
 import { useFarmStore } from '@/state/store'
 import { reconcilePlantedBlocks } from '@/state/actions'
+import { installSyncTriggers, refreshSyncStatus, syncNow } from '@/sync/engine'
+import { SyncDot } from './SyncDot'
 import { ErrorBoundary } from './ErrorBoundary'
 import { UpdateToast } from './UpdateToast'
 import { nextTheme, themeLabel, useTheme } from './theme'
@@ -60,6 +62,12 @@ export default function Layout() {
     if (hydrated && farmId) reconcilePlantedBlocks()
   }, [hydrated, farmId])
 
+  // Sync: once on open, then after writes, on reconnect, when visible again, and on a timer.
+  useEffect(() => installSyncTriggers(), [])
+  useEffect(() => {
+    if (hydrated && farmId) void refreshSyncStatus().then(() => syncNow('open'))
+  }, [hydrated, farmId])
+
   // Each page gets its own tab title, and focus moves to the page on navigation.
   useEffect(() => {
     document.title = `${pageTitle(pathname)} · ${APP_NAME}`
@@ -101,6 +109,7 @@ export default function Layout() {
             ))}
           </nav>
           <div className="ml-auto flex items-center gap-2">
+            <SyncDot />
             <button
               onClick={() => setTheme(nextTheme[theme])}
               className="rounded-md border border-stone-300 dark:border-stone-600 bg-stone-100 dark:bg-stone-800 px-2.5 py-1 text-xs font-medium text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100"

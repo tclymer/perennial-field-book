@@ -59,6 +59,11 @@ interface FarmStore {
   importLog: (farmId: string, events: AnyEvent[]) => Promise<boolean>
   /** Delete the open farm from this browser. */
   deleteFarm: () => Promise<void>
+  /**
+   * Re-read the open farm from storage. Sync uses it after a pull, because events from
+   * another device may be older than ones already applied and the reducer needs full order.
+   */
+  reload: () => Promise<void>
 }
 
 const track = (p: Promise<boolean>) => {
@@ -131,7 +136,7 @@ export const useFarmStore = create<FarmStore>()((set, get) => ({
   },
 
   importLog: async (farmId, events) => {
-    const ok = await mergeEvents(events)
+    const ok = await mergeEvents(events, { outbox: true })
     if (!ok) {
       set({ storageUnavailable: true })
       return false
@@ -145,6 +150,18 @@ export const useFarmStore = create<FarmStore>()((set, get) => ({
     await deleteFarmData(farmId)
     writeActiveFarmId(null)
     set({ farmId: null, state: emptyState() })
+  },
+
+  reload: async () => {
+    const { farmId } = get()
+    if (!farmId) return
+    await whenWritten()
+    const events = await loadEvents(farmId)
+    if (events === null || events.length === 0) return
+    const state = materialize(events)
+    lastTs = Math.max(lastTs, state.lastTs)
+    // Only replace the state if nothing was committed meanwhile.
+    if (get().farmId === farmId) set({ state })
   },
 }))
 

@@ -10,13 +10,18 @@ import { nextTheme, themeLabel, useTheme } from '@/ui/theme'
 import { OfflineSave } from '@/ui/map/OfflineSave'
 import type { EntityKind } from '@/model/types'
 import { AccountCard } from '@/ui/settings/AccountCard'
+import { SyncCard } from '@/ui/settings/SyncCard'
+import { RemoteFarms } from '@/ui/settings/RemoteFarms'
 
 export default function SettingsPage() {
+  const navigate = useNavigate()
   return (
     <div className="space-y-4">
       <PageHeader title="Settings" />
       <FarmSettings />
       <AccountCard />
+      <SyncCard />
+      <RemoteFarms onOpened={() => navigate('/')} returnTo="/settings" />
       <ImagerySettings />
       <OfflineSave />
       <DataSettings />
@@ -211,8 +216,8 @@ function DataSettings() {
     <Card>
       <h2 className="font-semibold">Your data</h2>
       <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
-        {applied} recorded changes live in this browser. Export a copy now and then; nothing else
-        keeps one until sync arrives.
+        {applied} recorded changes live in this browser. Export a copy now and then, and turn on
+        sync above to keep one on the server.
       </p>
       {storageUnavailable && (
         <p role="alert" className="mt-2 text-sm text-amber-700 dark:text-amber-400">

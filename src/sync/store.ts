@@ -28,6 +28,8 @@ interface SyncStore {
   session: Session | null
   /** Farms this account can open on the server, from the last /api/me. */
   farms: RemoteFarm[]
+  /** Whether the open farm syncs from this device. */
+  linked: boolean
   phase: SyncPhase
   lastSyncAt: number | null
   /** Local changes not yet on the server, for the open farm. */
@@ -66,6 +68,7 @@ function writeSession(session: Session | null): void {
 export const useSync = create<SyncStore>()((set) => ({
   session: readSession(),
   farms: [],
+  linked: false,
   phase: 'idle',
   lastSyncAt: null,
   pending: 0,
@@ -83,6 +86,7 @@ export function resetSyncForTests(): void {
   useSync.setState({
     session: null,
     farms: [],
+    linked: false,
     phase: 'idle',
     lastSyncAt: null,
     pending: 0,
