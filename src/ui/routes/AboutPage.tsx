@@ -32,6 +32,17 @@ export default function AboutPage() {
           </li>
           <li>Export a complete copy from Settings whenever you like.</li>
           <li>
+            The full{' '}
+            <a href="/privacy.html" className="underline decoration-dotted">
+              privacy page
+            </a>{' '}
+            and{' '}
+            <a href="/terms.html" className="underline decoration-dotted">
+              terms of use
+            </a>
+            .
+          </li>
+          <li>
             The server runs on Cloudflare in the United States and is operated by Threefold Farm as
             a volunteer effort, with no guarantee of uptime. Keep exports of anything you cannot
             afford to lose.

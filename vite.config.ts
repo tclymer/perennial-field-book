@@ -48,7 +48,7 @@ export default defineConfig({
         globPatterns: ['**/*.{js,mjs,css,html,svg,png,json,pbf}'],
         navigateFallback: 'index.html',
         // The API and the sign-in redirects are real server routes, never the app shell.
-        navigateFallbackDenylist: [/^\/api\//],
+        navigateFallbackDenylist: [/^\/api\//, /^\/(privacy|terms)\.html$/],
         // Public imagery may be kept for the field map without signal. Google tiles never
         // match this pattern (DESIGN.md §8.1).
         runtimeCaching: [
