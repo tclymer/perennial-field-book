@@ -452,8 +452,8 @@ page inside the installed app. XSS is held off by the strict CSP.
 - Removing a member refuses that account from the next request on. The copy already on
   their phone stays there, and the app says so when removing.
 - Every farm route checks membership. Bodies are capped (2,000 events per push, 32 KB per
-  event, 5 MB per photo). Invite tokens and session ids are 192 random bits. A Cloudflare
-  WAF rate-limiting rule on `/api/*` guards the daily request allowance.
+  event, 5 MB per photo). Invite tokens and session ids are 192 random bits. The daily
+  request allowance is watched rather than capped: no Cloudflare zone, see §8.7 step 5.
 - Cloudflare free plan (checked 2026-09-17): 100,000 function requests a day, D1 5 GB and
   100,000 row writes a day (hard stop from September 2026), R2 10 GB with free egress. Room
   for dozens of farms; the paid plan is $5 a month beyond that. D1 keeps thirty days of
