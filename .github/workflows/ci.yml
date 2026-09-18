@@ -44,11 +44,16 @@ jobs:
         if: env.HAS_TOKEN == 'true'
         env:
           VITE_GOOGLE_MAPS_KEY: ${{ secrets.VITE_GOOGLE_MAPS_KEY }}
+      - name: Apply database migrations
+        if: env.HAS_TOKEN == 'true'
+        run: npx --yes wrangler@4 d1 migrations apply fieldbook --remote
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       - name: Deploy to Cloudflare Pages
         if: env.HAS_TOKEN == 'true'
-        # Run from dist so the Workers config at the repository root is not read.
-        working-directory: dist
-        run: npx --yes wrangler@4 pages deploy . --project-name=perennial-field-book --branch=main --commit-dirty=true
+        # wrangler.jsonc names the output directory and the D1 and R2 bindings; functions/ ships with it.
+        run: npx --yes wrangler@4 pages deploy --project-name=perennial-field-book --branch=main --commit-dirty=true
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

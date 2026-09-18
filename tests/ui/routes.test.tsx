@@ -46,6 +46,8 @@ const routes: [string, RegExp | string][] = [
   ['#/import', /Import from the planner/i],
   ['#/settings', /Your data/i],
   ['#/about', /Credits/i],
+  ['#/auth', /Sign in with Google/i],
+  ['#/auth?error=denied', /did not complete/i],
   ['#/nope', /Page not found/i],
 ]
 

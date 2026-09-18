@@ -1,12 +1,24 @@
-// Cloudflare Workers deployment: the built site in dist/ is served as static assets.
-// There is no Worker script; requests never invoke code, and public/_headers still applies.
+// Cloudflare Pages project: the built site in dist/ plus the API in functions/ (DESIGN.md §8.3).
+// `wrangler pages deploy` reads this for the output directory and the bindings; `wrangler
+// pages dev` uses it for local D1 and R2 under .wrangler/. Secrets (GOOGLE_CLIENT_SECRET and
+// friends) are never here: .dev.vars locally, the Pages project's environment variables live.
 {
   "$schema": "https://unpkg.com/wrangler/config-schema.json",
   "name": "perennial-field-book",
   "compatibility_date": "2025-09-01",
-  "assets": {
-    "directory": "./dist",
-    // Every route is client-side (hash router), so unknown paths just get the 404 status.
-    "not_found_handling": "none",
-  },
+  "pages_build_output_dir": "./dist",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "fieldbook",
+      // Set by `wrangler d1 create fieldbook` (DESIGN.md §8.7).
+      "database_id": "00000000-0000-0000-0000-000000000000",
+    },
+  ],
+  "r2_buckets": [
+    {
+      "binding": "PHOTOS",
+      "bucket_name": "fieldbook-photos",
+    },
+  ],
 }

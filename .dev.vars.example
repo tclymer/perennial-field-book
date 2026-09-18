@@ -1,0 +1,5 @@
+# Copy to .dev.vars (gitignored) for `npm run api`. The live values are set in the Cloudflare
+# Pages project's environment variables, never committed. DESIGN.md §8.7 explains each.
+APP_ORIGIN=http://localhost:5173
+GOOGLE_CLIENT_ID=...apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=...

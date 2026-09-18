@@ -67,6 +67,8 @@ useful it might be to a farm.
 | 2026-09-16 | When Google tiles are unavailable (daily quota reached, offline, or an error), the map falls back automatically to a free source (PEMA in Pennsylvania, Esri elsewhere) or to drawn features over a plain background. Google tiles are never stored by the service worker. | Google's terms forbid caching; the quota is a soft ceiling on Google, not on the app. |
 | 2026-09-16 | If the tool takes off, revisit paid Google usage or a bring-your-own-key option. Add a donation link on the About page at some point. | User's call. Not iteration one. |
 | 2026-09-17 | A block is planted by default: every position is a tree record from the moment a row exists, and a row's default variety flows to trees that have none of their own. "Planned" is an opt-in status for layouts on bare ground, and marking a planned block planted records everything at once. | Drawing rows over real trees felt like creating the trees, so having to declare them real afterwards was wrong. Planned stays for comparing layouts. |
+| 2026-09-17 | Sync is a hosted adapter on Cloudflare: Pages Functions in this repository, D1 for the event log and membership, R2 for photos. Google sign-in for identity only; farms are shared by invite link; the owner can remove members. Google Drive is dropped. | Drive's `drive.file` scope (the only one without a security audit) cannot see files another account created, nor files added later to a picked folder, so "each person on their own Google account" cannot work through Drive. Hosting brings custody of other farms' data, accepted with the protections in §8.3. |
+| 2026-09-17 | Sign-in is a server-side OAuth code flow. The session comes back to the app as a one-time code in the return URL and is kept as a bearer token, never a cookie. | Popups do not work inside an installed iPhone app and Google's browser-only tokens expire hourly; a code in the URL works whichever browsing context ran Google's page. |
 
 ---
 
@@ -391,11 +393,13 @@ New pieces:
     imagery sharper and newer than Google's, so importing a GeoTIFF or a pre-tiled folder is a
     later candidate.
 - **Dexie** (IndexedDB) for the local event log, materialized state cache, and outbox.
-- **Google Identity Services + Drive REST API** for the Drive sync adapter. `drive.file`
-  scope only (non-sensitive, no verification burden).
-- **zod** schemas shared by events, state, and exports.
+- **Cloudflare Pages Functions + D1 + R2** for the hosted sync adapter (§8.3), in this
+  repository under `functions/` and `server/`, deployed with the site.
+- **Google sign-in** (OpenID Connect, basic scopes only) for identity. No Drive.
+- **zod** schemas shared by events, state, exports, and the API.
 
-No server. The optional exception is a tiny token-refresh Worker (§8.4).
+The app is still local-first: every device holds its whole farm and works offline. The server
+is the meeting point and the shared copy.
 
 ### 8.2 Event log
 
@@ -409,40 +413,72 @@ No server. The optional exception is a tiny token-refresh Worker (§8.4).
 
 ### 8.3 Sync adapter
 
-```
-interface SyncAdapter {
-  push(events: Event[]): Promise<void>
-  pull(since: Cursor): Promise<{ events: Event[]; cursor: Cursor }>
-  putBlob(id, bytes): Promise<void>      // photos, resized client-side to ≤1600 px
-  getBlob(id): Promise<Uint8Array>
-}
-```
+Every device keeps its full event log in IndexedDB. Sync exchanges events with the server:
+push what is in the local outbox, pull what arrived since the last server sequence number,
+re-materialize. Events never conflict (append-only, last-writer-wins per field by `ts`), so
+there is no merge step. Sync runs on open, a few seconds after each write, when the app
+returns to the foreground or the network, every few minutes, and on demand. It is never
+required: a device with no account works exactly as in iteration one.
 
-Sync runs on open, after each write when online, and every few minutes. It is never required:
-a single device works with no adapter at all, exactly like the planner.
+**Hosted adapter (decided 2026-09-17).** Cloudflare Pages Functions in `functions/api/`,
+routing to plain fetch-handler code in `server/`, with a D1 database (SQLite) and an R2
+bucket bound from `wrangler.jsonc`. Tables: users, sessions, farms, members (owner or
+member), invites, events (global `seq` autoincrement, unique per farm and event id), photos
+(metadata; bytes in R2 at `farms/<farmId>/photos/<id>`).
 
-**Drive adapter.** One folder per farm in the owner's Drive. Each device appends small batch
-files under `events/<deviceId>/`. A periodic snapshot file lets a new device catch up without
-reading every batch. Photos live in `photos/`. To share: the owner shares the folder with the
-other person in Drive as usual; the other person's app "joins" the farm by picking that folder.
-Each person signs in with their own Google account.
+- `GET /api/auth/start`, `/api/auth/callback`, `POST /api/auth/session`, `POST
+  /api/auth/logout`, `GET /api/me` (account and its farms).
+- `POST /api/farms` (turn on sync for a local farm; the creator is owner), `GET
+  /api/farms/:id`, `DELETE /api/farms/:id` (owner; removes everything on the server).
+- `POST /api/farms/:id/invites` (owner; a link valid seven days, multi-use, revocable),
+  `POST /api/join`, `DELETE /api/farms/:id/members/:userId` (owner removes, member leaves).
+- `POST /api/farms/:id/events` (idempotent by id, at most 2,000 per call), `GET
+  /api/farms/:id/events?after=<seq>` (paged), `PUT` and `GET
+  /api/farms/:id/photos/:photoId` (5 MB cap, images only).
 
-**Hosted adapter (later, optional).** A Cloudflare Worker with D1 and R2 for farms that would
-rather not use Drive. Cloudflare's free tier (100k requests/day, 5 GB D1, 10 GB R2) covers a
-single farm indefinitely and would likely cover many. The cost is not money but custody: the
-operator holds every farm's data, runs accounts, backups, and migrations. Not planned until
-someone asks.
+**Sign-in.** The app sends the browser to `/api/auth/start`; the server holds the Google
+client secret, runs the OAuth code flow with basic scopes (`openid email profile`), reads
+the ID token it received directly from Google over TLS (audience, issuer, and expiry
+checked), upserts the user, creates a 180-day session, and redirects to
+`/#/auth?c=<one-time code>`. The app exchanges the code for the session token within sixty
+seconds and keeps it in localStorage, sent as a bearer token. No cookies: no CSRF, no
+SameSite questions, and no dependence on which browsing context Safari used for Google's
+page inside the installed app. XSS is held off by the strict CSP.
+
+**Protections for the people whose data this is.**
+- The privacy note on the About page and in the README says exactly what the server stores:
+  account name and email, the farm records and photos synced, nothing else. Export is always
+  available; the owner can delete the farm from the server; a member can leave.
+- Removing a member refuses that account from the next request on. The copy already on
+  their phone stays there, and the app says so when removing.
+- Every farm route checks membership. Bodies are capped (2,000 events per push, 32 KB per
+  event, 5 MB per photo). Invite tokens and session ids are 192 random bits. A Cloudflare
+  WAF rate-limiting rule on `/api/*` guards the daily request allowance.
+- Cloudflare free plan (checked 2026-09-17): 100,000 function requests a day, D1 5 GB and
+  100,000 row writes a day (hard stop from September 2026), R2 10 GB with free egress. Room
+  for dozens of farms; the paid plan is $5 a month beyond that. D1 keeps thirty days of
+  point-in-time restore.
+
+**Why not Google Drive** (the original plan): the `drive.file` scope only exposes files the
+app created for the signed-in account or that the user explicitly picked in Google's
+Picker, and picking a folder does not cover files added to it later. Sharing a farm with a
+worker on their own Google account therefore could not work reliably; broader Drive scopes
+require a yearly security assessment. A single shared log file picked once would have
+worked for events but not for photos. **Why not Firebase:** heavier SDK, known sign-in
+workarounds on Safari and installed iPhone apps, and the log would be re-modeled as
+documents; same custody either way.
 
 ### 8.4 Risks to spike early
 
-1. **Google sign-in inside an installed PWA on iOS.** Popup-based token flows are known to
-   misbehave in standalone mode, and browser-only tokens expire hourly. Verify sign-in and
-   silent refresh on an installed iOS PWA and on Android. If it is unreliable, the fallback is
-   a roughly fifty-line Worker that only exchanges and refreshes tokens (holds the client
-   secret, stores no data). That keeps the app serverless in every way that matters.
-2. **`drive.file` visibility across accounts.** Confirm that files the app created under
-   account A and shared with account B are listable by the same app under B. If not, the
-   Picker-based join flow grants access explicitly and is the fallback.
+1. **Google sign-in inside an installed PWA on iOS.** Resolved by design on 2026-09-17
+   rather than by trial: popups never open inside an installed iOS app, and Google's
+   browser-only token model has no refresh. The server-side code flow with a one-time
+   handoff code in the return URL (§8.3) depends on neither. The remaining check is that iOS
+   hands the callback URL back to the installed app after Google's page; done at the
+   iteration two sign-in checkpoint.
+2. **`drive.file` visibility across accounts.** Answered from Google's documentation and
+   community reports on 2026-09-17: not visible, and Picker grants are per file. Drive was
+   dropped for a hosted adapter (§8.3).
 3. **Imagery comparison.** Done 2026-09-16 with the same zoom-19 tile over the farm from
    each source (about 76 m across). Google: sharp, most recent, zoom 20 available. PEMA:
    sharpest per pixel at native resolution, individual plants visible, but 2018–2020 vintage;
@@ -507,6 +543,42 @@ during the afternoon. That is the signal to revisit: a paid tier, a bring-your-o
 per farm, or asking users to donate. The app must degrade gracefully at the cap (§8.1
 fallback order), never break.
 
+### 8.7 Cloudflare and Google sign-in: set-up checklist
+
+Everything below is done once, by the operator of the public instance (Tim), in the
+consoles. Nothing secret goes into the repository.
+
+**Cloudflare**
+
+1. `npx wrangler login`, then `npx wrangler d1 create fieldbook` and paste the returned
+   `database_id` into `wrangler.jsonc`. Commit that; the id is not a secret.
+2. Create the R2 bucket `fieldbook-photos` (dashboard → R2 → Create bucket). Cloudflare asks
+   for a payment method to enable R2 even though the free allowance costs nothing.
+3. The CI API token needs **D1: Edit** in addition to Pages: Edit, so the deploy can apply
+   migrations. Edit the token in dashboard → My Profile → API Tokens.
+4. Pages project → Settings → Environment variables (Production): `APP_ORIGIN` =
+   `https://fieldbook.theorganicorchard.org`, `GOOGLE_CLIENT_ID`, and
+   `GOOGLE_CLIENT_SECRET` (encrypt it). Bindings for D1 and R2 come from `wrangler.jsonc` at
+   deploy time; if the deploy says otherwise, add them under Settings → Bindings.
+5. Security → WAF → Rate limiting rules: one rule for the zone, path starts with `/api/`,
+   more than 300 requests per minute per IP → block for ten minutes. The free plan allows
+   one rule; this is the only one.
+
+**Google Cloud** (same project as the Map Tiles key)
+
+6. APIs & Services → OAuth consent screen: External; app name "Perennial Field Book";
+   support email; authorized domain `theorganicorchard.org`; scopes `openid`, `email`,
+   `profile` only. **Publish to Production.** Basic scopes need no verification, and a
+   Testing-status app limits sign-in to listed test users and expires grants after a week.
+7. Credentials → Create credentials → OAuth client ID → Web application. Authorized
+   redirect URIs: `https://fieldbook.theorganicorchard.org/api/auth/callback` and
+   `http://localhost:5173/api/auth/callback`. No JavaScript origins are needed. Copy the
+   client id and secret into step 4 and into `.dev.vars` locally.
+
+**Local development**
+
+8. Copy `.dev.vars.example` to `.dev.vars` and fill it in. Run `npm run db:migrate:local`
+   once, then `npm run api` beside `npm run dev`; Vite proxies `/api` to it.
 ---
 
 ## 9. Iterations
@@ -519,7 +591,8 @@ Each iteration is usable on its own.
    three spikes in §8.4, time-boxed, because their outcome could change §8.
    *Done when:* the whole orchard is drawn, every tree is findable by id, variety, or map, and
    the 2027 graft list lives on the grid.
-2. **Sync.** Drive adapter, join flow, outbox, photos. Two phones see the same farm.
+2. **Sync.** Hosted adapter (§8.3): sign-in, farms, outbox, pull, photos, invite links,
+   members. Two phones see the same farm. Started 2026-09-17.
 3. **Tasks and logs.** Buckets, quick add with parsing, Keep import, done-sheet with chips,
    standing recurring list with season, projects with subtasks, weekly review, people,
    discussion flag.

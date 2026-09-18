@@ -47,6 +47,8 @@ export default defineConfig({
         // Cache the app shell and its chunks so it opens without a connection.
         globPatterns: ['**/*.{js,mjs,css,html,svg,png,json,pbf}'],
         navigateFallback: 'index.html',
+        // The API and the sign-in redirects are real server routes, never the app shell.
+        navigateFallbackDenylist: [/^\/api\//],
         // Public imagery may be kept for the field map without signal. Google tiles never
         // match this pattern (DESIGN.md §8.1).
         runtimeCaching: [
@@ -65,6 +67,8 @@ export default defineConfig({
   ],
   // MapLibre loads its worker as a module worker; build it as one.
   worker: { format: 'es' },
+  // The API runs separately in development (`npm run api`, wrangler on port 8788).
+  server: { proxy: { '/api': 'http://localhost:8788' } },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

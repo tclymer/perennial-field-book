@@ -6,8 +6,8 @@ planting should earn, the field book records where everything is and what actual
 
 **Live:** https://fieldbook.theorganicorchard.org
 
-Status: iteration one (map, places, trees) built; sync, tasks, and harvest follow. The
-product design lives in [DESIGN.md](DESIGN.md).
+Status: iteration one (map, places, trees) built; iteration two (sync between devices) in
+progress; tasks and harvest follow. The product design lives in [DESIGN.md](DESIGN.md).
 
 ## What it does today
 
@@ -39,6 +39,16 @@ npm run preview    # serve the build
 
 Node 22 or newer. `npm run lint` checks formatting; `npm run format` applies it.
 
+The sync API (`functions/` and `server/`) runs separately in development:
+
+```
+cp .dev.vars.example .dev.vars   # then fill in the Google client id and secret
+npm run db:migrate:local         # once: create the local D1 tables
+npm run api                      # http://localhost:8788, proxied from Vite at /api
+```
+
+Server tests run against a real local D1 and R2 through Miniflare as part of `npm test`.
+
 Google imagery needs a Map Tiles API key in `.env.local`:
 
 ```
@@ -52,17 +62,22 @@ in development exercises the fallback.
 
 ## Privacy and data
 
-Your farm lives only in your browser (IndexedDB) as an append-only log of changes. There is
-no server, no account, and no analytics. Map tiles are fetched from the imagery provider
-chosen in Settings; nothing else leaves the browser. Export a copy from Settings.
+Your farm lives in your browser (IndexedDB) as an append-only log of changes and works
+without an account. Signing in with Google is optional: it keeps a copy of the farm on the
+server so other devices and the people you invite can sync it. The server stores your Google
+account's name and email and the farm records and photos you sync, nothing else; there is
+no analytics. Map tiles are fetched from the imagery provider chosen in Settings. Export a
+copy from Settings at any time; the owner can delete the farm from the server and a member
+can leave.
 
 ## Deploy
 
-A static build. The intended host is a Cloudflare Pages project connected to this repository:
-build command `npm run build`, output directory `dist`, `NODE_VERSION=22`, and
-`VITE_GOOGLE_MAPS_KEY` as a build variable. `public/_headers` sets the security headers;
-the app uses hash routes so no redirects are needed. CI runs lint, tests, and the build on
-every push and deploys `main` when the Cloudflare secrets are set.
+A Cloudflare Pages project: the static build in `dist/` plus the API as Pages Functions,
+with a D1 database and an R2 bucket bound in `wrangler.jsonc`. `public/_headers` sets the
+security headers; the app uses hash routes so no redirects are needed. CI runs lint, tests,
+and the build on every push, then applies D1 migrations and deploys `main` when the
+Cloudflare secrets are set. DESIGN.md §8.7 lists the one-time console set-up (D1, R2, the
+Pages environment variables, and the Google OAuth client).
 
 ## License
 

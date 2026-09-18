@@ -38,7 +38,7 @@ const PHONE_TABS: [string, string, string][] = [
 ]
 
 /** Pages that work before a farm exists. */
-const NO_FARM_OK = ['/start', '/about']
+const NO_FARM_OK = ['/start', '/about', '/auth', '/join']
 
 export default function Layout() {
   const [theme, setTheme] = useTheme()
@@ -173,5 +173,6 @@ function pageTitle(pathname: string): string {
   if (pathname.startsWith('/import')) return 'Import from the planner'
   if (pathname.startsWith('/settings')) return 'Settings'
   if (pathname.startsWith('/about')) return 'About'
+  if (pathname.startsWith('/auth')) return 'Sign in'
   return 'Field Book'
 }

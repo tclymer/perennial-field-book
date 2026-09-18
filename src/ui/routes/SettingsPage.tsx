@@ -9,12 +9,14 @@ import { parseImport } from '@/events/bundle'
 import { nextTheme, themeLabel, useTheme } from '@/ui/theme'
 import { OfflineSave } from '@/ui/map/OfflineSave'
 import type { EntityKind } from '@/model/types'
+import { AccountCard } from '@/ui/settings/AccountCard'
 
 export default function SettingsPage() {
   return (
     <div className="space-y-4">
       <PageHeader title="Settings" />
       <FarmSettings />
+      <AccountCard />
       <ImagerySettings />
       <OfflineSave />
       <DataSettings />
