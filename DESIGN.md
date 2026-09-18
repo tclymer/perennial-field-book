@@ -554,8 +554,11 @@ consoles. Nothing secret goes into the repository.
    `database_id` into `wrangler.jsonc`. Commit that; the id is not a secret.
 2. Create the R2 bucket `fieldbook-photos` (dashboard → R2 → Create bucket). Cloudflare asks
    for a payment method to enable R2 even though the free allowance costs nothing.
-3. The CI API token needs **D1: Edit** in addition to Pages: Edit, so the deploy can apply
-   migrations. Edit the token in dashboard → My Profile → API Tokens.
+3. Deploys happen through the Pages project's GitHub connection (it builds `main` on every
+   push and reads `wrangler.jsonc` for the output directory and bindings), so no API token
+   is involved. Database migrations are applied from a terminal: `npx wrangler login` once,
+   then `npm run db:migrate` whenever `migrations/` gains a file. Done for `0001` on
+   2026-09-18.
 4. Pages project → Settings → Environment variables (Production): `APP_ORIGIN` =
    `https://fieldbook.theorganicorchard.org`, `GOOGLE_CLIENT_ID`, and
    `GOOGLE_CLIENT_SECRET` (encrypt it). Bindings for D1 and R2 come from `wrangler.jsonc` at

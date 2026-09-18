@@ -22,8 +22,10 @@ jobs:
       - run: npm test
       - run: npm run build
 
-  # Publishes main to the Cloudflare Pages project once the tests pass. Skipped until the
-  # repository has the CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID secrets.
+  # Publishes main to the Cloudflare Pages project once the tests pass. Skipped while the
+  # repository has no CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID secrets, which is the
+  # case today: the live site is built by Cloudflare's own GitHub connection to the project.
+  # Database migrations are applied from a terminal (`npm run db:migrate`), never here.
   deploy:
     needs: test
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -44,12 +46,6 @@ jobs:
         if: env.HAS_TOKEN == 'true'
         env:
           VITE_GOOGLE_MAPS_KEY: ${{ secrets.VITE_GOOGLE_MAPS_KEY }}
-      - name: Apply database migrations
-        if: env.HAS_TOKEN == 'true'
-        run: npx --yes wrangler@4 d1 migrations apply fieldbook --remote
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       - name: Deploy to Cloudflare Pages
         if: env.HAS_TOKEN == 'true'
         # wrangler.jsonc names the output directory and the D1 and R2 bindings; functions/ ships with it.

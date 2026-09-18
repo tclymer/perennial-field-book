@@ -72,12 +72,14 @@ can leave.
 
 ## Deploy
 
-A Cloudflare Pages project: the static build in `dist/` plus the API as Pages Functions,
-with a D1 database and an R2 bucket bound in `wrangler.jsonc`. `public/_headers` sets the
-security headers; the app uses hash routes so no redirects are needed. CI runs lint, tests,
-and the build on every push, then applies D1 migrations and deploys `main` when the
-Cloudflare secrets are set. DESIGN.md §8.7 lists the one-time console set-up (D1, R2, the
-Pages environment variables, and the Google OAuth client).
+A Cloudflare Pages project connected to this repository: Cloudflare builds `main` on every
+push (`npm run build`, output `dist`, `NODE_VERSION=22`, `VITE_GOOGLE_MAPS_KEY` as a build
+variable), ships `functions/` as the API, and binds the D1 database and R2 bucket named in
+`wrangler.jsonc`. `public/_headers` sets the security headers; the app uses hash routes so
+no redirects are needed. CI runs lint, tests, and the build on every push. Database
+migrations are applied from a terminal with `npm run db:migrate`. DESIGN.md §8.7 lists the
+one-time console set-up (D1, R2, the Pages environment variables, and the Google OAuth
+client).
 
 ## License
 
