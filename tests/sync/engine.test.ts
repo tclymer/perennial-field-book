@@ -169,11 +169,11 @@ describe('sync engine', () => {
     await syncNow('manual')
     expect(useSync.getState().phase).toBe('offline')
     expect(useSync.getState().pending).toBe(1)
-    // Automatic retries wait; a manual one goes straight through.
+    // Write-triggered and timer syncs wait out the back-off; coming back to the app does not.
     server.mode = 'ok'
     await syncNow('timer')
     expect(useSync.getState().phase).toBe('offline')
-    await syncNow('manual')
+    await syncNow('visible')
     expect(useSync.getState().phase).toBe('idle')
     expect(useSync.getState().pending).toBe(0)
 
@@ -199,6 +199,22 @@ describe('sync engine', () => {
 
     await unlinkFarm()
     expect(await getSync(farmId)).toBeNull()
+  })
+
+  it('keeps trying on its own while offline, since the network may return silently', async () => {
+    resetEngineForTests(30)
+    await useFarmStore.getState().createFarm('Threefold', ORIGIN, 17)
+    await linkFarm()
+    createBlock({ code: 'PP1', name: 'Pawpaws' })
+    await whenWritten()
+    server.mode = 'offline'
+    await syncNow('write')
+    expect(useSync.getState().phase).toBe('offline')
+    server.mode = 'ok'
+    await new Promise((r) => setTimeout(r, 120))
+    expect(useSync.getState().phase).toBe('idle')
+    expect(useSync.getState().pending).toBe(0)
+    expect(server.events).toHaveLength(2)
   })
 
   it('does nothing without a session or a linked farm', async () => {

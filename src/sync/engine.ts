@@ -30,13 +30,22 @@ const WRITE_DELAY_MS = 3000
 const TIMER_MS = 5 * 60 * 1000
 const BACKOFF_MIN_MS = 10 * 1000
 const BACKOFF_MAX_MS = 5 * 60 * 1000
+/** While offline, try again this often: browsers do not always announce the connection returning. */
+let offlineRetryMs = 15 * 1000
 
-export type SyncReason = 'open' | 'write' | 'online' | 'visible' | 'timer' | 'manual' | 'link'
+export type SyncReason =
+  'open' | 'write' | 'online' | 'visible' | 'timer' | 'manual' | 'link' | 'retry'
 
 let running: Promise<void> | null = null
 let queued = false
 let backoffMs = 0
 let backoffUntil = 0
+let retryTimer: ReturnType<typeof setTimeout> | undefined
+
+function scheduleRetry(ms: number): void {
+  clearTimeout(retryTimer)
+  retryTimer = setTimeout(() => void syncNow('retry'), ms)
+}
 
 /**
  * Run a sync, or queue one more run if one is in progress (a write during a sync must
@@ -47,7 +56,9 @@ export function syncNow(reason: SyncReason = 'manual'): Promise<void> {
     queued = true
     return running.then(() => running ?? undefined)
   }
-  const forced = reason === 'manual' || reason === 'link' || reason === 'open'
+  // Only writes and the periodic timer wait out a back-off; anything that suggests the
+  // situation changed (the app coming back, the network, a person asking) goes straight through.
+  const forced = reason !== 'write' && reason !== 'timer'
   if (!forced && Date.now() < backoffUntil) return Promise.resolve()
   running = run().finally(() => {
     running = null
@@ -75,6 +86,7 @@ async function run(): Promise<void> {
     if (received > 0) await useFarmStore.getState().reload()
     backoffMs = 0
     backoffUntil = 0
+    clearTimeout(retryTimer)
     set({
       phase: 'idle',
       lastSyncAt: Date.now(),
@@ -170,12 +182,14 @@ async function fail(farmId: string, err: unknown): Promise<void> {
     if (err.offline) {
       backoffMs = BACKOFF_MIN_MS
       backoffUntil = Date.now() + backoffMs
+      scheduleRetry(offlineRetryMs)
       set({ phase: 'offline', pending, error: null })
       return
     }
   }
   backoffMs = Math.min(BACKOFF_MAX_MS, Math.max(BACKOFF_MIN_MS, backoffMs * 2))
   backoffUntil = Date.now() + backoffMs
+  scheduleRetry(backoffMs)
   set({
     phase: 'error',
     pending,
@@ -200,6 +214,7 @@ export async function linkFarm(): Promise<void> {
 export async function unlinkFarm(): Promise<void> {
   const { farmId } = useFarmStore.getState()
   if (farmId) await deleteSync(farmId)
+  clearTimeout(retryTimer)
   useSync
     .getState()
     .set({ linked: false, phase: 'idle', pending: 0, lastSyncAt: null, error: null })
@@ -264,9 +279,11 @@ export function installSyncTriggers(): () => void {
 }
 
 /** For tests: forget back-off and in-flight state. */
-export function resetEngineForTests(): void {
+export function resetEngineForTests(retryMs = 15 * 1000): void {
+  offlineRetryMs = retryMs
   running = null
   queued = false
+  clearTimeout(retryTimer)
   backoffMs = 0
   backoffUntil = 0
 }

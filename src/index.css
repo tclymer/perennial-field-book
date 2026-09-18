@@ -47,6 +47,19 @@ main:focus-visible {
   font-size: 11px;
   color: var(--color-stone-500);
 }
+/* The label that follows the mouse over tree dots: small, and never in the way of a click. */
+.fb-hover {
+  pointer-events: none;
+}
+.fb-hover .maplibregl-popup-content {
+  padding: 2px 7px;
+  font-size: 12px;
+  white-space: nowrap;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.3);
+}
+.fb-hover .maplibregl-popup-tip {
+  display: none;
+}
 
 @media print {
   body,

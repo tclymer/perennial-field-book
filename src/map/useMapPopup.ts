@@ -55,13 +55,51 @@ export function useMapPopup(map: MlMap | null): void {
         .addTo(map)
     }
 
+    // A small label follows the mouse over tree dots, so a row can be read without
+    // counting or clicking. Touch screens never fire mousemove, so phones are unaffected.
+    let hover: Popup | null = null
+    let hoverKey = ''
+    const onHover = async (e: MapMouseEvent & { features?: GeoJSON.Feature[] }) => {
+      if (!idle()) return
+      const f = e.features?.[0]
+      if (!f) return
+      const p = f.properties as Record<string, unknown>
+      const label = String(p.label ?? '')
+      const detail = p.variety ? esc(p.variety) : p.empty ? 'empty' : ''
+      const key = `${label}|${detail}`
+      if (!hover) {
+        const { Popup: PopupCtor } = await import('maplibre-gl')
+        if (disposed || hover) return
+        hover = new PopupCtor({
+          closeButton: false,
+          closeOnClick: false,
+          offset: 10,
+          anchor: 'bottom',
+          className: 'fb-hover',
+        })
+      }
+      if (key !== hoverKey) {
+        hoverKey = key
+        hover.setHTML(`<strong>${esc(label)}</strong>${detail ? ` ${detail}` : ''}`)
+      }
+      hover.setLngLat(e.lngLat)
+      if (!hover.isOpen()) hover.addTo(map)
+    }
+    const hideHover = () => {
+      hover?.remove()
+      hoverKey = ''
+    }
+
     const enter = () => {
       if (idle()) canvas.style.cursor = 'pointer'
     }
     const leave = () => {
       canvas.style.cursor = ''
+      hideHover()
     }
 
+    map.on('mousemove', 'position-dot', onHover)
+    map.on('click', 'position-dot', hideHover)
     map.on('click', 'position-dot', onPosition)
     map.on('click', 'feature-point', onFeature)
     map.on('click', 'feature-fill', onFeature)
@@ -72,6 +110,9 @@ export function useMapPopup(map: MlMap | null): void {
     return () => {
       disposed = true
       popup?.remove()
+      hover?.remove()
+      map.off('mousemove', 'position-dot', onHover)
+      map.off('click', 'position-dot', hideHover)
       map.off('click', 'position-dot', onPosition)
       map.off('click', 'feature-point', onFeature)
       map.off('click', 'feature-fill', onFeature)
