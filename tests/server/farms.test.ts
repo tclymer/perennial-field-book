@@ -117,6 +117,15 @@ describe('farms', () => {
       `/api/farms/${FARM}/events`,
       jsonInit('POST', { events: [event('evt_4', 130, 'future.thing', { x: [1, 2] })] }, tim),
     )
+    // A rename in the log renames the farm in account lists.
+    await server.fetch(
+      `/api/farms/${FARM}/events`,
+      jsonInit('POST', { events: [event('evt_5', 140, 'farm.patch', { name: 'Renamed' })] }, tim),
+    )
+    const me = (await (await server.fetch('/api/me', bearer(tim))).json()) as {
+      farms: { name: string }[]
+    }
+    expect(me.farms[0]?.name).toBe('Renamed')
     const future = (await (
       await server.fetch(`/api/farms/${FARM}/events?after=${second.seq}`, bearer(tim))
     ).json()) as { events: { type: string; payload: unknown }[] }
@@ -181,7 +190,7 @@ describe('farms', () => {
     const detail = (await (await server.fetch(`/api/farms/${FARM}`, bearer(tim))).json()) as {
       counts: { events: number; photos: number; photoBytes: number }
     }
-    expect(detail.counts).toEqual({ events: 4, photos: 1, photoBytes: 7 })
+    expect(detail.counts).toEqual({ events: 5, photos: 1, photoBytes: 7 })
   })
 
   it('is deleted by its owner alone, with everything in it', async () => {

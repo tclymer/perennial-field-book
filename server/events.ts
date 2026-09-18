@@ -44,6 +44,17 @@ route('POST', '/api/farms/:id/events', async ({ request, env, deps, params, user
     const results = await env.DB.batch(statements.slice(i, i + 200))
     for (const r of results) received += r.meta.changes ?? 0
   }
+  // The farm's name in account lists follows the latest rename in the log.
+  const rename = events
+    .filter((e) => e.type === 'farm.patch' || e.type === 'farm.create')
+    .map((e) => (e.payload as { name?: unknown } | null)?.name)
+    .filter((n): n is string => typeof n === 'string' && n.trim().length > 0)
+    .at(-1)
+  if (rename) {
+    await env.DB.prepare('UPDATE farms SET name = ? WHERE id = ?')
+      .bind(rename.trim().slice(0, 120), farmId)
+      .run()
+  }
   const top = await env.DB.prepare(
     'SELECT COALESCE(MAX(seq), 0) AS seq FROM events WHERE farm_id = ?',
   )
