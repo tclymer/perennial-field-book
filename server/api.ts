@@ -3,5 +3,6 @@ import './auth'
 import './farms'
 import './events'
 import './photos'
+import './invites'
 
 export { handle } from './handle'

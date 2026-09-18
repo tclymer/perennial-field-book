@@ -48,6 +48,7 @@ const routes: [string, RegExp | string][] = [
   ['#/about', /Credits/i],
   ['#/auth', /Sign in with Google/i],
   ['#/auth?error=denied', /did not complete/i],
+  ['#/join/sometoken', /shared a farm with you/i],
   ['#/nope', /Page not found/i],
 ]
 

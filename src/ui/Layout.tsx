@@ -183,5 +183,6 @@ function pageTitle(pathname: string): string {
   if (pathname.startsWith('/settings')) return 'Settings'
   if (pathname.startsWith('/about')) return 'About'
   if (pathname.startsWith('/auth')) return 'Sign in'
+  if (pathname.startsWith('/join')) return 'Join a farm'
   return 'Field Book'
 }

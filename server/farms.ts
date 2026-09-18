@@ -74,7 +74,7 @@ route('GET', '/api/farms/:id', async ({ env, params, user }) => {
     env.DB.prepare(
       `SELECT u.id, u.name, u.email, m.role, m.added_at AS addedAt
          FROM members m JOIN users u ON u.id = m.user_id
-        WHERE m.farm_id = ? ORDER BY m.role, m.added_at`,
+        WHERE m.farm_id = ? ORDER BY CASE m.role WHEN 'owner' THEN 0 ELSE 1 END, m.added_at`,
     )
       .bind(farmId)
       .all<{ id: string; name: string; email: string; role: Role; addedAt: number }>(),

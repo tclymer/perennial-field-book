@@ -14,6 +14,7 @@ const ImportPage = lazy(() => import('./ui/routes/ImportPage'))
 const SettingsPage = lazy(() => import('./ui/routes/SettingsPage'))
 const AboutPage = lazy(() => import('./ui/routes/AboutPage'))
 const AuthPage = lazy(() => import('./ui/routes/AuthPage'))
+const JoinPage = lazy(() => import('./ui/routes/JoinPage'))
 const NotFound = lazy(() => import('./ui/routes/NotFound'))
 
 /** Each route gets its own error boundary and loading fallback. */
@@ -109,6 +110,14 @@ export default function App() {
           element={
             <Page>
               <AuthPage />
+            </Page>
+          }
+        />
+        <Route
+          path="join/:token"
+          element={
+            <Page>
+              <JoinPage />
             </Page>
           }
         />

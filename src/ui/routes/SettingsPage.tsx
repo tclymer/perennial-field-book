@@ -11,6 +11,7 @@ import { OfflineSave } from '@/ui/map/OfflineSave'
 import type { EntityKind } from '@/model/types'
 import { AccountCard } from '@/ui/settings/AccountCard'
 import { SyncCard } from '@/ui/settings/SyncCard'
+import { ShareCard } from '@/ui/settings/ShareCard'
 import { RemoteFarms } from '@/ui/settings/RemoteFarms'
 
 export default function SettingsPage() {
@@ -21,6 +22,7 @@ export default function SettingsPage() {
       <FarmSettings />
       <AccountCard />
       <SyncCard />
+      <ShareCard />
       <RemoteFarms onOpened={() => navigate('/')} returnTo="/settings" />
       <ImagerySettings />
       <OfflineSave />
