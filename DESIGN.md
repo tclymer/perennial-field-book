@@ -473,9 +473,10 @@ documents; same custody either way.
 1. **Google sign-in inside an installed PWA on iOS.** Resolved by design on 2026-09-17
    rather than by trial: popups never open inside an installed iOS app, and Google's
    browser-only token model has no refresh. The server-side code flow with a one-time
-   handoff code in the return URL (§8.3) depends on neither. Confirmed 2026-09-18: signed in
-   from the installed iPhone app, turned on sync from the desktop, and opened the farm on the
-   phone from the account's list.
+   handoff code in the return URL (§8.3) depends on neither. Desktop sign-in and turning on
+   sync worked on 2026-09-18. Threefold's phones are Android, where the installed app hands
+   the redirect through a Chrome tab; the phone check is next. An iPhone check waits for a
+   farm that has one.
 2. **`drive.file` visibility across accounts.** Answered from Google's documentation and
    community reports on 2026-09-17: not visible, and Picker grants are per file. Drive was
    dropped for a hosted adapter (§8.3).
