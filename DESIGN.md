@@ -554,15 +554,19 @@ consoles. Nothing secret goes into the repository.
    `database_id` into `wrangler.jsonc`. Commit that; the id is not a secret.
 2. Create the R2 bucket `fieldbook-photos` (dashboard → R2 → Create bucket). Cloudflare asks
    for a payment method to enable R2 even though the free allowance costs nothing.
-3. Deploys happen through the Pages project's GitHub connection (it builds `main` on every
-   push and reads `wrangler.jsonc` for the output directory and bindings), so no API token
-   is involved. Database migrations are applied from a terminal: `npx wrangler login` once,
-   then `npm run db:migrate` whenever `migrations/` gains a file. Done for `0001` on
-   2026-09-18.
-4. Pages project → Settings → Environment variables (Production): `APP_ORIGIN` =
-   `https://fieldbook.theorganicorchard.org`, `GOOGLE_CLIENT_ID`, and
-   `GOOGLE_CLIENT_SECRET` (encrypt it). Bindings for D1 and R2 come from `wrangler.jsonc` at
-   deploy time; if the deploy says otherwise, add them under Settings → Bindings.
+3. Deploys: the Pages project is not connected to GitHub (the dashboard says so), so
+   pushing `main` deploys nothing. Deploy from a terminal after `npx wrangler login`:
+   `npm run build` then `npm run deploy`. Reconnecting the project to GitHub (Pages project →
+   Settings → Builds & deployments) would make pushes to `main` build automatically; either
+   way the config file supplies the output directory and bindings. Database migrations are
+   applied from a terminal with `npm run db:migrate` whenever `migrations/` gains a file.
+   Done for `0001` on 2026-09-18.
+4. `APP_ORIGIN` is in `wrangler.jsonc` under `vars`. The Google client id and secret are
+   set from a terminal, once each, and survive deploys:
+   `npx wrangler pages secret put GOOGLE_CLIENT_ID --project-name=perennial-field-book` and
+   the same for `GOOGLE_CLIENT_SECRET` (each prompts for the value). Do not use the
+   dashboard's plain-text variables: a deploy driven by `wrangler.jsonc` replaces them
+   (learned 2026-09-18). Bindings for D1 and R2 also come from the config.
 5. A request cap on `/api/` is not possible today: the domain's DNS lives at Squarespace
    (one CNAME to the Pages project), so there is no Cloudflare zone to attach a
    rate-limiting rule to. The exposure is the shared 100,000 requests a day. If usage ever

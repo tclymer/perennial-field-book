@@ -14,6 +14,7 @@
     "api": "wrangler pages dev public --port 8788",
     "db:migrate:local": "wrangler d1 migrations apply fieldbook --local",
     "db:migrate": "wrangler d1 migrations apply fieldbook --remote",
+    "deploy": "wrangler pages deploy --project-name=perennial-field-book --branch=main --commit-dirty=true",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"tests/**/*.{ts,tsx}\" \"server/**/*.ts\" \"functions/**/*.ts\" \"scripts/**/*.mjs\" \"*.{ts,json,md}\"",
     "lint": "prettier --check .",
     "icons": "node scripts/icons.mjs"

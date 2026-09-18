@@ -122,6 +122,9 @@ route(
   'GET',
   '/api/auth/start',
   async ({ env, deps, url }) => {
+    if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET || !env.APP_ORIGIN) {
+      throw new HttpError(503, 'Sign-in is not set up on this server yet.')
+    }
     const returnTo = safeReturn(url.searchParams.get('return'))
     const state = deps.token()
     await env.DB.prepare('INSERT INTO auth_states (state, return_to, expires_at) VALUES (?, ?, ?)')

@@ -7,6 +7,12 @@
   "name": "perennial-field-book",
   "compatibility_date": "2025-09-01",
   "pages_build_output_dir": "./dist",
+  // Plain settings live here because a config-driven deploy replaces whatever the dashboard
+  // holds. Secrets (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET) are set with `wrangler pages
+  // secret put` and survive deploys.
+  "vars": {
+    "APP_ORIGIN": "https://fieldbook.theorganicorchard.org",
+  },
   "d1_databases": [
     {
       "binding": "DB",
