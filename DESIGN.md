@@ -563,9 +563,11 @@ consoles. Nothing secret goes into the repository.
    `https://fieldbook.theorganicorchard.org`, `GOOGLE_CLIENT_ID`, and
    `GOOGLE_CLIENT_SECRET` (encrypt it). Bindings for D1 and R2 come from `wrangler.jsonc` at
    deploy time; if the deploy says otherwise, add them under Settings → Bindings.
-5. Security → WAF → Rate limiting rules: one rule for the zone, path starts with `/api/`,
-   more than 300 requests per minute per IP → block for ten minutes. The free plan allows
-   one rule; this is the only one.
+5. A request cap on `/api/` is not possible today: the domain's DNS lives at Squarespace
+   (one CNAME to the Pages project), so there is no Cloudflare zone to attach a
+   rate-limiting rule to. The exposure is the shared 100,000 requests a day. If usage ever
+   warrants it, either move the domain's DNS to Cloudflare (free; Squarespace stays the
+   registrar) and add the one free rule, or add a per-account cap inside the API.
 
 **Google Cloud** (same project as the Map Tiles key)
 
