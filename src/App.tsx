@@ -18,6 +18,8 @@ const JoinPage = lazy(() => import('./ui/routes/JoinPage'))
 const WeekPage = lazy(() => import('./ui/routes/WeekPage'))
 const TasksPage = lazy(() => import('./ui/routes/TasksPage'))
 const TaskPage = lazy(() => import('./ui/routes/TaskPage'))
+const HarvestPage = lazy(() => import('./ui/routes/HarvestPage'))
+const HarvestReportsPage = lazy(() => import('./ui/routes/HarvestReportsPage'))
 const ReviewPage = lazy(() => import('./ui/routes/ReviewPage'))
 const LogsPage = lazy(() => import('./ui/routes/LogsPage'))
 const KeepImportPage = lazy(() => import('./ui/routes/KeepImportPage'))
@@ -92,6 +94,22 @@ export default function App() {
           element={
             <Page>
               <KeepImportPage />
+            </Page>
+          }
+        />
+        <Route
+          path="harvest"
+          element={
+            <Page>
+              <HarvestPage />
+            </Page>
+          }
+        />
+        <Route
+          path="harvest/reports"
+          element={
+            <Page>
+              <HarvestReportsPage />
             </Page>
           }
         />

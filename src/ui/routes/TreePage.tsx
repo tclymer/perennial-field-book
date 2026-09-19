@@ -11,6 +11,7 @@ import { ActionSheet } from '@/ui/tree/ActionSheet'
 import { History } from '@/ui/tree/History'
 import { PhotoStrip } from '@/ui/tree/PhotoStrip'
 import { LogWork } from '@/ui/tree/LogWork'
+import { TreeHarvest } from '@/ui/tree/TreeHarvest'
 import { completePlannedGraft, updateTree } from '@/state/actions'
 
 const STATUS_TONE: Record<Tree['status'], Tone> = {
@@ -154,6 +155,13 @@ export default function TreePage() {
           <div className="mt-2">
             <LogWork posKey={position.posKey} onDone={setMessage} />
           </div>
+        </div>
+        <div className="mt-4 border-t border-stone-100 pt-3 dark:border-stone-800">
+          <TreeHarvest
+            posKey={position.posKey}
+            crop={variety?.species ?? block?.species}
+            onDone={setMessage}
+          />
         </div>
         {message && (
           <p role="status" className="mt-2 text-sm text-lime-800 dark:text-lime-300">

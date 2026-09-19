@@ -14,6 +14,7 @@ export type IdPrefix =
   | 'per'
   | 'tsk'
   | 'log'
+  | 'hrv'
 
 function uuid(): string {
   try {

@@ -239,6 +239,37 @@ export const farmPatch = z.object({
   zoom: z.number().min(0).max(24).optional(),
   bucketNames: z.partialRecord(bucket, short.min(1)).optional(),
   categories: z.array(short.min(1)).max(50).optional(),
+  units: z.record(short.min(1), short.min(1)).optional(),
+})
+
+const quantity = z.number().min(0).max(1_000_000)
+export const harvestCreate = z.object({
+  id,
+  date: isoDate,
+  crop: short.min(1),
+  varietyId: id.optional(),
+  blockId: id.optional(),
+  featureId: id.optional(),
+  posKey: id.optional(),
+  quantity,
+  unit: short.min(1),
+  box: z.number().int().min(1).max(100_000).optional(),
+  personIds: z.array(id).max(20).optional(),
+  notes: text.optional(),
+})
+export const harvestPatch = z.object({
+  id,
+  date: isoDate.optional(),
+  crop: short.min(1).optional(),
+  varietyId: id.nullable().optional(),
+  blockId: id.nullable().optional(),
+  featureId: id.nullable().optional(),
+  posKey: id.nullable().optional(),
+  quantity: quantity.optional(),
+  unit: short.min(1).optional(),
+  box: z.number().int().min(1).max(100_000).nullable().optional(),
+  personIds: z.array(id).max(20).nullable().optional(),
+  notes: text.nullable().optional(),
 })
 
 export const personCreate = z.object({
@@ -362,6 +393,10 @@ export const PAYLOADS = {
   'log.patch': logPatch,
   'log.delete': byId,
   'log.restore': byId,
+  'harvest.create': harvestCreate,
+  'harvest.patch': harvestPatch,
+  'harvest.delete': byId,
+  'harvest.restore': byId,
 } as const
 
 export type EventType = keyof typeof PAYLOADS

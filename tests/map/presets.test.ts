@@ -10,6 +10,7 @@ const prefs = (patch: Partial<DevicePrefs> = {}): DevicePrefs => ({
   lastView: null,
   offlineMap: null,
   personId: null,
+  lastCrop: null,
   ...patch,
 })
 

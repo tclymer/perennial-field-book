@@ -13,6 +13,7 @@ import { AccountCard } from '@/ui/settings/AccountCard'
 import { SyncCard } from '@/ui/settings/SyncCard'
 import { ShareCard } from '@/ui/settings/ShareCard'
 import { PeopleCard, TaskSettingsCard } from '@/ui/settings/PeopleCard'
+import { HarvestUnitsCard } from '@/ui/settings/HarvestUnitsCard'
 import { RemoteFarms } from '@/ui/settings/RemoteFarms'
 
 export default function SettingsPage() {
@@ -27,6 +28,7 @@ export default function SettingsPage() {
       <RemoteFarms onOpened={() => navigate('/')} returnTo="/settings" />
       <PeopleCard />
       <TaskSettingsCard />
+      <HarvestUnitsCard />
       <ImagerySettings />
       <OfflineSave />
       <DataSettings />
@@ -288,6 +290,7 @@ const KIND_LABEL: Record<EntityKind, string> = {
   person: 'Person',
   task: 'Task',
   log: 'Work log',
+  harvest: 'Harvest',
 }
 
 function RecentlyDeleted() {
@@ -312,6 +315,14 @@ function RecentlyDeleted() {
     if (p.deleted) items.push({ kind: 'person', id: p.id, label: p.name, at: p.updatedAt })
   for (const t of Object.values(state.tasks))
     if (t.deleted) items.push({ kind: 'task', id: t.id, label: t.title, at: t.updatedAt })
+  for (const h of Object.values(state.harvests))
+    if (h.deleted)
+      items.push({
+        kind: 'harvest',
+        id: h.id,
+        label: `${h.date} ${h.crop} ${h.quantity} ${h.unit}`,
+        at: h.updatedAt,
+      })
   for (const l of Object.values(state.logs))
     if (l.deleted)
       items.push({

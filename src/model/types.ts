@@ -246,12 +246,37 @@ export interface WorkLog extends Stamped {
   notes?: string
 }
 
+/** One box (or one tree's picking) of one crop on one day (DESIGN.md §3.6). */
+export interface Harvest extends Stamped {
+  id: string
+  /** ISO date, YYYY-MM-DD. */
+  date: string
+  /** The species word, lower case, as on blocks and varieties. */
+  crop: string
+  /** Absent means mixed or unknown. */
+  varietyId?: string
+  /** Where it was picked: a block, or a greenhouse feature. */
+  blockId?: string
+  featureId?: string
+  /** A per-tree entry, for trial blocks and tags. */
+  posKey?: string
+  /** Net weight or count for this box, in `unit`. */
+  quantity: number
+  unit: string
+  /** The number written on the box: nth entry of this crop that day. */
+  box?: number
+  personIds?: string[]
+  notes?: string
+}
+
 export interface FarmMeta {
   id: string
   name: string
   center: LngLat
   zoom: number
   createdAt: number
+  /** Unit per crop for harvest entries; absent crops use the defaults in model/harvest.ts. */
+  units?: Record<string, string>
   /** Renamed buckets; absent ones use DEFAULT_BUCKET_NAMES. */
   bucketNames?: Partial<Record<Bucket, string>>
   /** Categories this farm added beyond the standard list. */
@@ -270,6 +295,7 @@ export interface FarmState {
   people: Record<string, Person>
   tasks: Record<string, Task>
   logs: Record<string, WorkLog>
+  harvests: Record<string, Harvest>
   /** Position coordinate overrides by posKey. */
   nudges: Record<string, LngLat>
   /** Graft plans keyed `${year}:${posKey}`. */
@@ -280,7 +306,16 @@ export interface FarmState {
 }
 
 export type EntityKind =
-  'block' | 'row' | 'position' | 'feature' | 'variety' | 'tree' | 'person' | 'task' | 'log'
+  | 'block'
+  | 'row'
+  | 'position'
+  | 'feature'
+  | 'variety'
+  | 'tree'
+  | 'person'
+  | 'task'
+  | 'log'
+  | 'harvest'
 
 export function planKey(year: number, posKey: string): string {
   return `${year}:${posKey}`

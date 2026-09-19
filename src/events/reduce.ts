@@ -7,6 +7,7 @@ import type {
   Block,
   FarmState,
   Feature,
+  Harvest,
   LoosePosition,
   Person,
   Row,
@@ -34,6 +35,7 @@ export function emptyState(): FarmState {
     people: {},
     tasks: {},
     logs: {},
+    harvests: {},
     nudges: {},
     plans: {},
     applied: 0,
@@ -66,6 +68,7 @@ type Collections = Pick<
   | 'people'
   | 'tasks'
   | 'logs'
+  | 'harvests'
 >
 type Collection = keyof Collections
 type Entity = Collections[Collection][string]
@@ -80,6 +83,7 @@ const COLLECTION: Record<string, Collection> = {
   person: 'people',
   task: 'tasks',
   log: 'logs',
+  harvest: 'harvests',
 }
 
 /** Merge a patch: present fields overwrite, `null` clears, `undefined` is skipped. */
@@ -229,6 +233,7 @@ function shallowClone(state: FarmState): FarmState {
     people: { ...state.people },
     tasks: { ...state.tasks },
     logs: { ...state.logs },
+    harvests: { ...state.harvests },
     nudges: { ...state.nudges },
     plans: { ...state.plans },
   }
@@ -264,6 +269,7 @@ export const live = {
       (t) => !t.deleted && !(t.projectId && s.tasks[t.projectId]?.deleted),
     ),
   logs: (s: FarmState): WorkLog[] => Object.values(s.logs).filter((l) => !l.deleted),
+  harvests: (s: FarmState): Harvest[] => Object.values(s.harvests).filter((h) => !h.deleted),
   treeEvents: (s: FarmState, treeId: string): TreeEvent[] =>
     Object.values(s.treeEvents)
       .filter((e) => e.treeId === treeId && !e.deleted)

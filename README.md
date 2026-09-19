@@ -29,6 +29,10 @@ and work logs) built; harvest and the planner comparison follow. The product des
   category, places, people, and materials for the organic input record; the Logs page
   filters, totals by category and person, and downloads a CSV. A weekly review shows what got
   done and what is going stale.
+- **Harvest.** A weighing-station screen: pick the crop, tap the variety, type the weight of
+  each box as it comes off the scale. The box number to write on the box comes back, the
+  day's tally adds up beside each variety, and reports total yield by variety, place, and
+  year with a CSV. Trial blocks get per-tree yield derived automatically.
 - **Search** across trees, rows, blocks, varieties, places, and tasks.
 - **Imagery.** Google satellite through the Map Tiles API when a key is present, held to the
   free tier by a daily quota, with automatic fallback to free public imagery (Pennsylvania's

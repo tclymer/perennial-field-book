@@ -35,6 +35,8 @@ export interface DevicePrefs {
   offlineMap: OfflineMap | null
   /** Who uses this device, for work logs. */
   personId: string | null
+  /** The crop the harvest page last showed. */
+  lastCrop: string | null
 }
 
 const PREFS_KEY = 'fieldbook:device'
@@ -47,6 +49,7 @@ const DEFAULTS: DevicePrefs = {
   lastView: null,
   offlineMap: null,
   personId: null,
+  lastCrop: null,
 }
 
 function randomId(): string {
@@ -107,6 +110,7 @@ function pick(s: DeviceStore): DevicePrefs {
     lastView: s.lastView,
     offlineMap: s.offlineMap,
     personId: s.personId,
+    lastCrop: s.lastCrop,
   }
 }
 

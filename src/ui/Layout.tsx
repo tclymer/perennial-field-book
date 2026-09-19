@@ -28,6 +28,7 @@ const DESKTOP_NAV: [string, string][] = [
   ['/', 'Map'],
   ['/week', 'Week'],
   ['/tasks', 'Tasks'],
+  ['/harvest', 'Harvest'],
   ['/logs', 'Logs'],
   ['/blocks', 'Blocks'],
   ['/varieties', 'Varieties'],
@@ -37,8 +38,8 @@ const DESKTOP_NAV: [string, string][] = [
 
 const PHONE_TABS: [string, string, string][] = [
   ['/week', 'Week', '☑'],
+  ['/harvest', 'Harvest', '⚖'],
   ['/', 'Map', '◎'],
-  ['/blocks', 'Blocks', '▦'],
   ['/search', 'Search', '⌕'],
   ['/settings', 'Settings', '⚙'],
 ]
@@ -181,6 +182,8 @@ function pageTitle(pathname: string): string {
   if (pathname.startsWith('/week')) return 'This week'
   if (pathname.startsWith('/tasks/')) return 'Task'
   if (pathname.startsWith('/tasks')) return 'Tasks'
+  if (pathname.startsWith('/harvest/reports')) return 'Harvest reports'
+  if (pathname.startsWith('/harvest')) return 'Harvest'
   if (pathname.startsWith('/review')) return 'Weekly review'
   if (pathname.startsWith('/logs')) return 'Work logs'
   if (/^\/blocks\/[^/]+\/grid/.test(pathname)) return 'Block grid'
