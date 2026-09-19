@@ -153,8 +153,26 @@ export function restoreTask(id: string): void {
   commit([{ type: 'task.restore', payload: { id } }])
 }
 
+/** The task needs doing again: reopen it and keep the record of the work that was done. */
 export function reopenTask(id: string): void {
   commit([{ type: 'task.patch', payload: { id, done: null, doneAt: null } }])
+}
+
+/** The log that closed a task, if it is still there: the latest one on its done date. */
+export function closingLog(id: string) {
+  const t = state().tasks[id]
+  if (!t?.done) return undefined
+  return live
+    .logs(state())
+    .filter((l) => l.taskId === id && (!t.doneAt || l.date === t.doneAt))
+    .sort((a, b) => b.createdAt - a.createdAt)[0]
+}
+
+/** The check-off was a mistake: remove the log it filed and reopen the task. */
+export function undoCompletion(id: string): void {
+  const log = closingLog(id)
+  if (log) undoLog(log.id)
+  else reopenTask(id)
 }
 
 export interface DoneSheet {

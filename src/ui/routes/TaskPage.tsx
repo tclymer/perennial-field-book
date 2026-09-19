@@ -9,6 +9,7 @@ import {
   deleteTask,
   moveTask,
   reopenTask,
+  undoCompletion,
   undoEvents,
   updateTask,
 } from '@/state/taskActions'
@@ -121,7 +122,19 @@ export default function TaskPage() {
           {task.done ? (
             <>
               <Pill tone="good">Done {task.doneAt}</Pill>
-              <Button onClick={() => reopenTask(task.id)}>Reopen</Button>
+              <Button
+                onClick={() => undoCompletion(task.id)}
+                title="It was checked by mistake: remove the log and reopen"
+              >
+                Undo check-off
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => reopenTask(task.id)}
+                title="The work was done and is logged, but it needs doing again"
+              >
+                Needs doing again
+              </Button>
             </>
           ) : (
             <Button variant="primary" onClick={() => setSheet(task)}>

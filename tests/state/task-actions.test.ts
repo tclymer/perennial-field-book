@@ -14,6 +14,7 @@ import {
   quickAdd,
   reopenTask,
   setBucketName,
+  undoCompletion,
   undoEvents,
   undoLog,
   updateTask,
@@ -136,6 +137,16 @@ describe('quick add and completion', () => {
     undoLog(gateLog.id)
     expect(s().tasks[gate]!.done).toBeUndefined()
     expect(s().logs[gateLog.id]!.deleted).toBe(true)
+
+    // Undoing a completion from the task finds and removes its closing log; reopening keeps it.
+    completeTask(gate, { personIds: [tim], durationMinutes: 10 })
+    undoCompletion(gate)
+    expect(s().tasks[gate]!.done).toBeUndefined()
+    expect(live.logs(s()).filter((l) => l.taskId === gate)).toHaveLength(0)
+    completeTask(gate, { personIds: [tim], durationMinutes: 10 })
+    reopenTask(gate)
+    expect(s().tasks[gate]!.done).toBeUndefined()
+    expect(live.logs(s()).filter((l) => l.taskId === gate)).toHaveLength(1)
 
     const manual = addLog({
       personIds: [tim],

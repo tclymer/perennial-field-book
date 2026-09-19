@@ -4,7 +4,14 @@ import clsx from 'clsx'
 import { useFarmStore } from '@/state/store'
 import { live } from '@/events/reduce'
 import { today } from '@/state/actions'
-import { completeTask, moveTask, nudgeTask, reopenTask, undoEvents } from '@/state/taskActions'
+import {
+  completeTask,
+  moveTask,
+  nudgeTask,
+  reopenTask,
+  undoCompletion,
+  undoEvents,
+} from '@/state/taskActions'
 import { bucketName, sortRecurring } from '@/engine/tasks'
 import type { NewEvent } from '@/events/types'
 import { BUCKETS, BUCKET_HINTS, type Bucket, type Task } from '@/model/types'
@@ -177,8 +184,19 @@ function Column({
                       <TaskRow task={t} today={today} compact />
                     </ul>
                   </div>
-                  <Button variant="ghost" onClick={() => reopenTask(t.id)}>
-                    Reopen
+                  <Button
+                    variant="ghost"
+                    onClick={() => undoCompletion(t.id)}
+                    title="Checked by mistake: remove the log and reopen"
+                  >
+                    Undo
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => reopenTask(t.id)}
+                    title="Keep the log; it needs doing again"
+                  >
+                    Again
                   </Button>
                 </li>
               ))}
