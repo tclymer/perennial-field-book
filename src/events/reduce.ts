@@ -5,14 +5,17 @@
  */
 import type {
   Block,
-  Feature,
   FarmState,
+  Feature,
   LoosePosition,
+  Person,
   Row,
+  Task,
   Tree,
   TreeEvent,
   TreeStatus,
   Variety,
+  WorkLog,
 } from '@/model/types'
 import { planKey } from '@/model/types'
 import { PAYLOADS } from '@/model/schema'
@@ -28,6 +31,9 @@ export function emptyState(): FarmState {
     varieties: {},
     trees: {},
     treeEvents: {},
+    people: {},
+    tasks: {},
+    logs: {},
     nudges: {},
     plans: {},
     applied: 0,
@@ -51,7 +57,15 @@ export function isKnownEvent(e: AnyEvent): e is Event {
 
 type Collections = Pick<
   FarmState,
-  'blocks' | 'rows' | 'loosePositions' | 'features' | 'varieties' | 'trees'
+  | 'blocks'
+  | 'rows'
+  | 'loosePositions'
+  | 'features'
+  | 'varieties'
+  | 'trees'
+  | 'people'
+  | 'tasks'
+  | 'logs'
 >
 type Collection = keyof Collections
 type Entity = Collections[Collection][string]
@@ -63,6 +77,9 @@ const COLLECTION: Record<string, Collection> = {
   feature: 'features',
   variety: 'varieties',
   tree: 'trees',
+  person: 'people',
+  task: 'tasks',
+  log: 'logs',
 }
 
 /** Merge a patch: present fields overwrite, `null` clears, `undefined` is skipped. */
@@ -90,6 +107,9 @@ function upsert(
     createdAt: ts,
     ...(status ? { status } : {}),
     ...(coll === 'varieties' ? { aliases: [] } : {}),
+    ...(coll === 'people' ? { active: true } : {}),
+    ...(coll === 'tasks' ? { targets: [], order: 0 } : {}),
+    ...(coll === 'logs' ? { targets: [], personIds: [] } : {}),
   }
   const next = { ...merge(base, fields), updatedAt: ts } as Entity
   ;(draft[coll] as Record<string, Entity>)[id] = next
@@ -206,6 +226,9 @@ function shallowClone(state: FarmState): FarmState {
     varieties: { ...state.varieties },
     trees: { ...state.trees },
     treeEvents: { ...state.treeEvents },
+    people: { ...state.people },
+    tasks: { ...state.tasks },
+    logs: { ...state.logs },
     nudges: { ...state.nudges },
     plans: { ...state.plans },
   }
@@ -235,6 +258,12 @@ export const live = {
   features: (s: FarmState): Feature[] => Object.values(s.features).filter((f) => !f.deleted),
   varieties: (s: FarmState): Variety[] => Object.values(s.varieties).filter((v) => !v.deleted),
   trees: (s: FarmState): Tree[] => Object.values(s.trees).filter((t) => !t.deleted),
+  people: (s: FarmState): Person[] => Object.values(s.people).filter((p) => !p.deleted),
+  tasks: (s: FarmState): Task[] =>
+    Object.values(s.tasks).filter(
+      (t) => !t.deleted && !(t.projectId && s.tasks[t.projectId]?.deleted),
+    ),
+  logs: (s: FarmState): WorkLog[] => Object.values(s.logs).filter((l) => !l.deleted),
   treeEvents: (s: FarmState, treeId: string): TreeEvent[] =>
     Object.values(s.treeEvents)
       .filter((e) => e.treeId === treeId && !e.deleted)

@@ -33,6 +33,8 @@ export interface DevicePrefs {
   lastView: MapView | null
   /** What "Save map for offline" last kept, if anything. */
   offlineMap: OfflineMap | null
+  /** Who uses this device, for work logs. */
+  personId: string | null
 }
 
 const PREFS_KEY = 'fieldbook:device'
@@ -44,6 +46,7 @@ const DEFAULTS: DevicePrefs = {
   googleEnabled: true,
   lastView: null,
   offlineMap: null,
+  personId: null,
 }
 
 function randomId(): string {
@@ -103,6 +106,7 @@ function pick(s: DeviceStore): DevicePrefs {
     googleEnabled: s.googleEnabled,
     lastView: s.lastView,
     offlineMap: s.offlineMap,
+    personId: s.personId,
   }
 }
 

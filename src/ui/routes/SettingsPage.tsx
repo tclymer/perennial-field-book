@@ -282,6 +282,9 @@ const KIND_LABEL: Record<EntityKind, string> = {
   feature: 'Feature',
   variety: 'Variety',
   tree: 'Tree',
+  person: 'Person',
+  task: 'Task',
+  log: 'Work log',
 }
 
 function RecentlyDeleted() {
@@ -302,6 +305,18 @@ function RecentlyDeleted() {
     if (v.deleted) items.push({ kind: 'variety', id: v.id, label: v.name, at: v.updatedAt })
   for (const t of Object.values(state.trees))
     if (t.deleted) items.push({ kind: 'tree', id: t.id, label: t.posKey, at: t.updatedAt })
+  for (const p of Object.values(state.people))
+    if (p.deleted) items.push({ kind: 'person', id: p.id, label: p.name, at: p.updatedAt })
+  for (const t of Object.values(state.tasks))
+    if (t.deleted) items.push({ kind: 'task', id: t.id, label: t.title, at: t.updatedAt })
+  for (const l of Object.values(state.logs))
+    if (l.deleted)
+      items.push({
+        kind: 'log',
+        id: l.id,
+        label: `${l.date} ${l.category ?? 'work'}`,
+        at: l.updatedAt,
+      })
   if (items.length === 0) return null
   items.sort((a, b) => b.at - a.at)
   return (

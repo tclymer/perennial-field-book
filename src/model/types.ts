@@ -158,12 +158,91 @@ export interface GraftPlan {
   doneEventId?: string
 }
 
+/** Task buckets (DESIGN.md §3.3). The default labels are Threefold's Keep headings. */
+export type Bucket = 'now' | 'soon' | 'later' | 'recurring' | 'project'
+
+export const BUCKETS: readonly Bucket[] = ['now', 'soon', 'later', 'recurring', 'project']
+
+export const DEFAULT_BUCKET_NAMES: Record<Bucket, string> = {
+  now: 'Monkeys',
+  soon: 'Mini Tasks/Projects',
+  later: 'Long Term',
+  recurring: 'Spinning Plates',
+  project: 'Projects',
+}
+
+/** What a task or a log points at: a place, a tree, the whole farm, or nothing. */
+export type Target =
+  | { kind: 'block'; id: string }
+  | { kind: 'row'; id: string }
+  | { kind: 'feature'; id: string }
+  | { kind: 'tree'; posKey: string }
+  | { kind: 'farm' }
+
+export interface Person extends Stamped {
+  id: string
+  name: string
+  active: boolean
+  /** Set when the person was created from a Google sign-in, so devices match them again. */
+  email?: string
+}
+
+export interface Task extends Stamped {
+  id: string
+  title: string
+  bucket: Bucket
+  /** Parent project (a task with bucket 'project'); the child's own bucket is then ignored. */
+  projectId?: string
+  targets: Target[]
+  category?: string
+  ownerId?: string
+  needsDiscussion?: boolean
+  /** Free text such as "late fall"; `seasonMonths` is its machine form, 1 to 12. */
+  season?: string
+  seasonMonths?: number[]
+  /** Recurring: an optional interval that only adds a "due" hint. */
+  intervalDays?: number
+  /** Default log duration; a recurring task with one logs on a single tap. */
+  estimatedMinutes?: number
+  notes?: string
+  /** One-off tasks only; a recurring task's "last done" comes from its logs. */
+  done?: boolean
+  doneAt?: string
+  /** Position within its bucket or project. */
+  order: number
+}
+
+export interface Material {
+  product: string
+  rate?: string
+  amount?: number
+  unit?: string
+  lot?: string
+}
+
+export interface WorkLog extends Stamped {
+  id: string
+  /** ISO date, YYYY-MM-DD. */
+  date: string
+  personIds: string[]
+  durationMinutes?: number
+  category?: string
+  targets: Target[]
+  taskId?: string
+  materials?: Material[]
+  notes?: string
+}
+
 export interface FarmMeta {
   id: string
   name: string
   center: LngLat
   zoom: number
   createdAt: number
+  /** Renamed buckets; absent ones use DEFAULT_BUCKET_NAMES. */
+  bucketNames?: Partial<Record<Bucket, string>>
+  /** Categories this farm added beyond the standard list. */
+  categories?: string[]
 }
 
 export interface FarmState {
@@ -175,6 +254,9 @@ export interface FarmState {
   varieties: Record<string, Variety>
   trees: Record<string, Tree>
   treeEvents: Record<string, TreeEvent>
+  people: Record<string, Person>
+  tasks: Record<string, Task>
+  logs: Record<string, WorkLog>
   /** Position coordinate overrides by posKey. */
   nudges: Record<string, LngLat>
   /** Graft plans keyed `${year}:${posKey}`. */
@@ -184,7 +266,8 @@ export interface FarmState {
   lastTs: number
 }
 
-export type EntityKind = 'block' | 'row' | 'position' | 'feature' | 'variety' | 'tree'
+export type EntityKind =
+  'block' | 'row' | 'position' | 'feature' | 'variety' | 'tree' | 'person' | 'task' | 'log'
 
 export function planKey(year: number, posKey: string): string {
   return `${year}:${posKey}`

@@ -207,10 +207,108 @@ export const farmCreate = z.object({
   center: lngLat,
   zoom: z.number().min(0).max(24),
 })
+const bucket = z.enum(['now', 'soon', 'later', 'recurring', 'project'])
+export const target = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('block'), id }),
+  z.object({ kind: z.literal('row'), id }),
+  z.object({ kind: z.literal('feature'), id }),
+  z.object({ kind: z.literal('tree'), posKey: id }),
+  z.object({ kind: z.literal('farm') }),
+])
+const targets = z.array(target).max(50)
+const months = z.array(z.number().int().min(1).max(12)).max(12)
+const minutes = z
+  .number()
+  .int()
+  .min(0)
+  .max(24 * 60 * 7)
+const material = z.object({
+  product: short.min(1),
+  rate: short.optional(),
+  amount: z.number().min(0).optional(),
+  unit: short.optional(),
+  lot: short.optional(),
+})
+
 export const farmPatch = z.object({
   name: short.min(1).optional(),
   center: lngLat.optional(),
   zoom: z.number().min(0).max(24).optional(),
+  bucketNames: z.partialRecord(bucket, short.min(1)).optional(),
+  categories: z.array(short.min(1)).max(50).optional(),
+})
+
+export const personCreate = z.object({
+  id,
+  name: short.min(1),
+  active: z.boolean().optional(),
+  email: short.optional(),
+})
+export const personPatch = z.object({
+  id,
+  name: short.min(1).optional(),
+  active: z.boolean().optional(),
+  email: short.nullable().optional(),
+})
+
+export const taskCreate = z.object({
+  id,
+  title: short.min(1).max(200),
+  bucket,
+  projectId: id.optional(),
+  targets: targets.optional(),
+  category: short.optional(),
+  ownerId: id.optional(),
+  needsDiscussion: z.boolean().optional(),
+  season: short.optional(),
+  seasonMonths: months.optional(),
+  intervalDays: z.number().int().min(1).max(3660).optional(),
+  estimatedMinutes: minutes.optional(),
+  notes: text.optional(),
+  done: z.boolean().optional(),
+  doneAt: isoDate.optional(),
+  order: z.number().optional(),
+})
+export const taskPatch = z.object({
+  id,
+  title: short.min(1).max(200).optional(),
+  bucket: bucket.optional(),
+  projectId: id.nullable().optional(),
+  targets: targets.optional(),
+  category: short.nullable().optional(),
+  ownerId: id.nullable().optional(),
+  needsDiscussion: z.boolean().nullable().optional(),
+  season: short.nullable().optional(),
+  seasonMonths: months.nullable().optional(),
+  intervalDays: z.number().int().min(1).max(3660).nullable().optional(),
+  estimatedMinutes: minutes.nullable().optional(),
+  notes: text.nullable().optional(),
+  done: z.boolean().nullable().optional(),
+  doneAt: isoDate.nullable().optional(),
+  order: z.number().optional(),
+})
+
+export const logCreate = z.object({
+  id,
+  date: isoDate,
+  personIds: z.array(id).max(20),
+  durationMinutes: minutes.optional(),
+  category: short.optional(),
+  targets: targets.optional(),
+  taskId: id.optional(),
+  materials: z.array(material).max(20).optional(),
+  notes: text.optional(),
+})
+export const logPatch = z.object({
+  id,
+  date: isoDate.optional(),
+  personIds: z.array(id).max(20).optional(),
+  durationMinutes: minutes.nullable().optional(),
+  category: short.nullable().optional(),
+  targets: targets.optional(),
+  taskId: id.nullable().optional(),
+  materials: z.array(material).max(20).nullable().optional(),
+  notes: text.nullable().optional(),
 })
 
 /** Every event type and its payload schema. */
@@ -247,6 +345,18 @@ export const PAYLOADS = {
   'graft.plan': planRef.extend({ varietyId: id }),
   'graft.unplan': planRef,
   'graft.done': planRef.extend({ treeEventId: id }),
+  'person.create': personCreate,
+  'person.patch': personPatch,
+  'person.delete': byId,
+  'person.restore': byId,
+  'task.create': taskCreate,
+  'task.patch': taskPatch,
+  'task.delete': byId,
+  'task.restore': byId,
+  'log.create': logCreate,
+  'log.patch': logPatch,
+  'log.delete': byId,
+  'log.restore': byId,
 } as const
 
 export type EventType = keyof typeof PAYLOADS
