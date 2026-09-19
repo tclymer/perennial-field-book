@@ -144,7 +144,7 @@ function Column({
                   <TaskRow
                     task={t}
                     today={today}
-                    onCheck={bucket === 'project' ? undefined : onCheck}
+                    onCheck={onCheck}
                     handle
                     dragProps={drag.rowProps(t)}
                     dropIndicator={drag.indicator(t.id)}

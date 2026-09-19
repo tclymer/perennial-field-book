@@ -13,6 +13,9 @@ import { BasemapNotice } from '@/ui/map/BasemapNotice'
 import { EditorPanel } from '@/ui/map/EditorPanel'
 import { GoogleAttribution } from '@/ui/map/GoogleAttribution'
 import { HomeButton, goHome } from '@/ui/map/HomeButton'
+import { HighlightBar } from '@/ui/map/HighlightBar'
+import { coordsOfVarieties } from '@/state/colors'
+import { bboxOf, padBounds } from '@/engine/geo'
 import { useEditor } from '@/ui/map/editorStore'
 import { useIsDesktop } from '@/ui/useIsDesktop'
 
@@ -48,9 +51,23 @@ export default function MapPage() {
     if (coord) map.easeTo({ center: coord, zoom: Math.max(map.getZoom(), 20), duration: 800 })
   }, [map, focus])
 
+  // "Show on map" from the varieties page or search: light the variety up and fit to it.
+  const highlightParam = params.get('highlight')
+  const setHighlight = useEditor((s) => s.setHighlight)
+  useEffect(() => {
+    if (!highlightParam) return
+    const ids = highlightParam.split(',').filter(Boolean)
+    setHighlight(ids)
+    if (!map) return
+    const coords = coordsOfVarieties(useFarmStore.getState().state, new Set(ids))
+    if (coords.length) {
+      map.fitBounds(padBounds(bboxOf(coords), 0.15), { padding: 40, duration: 800, maxZoom: 20 })
+    }
+  }, [map, highlightParam, setHighlight])
+
   // First open on this device: fit to whatever has been drawn rather than a remembered view.
   useEffect(() => {
-    if (!map || focus || lastView) return
+    if (!map || focus || highlightParam || lastView) return
     goHome(map, useFarmStore.getState().state)
     // Only once, when the map first appears.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -93,6 +110,7 @@ export default function MapPage() {
           )}
           {showingGoogle && <GoogleAttribution copyright={basemap.copyright} />}
           <HomeButton map={map} state={state} />
+          <HighlightBar className="absolute left-2 top-2 z-10 max-w-[calc(100%-6rem)]" />
         </MapView>
       </div>
     </div>

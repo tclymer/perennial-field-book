@@ -3,8 +3,9 @@ import type { Feature, FeatureCollection, LineString, Point, Polygon } from 'geo
 import type { FarmState, Ring, TreeStatus } from '@/model/types'
 import { live } from '@/events/reduce'
 import { currentTreeByPos, positions, varietyAt, varietyColors } from '@/state/derived'
+import { DIM, blockVarietyColors, varietyColorsBySpecies } from '@/state/colors'
 
-export type ColorBy = 'variety' | 'status' | 'plan'
+export type ColorBy = 'species' | 'variety' | 'status' | 'plan'
 
 export const STATUS_COLOR: Record<TreeStatus, string> = {
   alive: '#a3e635',
@@ -76,6 +77,8 @@ export function rowsFC(state: FarmState, hide: ReadonlySet<string> = new Set()) 
 
 export interface PositionsOptions {
   colorBy: ColorBy
+  /** Variety ids to light up; everything else goes grey. Empty means no highlight. */
+  highlight?: ReadonlySet<string>
   planYear?: number
   hideRows?: ReadonlySet<string>
   hideBlocks?: ReadonlySet<string>
@@ -83,6 +86,9 @@ export interface PositionsOptions {
 
 export function positionsFC(state: FarmState, opts: PositionsOptions) {
   const colors = varietyColors(state)
+  const bySpecies = varietyColorsBySpecies(state)
+  const perBlock = blockVarietyColors(state)
+  const highlighting = (opts.highlight?.size ?? 0) > 0
   const trees = currentTreeByPos(state)
   const out: Feature<Point>[] = []
   for (const p of positions(state)) {
@@ -91,8 +97,12 @@ export function positionsFC(state: FarmState, opts: PositionsOptions) {
     const tree = trees.get(p.posKey)
     const variety = varietyAt(state, p)
     let color = EMPTY_COLOR
-    if (opts.colorBy === 'variety')
-      color = variety ? (colors.get(variety.id) ?? EMPTY_COLOR) : EMPTY_COLOR
+    if (highlighting) {
+      color = variety && opts.highlight!.has(variety.id) ? (bySpecies.get(variety.id) ?? DIM) : DIM
+    } else if (opts.colorBy === 'species')
+      color = variety ? (bySpecies.get(variety.id) ?? EMPTY_COLOR) : EMPTY_COLOR
+    else if (opts.colorBy === 'variety')
+      color = variety ? (perBlock.get(p.blockId)?.get(variety.id) ?? EMPTY_COLOR) : EMPTY_COLOR
     else if (opts.colorBy === 'status') color = tree ? STATUS_COLOR[tree.status] : EMPTY_COLOR
     else if (opts.colorBy === 'plan') {
       const plan = state.plans[`${opts.planYear ?? new Date().getFullYear()}:${p.posKey}`]

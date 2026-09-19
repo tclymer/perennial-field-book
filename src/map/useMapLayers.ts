@@ -137,9 +137,11 @@ export function useMapLayers(
 ): void {
   const fill = useEditor((s) => s.fill)
   const move = useEditor((s) => s.move)
+  const highlightIds = useEditor((s) => s.highlight)
   const data = useMemo(() => {
     const positions = positionsFC(state, {
       colorBy,
+      highlight: new Set(highlightIds),
       planYear,
       hideRows: hidden.rows,
       hideBlocks: hidden.positionsOfBlocks,
@@ -153,7 +155,7 @@ export function useMapLayers(
       plan: planFC(state, planYear, hidden.positionsOfBlocks),
       preview: fill ? fillPreviewFC(state) : move ? movePreviewFC(state) : EMPTY,
     }
-  }, [state, colorBy, planYear, hidden, fill, move])
+  }, [state, colorBy, highlightIds, planYear, hidden, fill, move])
 
   useEffect(() => {
     if (!map) return

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import clsx from 'clsx'
 import { useFarmStore } from '@/state/store'
+import { blockVarietyColors } from '@/state/colors'
 import {
   currentTreeByPos,
   positions,
@@ -77,7 +78,8 @@ export default function BlockGridPage() {
       const label = row ? treeLabel(block?.code ?? '?', row.number, index) : t.posKey
       return { tree: t, row, index, label }
     })
-  const colors = varietyColors(state)
+  const globalColors = varietyColors(state)
+  const colors = blockVarietyColors(state).get(id) ?? globalColors
   const trees = currentTreeByPos(state)
   const varieties = varietiesByName(state)
   const unrecorded = positions(state).filter((p) => p.blockId === id && !trees.has(p.posKey)).length
@@ -107,7 +109,9 @@ export default function BlockGridPage() {
     if (colorBy === 'status') return tree ? STATUS_COLOR[tree.status] : EMPTY_COLOR
     if (colorBy === 'plan') {
       const plan = state.plans[planKey(planYear, posKey)]
-      return plan && !plan.doneEventId ? (colors.get(plan.varietyId) ?? '#fbbf24') : EMPTY_COLOR
+      return plan && !plan.doneEventId
+        ? (colors.get(plan.varietyId) ?? globalColors.get(plan.varietyId) ?? '#fbbf24')
+        : EMPTY_COLOR
     }
     const v = varietyAt(state, p)
     return v ? (colors.get(v.id) ?? EMPTY_COLOR) : EMPTY_COLOR

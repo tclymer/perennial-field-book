@@ -56,6 +56,8 @@ interface EditorState {
   /** True while the map is turned so the selected block's rows run bottom to top. */
   aligned: boolean
   colorBy: ColorBy
+  /** Variety ids lit up on the map; empty means none. */
+  highlight: string[]
   planYear: number
   featureDraft: { name: string; kind: FeatureKind }
   message: string | null
@@ -69,6 +71,7 @@ interface EditorState {
   closeFill: () => void
   setAligned: (aligned: boolean) => void
   setColorBy: (c: ColorBy) => void
+  setHighlight: (ids: string[]) => void
   setPlanYear: (y: number) => void
   setFeatureDraft: (d: Partial<{ name: string; kind: FeatureKind }>) => void
   say: (message: string | null) => void
@@ -85,7 +88,8 @@ export const useEditor = create<EditorState>()((set) => ({
   editMode: 'none',
   fill: null,
   aligned: false,
-  colorBy: 'variety',
+  colorBy: 'species',
+  highlight: [],
   planYear: new Date().getFullYear() + 1,
   featureDraft: { name: '', kind: 'building' },
   message: null,
@@ -114,6 +118,7 @@ export const useEditor = create<EditorState>()((set) => ({
   closeFill: () => set({ fill: null, editMode: 'none' }),
   setAligned: (aligned) => set({ aligned }),
   setColorBy: (colorBy) => set({ colorBy }),
+  setHighlight: (highlight) => set({ highlight }),
   setPlanYear: (planYear) => set({ planYear }),
   setFeatureDraft: (d) => set((s) => ({ featureDraft: { ...s.featureDraft, ...d } })),
   say: (message) => set({ message }),

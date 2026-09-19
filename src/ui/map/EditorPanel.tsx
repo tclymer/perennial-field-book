@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import type { BlockStatus, CompassSide, FeatureKind, FillParams, Row } from '@/model/types'
 import { live } from '@/events/reduce'
 import { useFarmStore } from '@/state/store'
+import { speciesColors } from '@/state/colors'
 import { blockSpecies, varietiesByName } from '@/state/derived'
 import {
   autoNumberRows,
@@ -1473,6 +1474,22 @@ function FeatureSection() {
   )
 }
 
+function SpeciesLegend() {
+  const state = useFarmStore((s) => s.state)
+  const colors = speciesColors(state)
+  if (colors.size === 0) return null
+  return (
+    <p className="flex flex-wrap gap-2 text-xs">
+      {[...colors.entries()].map(([species, color]) => (
+        <span key={species} className="flex items-center gap-1 capitalize">
+          <span className="inline-block h-3 w-3 rounded-full" style={{ background: color }} />
+          {species}
+        </span>
+      ))}
+    </p>
+  )
+}
+
 function ViewSection() {
   const colorBy = useEditor((s) => s.colorBy)
   const setColorBy = useEditor((s) => s.setColorBy)
@@ -1488,11 +1505,19 @@ function ViewSection() {
             value={colorBy}
             onChange={(e) => setColorBy(e.target.value as typeof colorBy)}
           >
-            <option value="variety">variety</option>
+            <option value="species">species</option>
+            <option value="variety">variety (within each block)</option>
             <option value="status">status</option>
             <option value="plan">graft plan</option>
           </select>
         </Field>
+        {colorBy === 'species' && <SpeciesLegend />}
+        {colorBy === 'variety' && (
+          <p className="text-xs text-stone-500 dark:text-stone-400">
+            Colors are handed out per block, so the same color can mean different varieties in
+            different blocks. Hover a dot for its name.
+          </p>
+        )}
         {colorBy === 'plan' && (
           <Field label="Plan year">
             <NumberInput value={planYear} min={2000} max={2100} step={1} onChange={setPlanYear} />

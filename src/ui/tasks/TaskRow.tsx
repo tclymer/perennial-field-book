@@ -90,7 +90,7 @@ export function TaskRow({
           ⋮⋮
         </span>
       )}
-      {onCheck && !task.done && (
+      {onCheck && !task.done && task.bucket !== 'project' && (
         <button
           type="button"
           onClick={() => onCheck(task)}

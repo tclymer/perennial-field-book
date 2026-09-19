@@ -1,12 +1,9 @@
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import clsx from 'clsx'
+import { varietyColorsBySpecies } from '@/state/colors'
 import { useFarmStore } from '@/state/store'
-import {
-  positionCountByVariety,
-  treeCountByVariety,
-  varietiesByName,
-  varietyColors,
-} from '@/state/derived'
+import { positionCountByVariety, treeCountByVariety, varietiesByName } from '@/state/derived'
 import { createVariety, deleteVariety, updateVariety } from '@/state/actions'
 import { Button, Card, Field, PageHeader, Pill, inputClass } from '@/ui/components'
 import type { Variety } from '@/model/types'
@@ -50,7 +47,7 @@ export default function VarietiesPage() {
   const varieties = varietiesByName(state)
   const counts = positionCountByVariety(state)
   const recorded = treeCountByVariety(state)
-  const colors = varietyColors(state)
+  const colors = varietyColorsBySpecies(state)
   const groups = useMemo(() => groupBySpecies(varieties, counts), [varieties, counts])
   const [adding, setAdding] = useState<string | null>(null)
   const [only, setOnly] = useState<string | null>(null)
@@ -286,14 +283,25 @@ function VarietyCard({
             <span className="text-sm text-stone-500 dark:text-stone-400">{variety.group}</span>
           )}
         </button>
-        <Pill
-          title={`${recorded} with a tree record of their own; the rest come from a row default`}
-        >
-          {count} {count === 1 ? 'tree' : 'trees'}
-          {recorded !== count && (
-            <span className="ml-1 text-stone-500 dark:text-stone-400">· {recorded} recorded</span>
+        <span className="flex items-center gap-2">
+          <Pill
+            title={`${recorded} with a tree record of their own; the rest come from a row default`}
+          >
+            {count} {count === 1 ? 'tree' : 'trees'}
+            {recorded !== count && (
+              <span className="ml-1 text-stone-500 dark:text-stone-400">· {recorded} recorded</span>
+            )}
+          </Pill>
+          {count > 0 && (
+            <Link
+              to={`/?highlight=${variety.id}`}
+              className="text-xs underline decoration-dotted"
+              title="Light these trees up on the map"
+            >
+              Show on map
+            </Link>
           )}
-        </Pill>
+        </span>
       </div>
       {open && (
         <div className="mt-3 grid gap-3 sm:grid-cols-2">

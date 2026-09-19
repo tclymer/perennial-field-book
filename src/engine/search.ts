@@ -54,7 +54,7 @@ export function search(state: FarmState, query: string): SearchResult {
   for (const v of live.varieties(state)) {
     const names = [v.name, ...(v.aliases ?? [])].map(norm)
     if (names.some((n) => n.includes(q)) || norm(v.species).includes(q)) {
-      hits.push({ kind: 'variety', title: v.name, detail: v.species, to: '/varieties' })
+      hits.push({ kind: 'variety', title: v.name, detail: v.species, to: `/?highlight=${v.id}` })
     }
   }
   for (const f of live.features(state)) {
