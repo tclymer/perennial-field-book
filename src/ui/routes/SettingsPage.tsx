@@ -12,6 +12,7 @@ import type { EntityKind } from '@/model/types'
 import { AccountCard } from '@/ui/settings/AccountCard'
 import { SyncCard } from '@/ui/settings/SyncCard'
 import { ShareCard } from '@/ui/settings/ShareCard'
+import { PeopleCard, TaskSettingsCard } from '@/ui/settings/PeopleCard'
 import { RemoteFarms } from '@/ui/settings/RemoteFarms'
 
 export default function SettingsPage() {
@@ -24,6 +25,8 @@ export default function SettingsPage() {
       <SyncCard />
       <ShareCard />
       <RemoteFarms onOpened={() => navigate('/')} returnTo="/settings" />
+      <PeopleCard />
+      <TaskSettingsCard />
       <ImagerySettings />
       <OfflineSave />
       <DataSettings />

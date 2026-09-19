@@ -40,6 +40,7 @@ const routes: [string, RegExp | string][] = [
   ['#/tasks/tsk_nope', /not here/i],
   ['#/review', /Weekly review/i],
   ['#/logs', /Work logs/i],
+  ['#/import/keep', /Paste a list from Keep/i],
   ['#/blocks', /Blocks/i],
   ['#/blocks/blk_pp1/grid', /Row defaults/i],
   ['#/blocks/blk_nope/grid', /not in this farm/i],

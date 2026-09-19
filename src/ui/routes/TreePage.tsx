@@ -10,6 +10,7 @@ import { Button, Card, PageHeader, Pill, inputClass, type Tone } from '@/ui/comp
 import { ActionSheet } from '@/ui/tree/ActionSheet'
 import { History } from '@/ui/tree/History'
 import { PhotoStrip } from '@/ui/tree/PhotoStrip'
+import { LogWork } from '@/ui/tree/LogWork'
 import { completePlannedGraft, updateTree } from '@/state/actions'
 
 const STATUS_TONE: Record<Tree['status'], Tone> = {
@@ -150,6 +151,9 @@ export default function TreePage() {
             species={variety?.species ?? block?.species}
             onDone={setMessage}
           />
+          <div className="mt-2">
+            <LogWork posKey={position.posKey} onDone={setMessage} />
+          </div>
         </div>
         {message && (
           <p role="status" className="mt-2 text-sm text-lime-800 dark:text-lime-300">

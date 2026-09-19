@@ -10,6 +10,7 @@ const KIND_LABEL: Record<SearchHit['kind'], string> = {
   block: 'Block',
   variety: 'Variety',
   feature: 'Place',
+  task: 'Task',
 }
 
 export default function SearchPage() {

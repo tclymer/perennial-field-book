@@ -20,6 +20,7 @@ const TasksPage = lazy(() => import('./ui/routes/TasksPage'))
 const TaskPage = lazy(() => import('./ui/routes/TaskPage'))
 const ReviewPage = lazy(() => import('./ui/routes/ReviewPage'))
 const LogsPage = lazy(() => import('./ui/routes/LogsPage'))
+const KeepImportPage = lazy(() => import('./ui/routes/KeepImportPage'))
 const NotFound = lazy(() => import('./ui/routes/NotFound'))
 
 /** Each route gets its own error boundary and loading fallback. */
@@ -83,6 +84,14 @@ export default function App() {
           element={
             <Page>
               <LogsPage />
+            </Page>
+          }
+        />
+        <Route
+          path="import/keep"
+          element={
+            <Page>
+              <KeepImportPage />
             </Page>
           }
         />

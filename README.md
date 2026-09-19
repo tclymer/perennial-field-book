@@ -6,8 +6,9 @@ planting should earn, the field book records where everything is and what actual
 
 **Live:** https://fieldbook.theorganicorchard.org
 
-Status: iteration one (map, places, trees) built; iteration two (sync between devices) in
-progress; tasks and harvest follow. The product design lives in [DESIGN.md](DESIGN.md).
+Status: iterations one (map, places, trees), two (sync between devices), and three (tasks
+and work logs) built; harvest and the planner comparison follow. The product design lives in
+[DESIGN.md](DESIGN.md).
 
 ## What it does today
 
@@ -20,7 +21,15 @@ progress; tasks and harvest follow. The product design lives in [DESIGN.md](DESI
 - **Block grid.** Rows as columns, positions as cells, colored by variety, status, or graft
   plan. Select and assign varieties or plan grafts for a year; the plan reports scionwood to
   gather per variety and converts to a graft event with one tap.
-- **Search** across trees, rows, blocks, varieties, and places.
+- **Tasks.** Lists named the way the farm already names them, a one-box quick add that reads
+  places, category, owner, and season out of what you typed, projects with subtasks, and a
+  standing "keep up with" list sorted by how long since each was last done. Paste a Google
+  Keep note to bring it all in.
+- **Work logs.** Checking a task off files a log with two taps (how long, who). Logs carry
+  category, places, people, and materials for the organic input record; the Logs page
+  filters, totals by category and person, and downloads a CSV. A weekly review shows what got
+  done and what is going stale.
+- **Search** across trees, rows, blocks, varieties, places, and tasks.
 - **Imagery.** Google satellite through the Map Tiles API when a key is present, held to the
   free tier by a daily quota, with automatic fallback to free public imagery (Pennsylvania's
   6-inch PEMA orthoimagery, Esri World Imagery, USGS, or any XYZ URL). The free imagery over

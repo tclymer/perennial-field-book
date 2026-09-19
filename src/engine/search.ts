@@ -5,7 +5,7 @@ import { parseTreeLabel } from '@/model/ids'
 import { currentTreeByPos, positions, varietyAt } from '@/state/derived'
 
 export interface SearchHit {
-  kind: 'tree' | 'row' | 'block' | 'variety' | 'feature'
+  kind: 'tree' | 'row' | 'block' | 'variety' | 'feature' | 'task'
   title: string
   detail?: string
   /** Hash route to open. */
@@ -60,6 +60,17 @@ export function search(state: FarmState, query: string): SearchResult {
   for (const f of live.features(state)) {
     if (norm(f.name).includes(q) || norm(f.kind).includes(q)) {
       hits.push({ kind: 'feature', title: f.name, detail: f.kind, to: '/' })
+    }
+  }
+
+  for (const t of live.tasks(state)) {
+    if (norm(t.title).includes(q) || (t.notes && norm(t.notes).includes(q))) {
+      hits.push({
+        kind: 'task',
+        title: t.title,
+        detail: t.done ? 'done' : undefined,
+        to: `/tasks/${t.id}`,
+      })
     }
   }
 

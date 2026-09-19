@@ -68,6 +68,8 @@ useful it might be to a farm.
 | 2026-09-16 | If the tool takes off, revisit paid Google usage or a bring-your-own-key option. Add a donation link on the About page at some point. | User's call. Not iteration one. |
 | 2026-09-17 | A block is planted by default: every position is a tree record from the moment a row exists, and a row's default variety flows to trees that have none of their own. "Planned" is an opt-in status for layouts on bare ground, and marking a planned block planted records everything at once. | Drawing rows over real trees felt like creating the trees, so having to declare them real afterwards was wrong. Planned stays for comparing layouts. |
 | 2026-09-17 | Sync is a hosted adapter on Cloudflare: Pages Functions in this repository, D1 for the event log and membership, R2 for photos. Google sign-in for identity only; farms are shared by invite link; the owner can remove members. Google Drive is dropped. | Drive's `drive.file` scope (the only one without a security audit) cannot see files another account created, nor files added later to a picked folder, so "each person on their own Google account" cannot work through Drive. Hosting brings custody of other farms' data, accepted with the protections in §8.3. |
+| 2026-09-19 | Task buckets ship with Threefold's Keep names as the default labels (Monkeys, Mini Tasks/Projects, Long Term, Spinning Plates, Projects), renameable per farm in Settings. | Zero relearning for the pilot farm; other farms rename them. |
+| 2026-09-19 | The person a device logs as comes from the Google sign-in: matched to a person by email or name the first time a log is filed, created if new, remembered per device, switchable with one tap on every done sheet. | No separate "who are you" step; the owner who rarely carries the phone is still one tap away. |
 | 2026-09-17 | Sign-in is a server-side OAuth code flow. The session comes back to the app as a one-time code in the return URL and is kept as a bearer token, never a cookie. | Popups do not work inside an installed iPhone app and Google's browser-only tokens expire hourly; a code in the URL works whichever browsing context ran Google's page. |
 
 ---
@@ -608,7 +610,10 @@ Each iteration is usable on its own.
    its own account and removing it (the server side is tested).
 3. **Tasks and logs.** Buckets, quick add with parsing, Keep import, done-sheet with chips,
    standing recurring list with season, projects with subtasks, weekly review, people,
-   discussion flag.
+   discussion flag. Built 2026-09-19: Week page (phone home), Tasks board and task page,
+   weekly review, work logs page with filters, totals, and CSV, Keep import, people and
+   list names in Settings, "Log work here" on tree pages, tasks in search. Allocation of
+   hours to plantings waits for iteration five.
    *Done when:* Google Keep is retired.
 4. **Harvest.** Sessions, rapid entry, per-tree entry, yield reports by variety and block.
    *Done when:* paper harvest records are retired.
