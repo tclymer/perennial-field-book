@@ -36,6 +36,8 @@ const routes: [string, RegExp | string][] = [
   ['#/', /cannot draw the map/i],
   ['#/start', /Set up your farm/i],
   ['#/week', /This week/i],
+  ['#/tasks', /Paste a list from Keep/i],
+  ['#/tasks/tsk_nope', /not here/i],
   ['#/blocks', /Blocks/i],
   ['#/blocks/blk_pp1/grid', /Row defaults/i],
   ['#/blocks/blk_nope/grid', /not in this farm/i],
