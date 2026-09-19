@@ -602,7 +602,10 @@ Each iteration is usable on its own.
    *Done when:* the whole orchard is drawn, every tree is findable by id, variety, or map, and
    the 2027 graft list lives on the grid.
 2. **Sync.** Hosted adapter (§8.3): sign-in, farms, outbox, pull, photos, invite links,
-   members. Two phones see the same farm. Started 2026-09-17.
+   members. Built 2026-09-17 to 09-18 and verified on the desktop and an Android phone:
+   sign-in, opening the farm from the account, two-way edits, and offline editing with
+   recovery. The GPS dot lands in the right row. Deferred: inviting the second phone with
+   its own account and removing it (the server side is tested).
 3. **Tasks and logs.** Buckets, quick add with parsing, Keep import, done-sheet with chips,
    standing recurring list with season, projects with subtasks, weekly review, people,
    discussion flag.
