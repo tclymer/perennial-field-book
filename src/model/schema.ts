@@ -213,6 +213,7 @@ export const target = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('row'), id }),
   z.object({ kind: z.literal('feature'), id }),
   z.object({ kind: z.literal('tree'), posKey: id }),
+  z.object({ kind: z.literal('species'), species: short.min(1) }),
   z.object({ kind: z.literal('farm') }),
 ])
 const targets = z.array(target).max(50)

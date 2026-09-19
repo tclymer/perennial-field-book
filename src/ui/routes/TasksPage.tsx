@@ -7,13 +7,14 @@ import { today } from '@/state/actions'
 import { completeTask, moveTask, nudgeTask, reopenTask, undoEvents } from '@/state/taskActions'
 import { bucketName, sortRecurring } from '@/engine/tasks'
 import type { NewEvent } from '@/events/types'
-import { BUCKETS, type Bucket, type Task } from '@/model/types'
+import { BUCKETS, BUCKET_HINTS, type Bucket, type Task } from '@/model/types'
 import { Button, Card, PageHeader, inputClass } from '@/ui/components'
 import { useIsDesktop } from '@/ui/useIsDesktop'
 import { DoneSheet, type DoneSheetResult } from '@/ui/tasks/DoneSheet'
 import { QuickAdd } from '@/ui/tasks/QuickAdd'
 import { TaskRow } from '@/ui/tasks/TaskRow'
 import { Toast } from '@/ui/tasks/Toast'
+import { useTaskDrag } from '@/ui/tasks/useTaskDrag'
 
 /** Buckets as columns on a desktop; one bucket at a time on a phone. */
 export default function TasksPage() {
@@ -44,7 +45,7 @@ export default function TasksPage() {
         subtitle={`${live.tasks(state).filter((t) => !t.done).length} open`}
       >
         <Link to="/import/keep" className="text-sm underline decoration-dotted">
-          Paste a list from Keep
+          Paste a list
         </Link>
       </PageHeader>
 
@@ -122,12 +123,15 @@ function Column({
   const done = all
     .filter((t) => t.done)
     .sort((a, b) => (b.doneAt ?? '').localeCompare(a.doneAt ?? ''))
-  const children = (id: string) =>
-    live.tasks(state).filter((t) => t.projectId === id && !t.done).length
+  const drag = useTaskDrag(open, { bucket, projectId: null })
 
   return (
-    <Card className="flex min-h-40 flex-col">
+    <Card
+      className={clsx('flex min-h-40 flex-col', drag.overEnd && 'ring-2 ring-lime-600')}
+      {...drag.containerProps}
+    >
       <h2 className="font-semibold">{bucketName(state.farm, bucket)}</h2>
+      <p className="text-xs text-stone-500 dark:text-stone-400">{BUCKET_HINTS[bucket]}</p>
       <div className="mt-2">
         <QuickAdd bucket={bucket} placeholder={bucket === 'project' ? 'New project…' : 'Add…'} />
       </div>
@@ -136,13 +140,16 @@ function Column({
           <li key={t.id} className="group">
             <div className="flex items-start gap-1">
               <div className="min-w-0 flex-1">
-                {bucket === 'project' ? (
-                  <ProjectRow task={t} openCount={children(t.id)} />
-                ) : (
-                  <ul>
-                    <TaskRow task={t} today={today} onCheck={() => onCheck(t)} />
-                  </ul>
-                )}
+                <ul>
+                  <TaskRow
+                    task={t}
+                    today={today}
+                    onCheck={bucket === 'project' ? undefined : onCheck}
+                    handle
+                    dragProps={drag.rowProps(t)}
+                    dropIndicator={drag.indicator(t.id)}
+                  />
+                </ul>
               </div>
               <RowActions task={t} />
             </div>
@@ -183,31 +190,11 @@ function Column({
   )
 }
 
-function ProjectRow({ task, openCount }: { task: Task; openCount: number }) {
-  return (
-    <div className="py-2">
-      <Link to={`/tasks/${task.id}`} className="block text-[15px] font-medium leading-snug">
-        {task.title}
-      </Link>
-      <p className="text-xs text-stone-500 dark:text-stone-400">
-        {openCount === 0 ? 'nothing open' : `${openCount} open`}
-        {task.ownerId && ' · '}
-        {task.ownerId && <OwnerName id={task.ownerId} />}
-      </p>
-    </div>
-  )
-}
-
-function OwnerName({ id }: { id: string }) {
-  const name = useFarmStore((s) => s.state.people[id]?.name)
-  return <>{name ?? 'owner'}</>
-}
-
-/** Up, down, and move-to, shown on hover on a desktop and always on a phone. */
+/** Up, down, and move-to for touch screens, where dragging is not reliable. */
 function RowActions({ task }: { task: Task }) {
   const farm = useFarmStore((s) => s.state.farm)
   return (
-    <div className="flex shrink-0 items-center gap-0.5 pt-2 opacity-60 group-hover:opacity-100 md:opacity-0">
+    <div className="flex shrink-0 items-center gap-0.5 pt-2 opacity-60 md:hidden">
       <button
         type="button"
         aria-label="Move up"

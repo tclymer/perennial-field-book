@@ -26,7 +26,21 @@ export function targetLabel(state: FarmState, t: Target): string {
       return positionByKey(state).get(t.posKey)?.label ?? t.posKey
     case 'feature':
       return state.features[t.id]?.name ?? 'a place'
+    case 'species':
+      return `All ${t.species} blocks`
   }
+}
+
+/** The blocks a target stands for today: one, or every block of a crop. */
+export function blocksOfTarget(state: FarmState, t: Target): string[] {
+  if (t.kind === 'species') {
+    const sp = t.species.toLowerCase()
+    return Object.values(state.blocks)
+      .filter((b) => !b.deleted && b.species?.toLowerCase() === sp)
+      .map((b) => b.id)
+  }
+  const one = blockOfTarget(state, t)
+  return one ? [one] : []
 }
 
 /** The block a target belongs to, or undefined for the farm, a feature, or nothing. */
@@ -75,10 +89,13 @@ export function totals(state: FarmState, logs: readonly WorkLog[], by: TotalsBy)
         }
         break
       case 'block': {
+        const species = log.targets.find((t) => t.kind === 'species')
         const blockId = log.targets.map((t) => blockOfTarget(state, t)).find(Boolean)
         if (blockId) {
           const b = state.blocks[blockId]
           add(blockId, b ? `${b.code} ${b.name}` : 'a block', hours)
+        } else if (species && species.kind === 'species') {
+          add(`species:${species.species}`, `All ${species.species} blocks`, hours)
         } else if (log.targets.some((t) => t.kind === 'farm')) add('farm', 'Whole farm', hours)
         else add('overhead', 'Overhead', hours)
         break

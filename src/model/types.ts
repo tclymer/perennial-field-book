@@ -177,7 +177,18 @@ export type Target =
   | { kind: 'row'; id: string }
   | { kind: 'feature'; id: string }
   | { kind: 'tree'; posKey: string }
+  /** Every block of a crop, including ones added later. */
+  | { kind: 'species'; species: string }
   | { kind: 'farm' }
+
+/** Short descriptions of what each bucket is for, shown under the list names. */
+export const BUCKET_HINTS: Record<Bucket, string> = {
+  now: 'What is on the plate this week.',
+  soon: 'Small jobs and projects for when there is a gap.',
+  later: 'Undated wishes; a season tag brings them forward.',
+  recurring: 'Things to keep up with, sorted by how long since last done.',
+  project: 'Bigger pieces of work with their own subtasks.',
+}
 
 export interface Person extends Stamped {
   id: string

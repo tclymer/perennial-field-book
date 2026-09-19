@@ -122,7 +122,7 @@ export default function ReviewPage() {
           <h2 className="font-semibold">{bucketName(state.farm, 'recurring')} getting stale</h2>
           <ul className="mt-1 divide-y divide-stone-100 dark:divide-stone-800">
             {review.stale.map((t) => (
-              <TaskRow key={t.id} task={t} today={date} onCheck={() => setSheet({ task: t })} />
+              <TaskRow key={t.id} task={t} today={date} onCheck={(x) => setSheet({ task: x })} />
             ))}
           </ul>
         </Card>

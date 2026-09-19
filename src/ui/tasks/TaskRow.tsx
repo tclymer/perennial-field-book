@@ -1,3 +1,4 @@
+import { useState, type HTMLAttributes } from 'react'
 import { Link } from 'react-router-dom'
 import clsx from 'clsx'
 import { useFarmStore } from '@/state/store'
@@ -6,6 +7,7 @@ import { targetLabel } from '@/engine/logs'
 import { daysBetween, dueState, lastDone } from '@/engine/tasks'
 import { categoryLabel } from '@/model/categories'
 import type { Task } from '@/model/types'
+import { useTaskDrag, type DropIndicator } from './useTaskDrag'
 
 /** "last done 3 days ago", "never done", for a recurring task. */
 export function lastDoneText(
@@ -21,25 +23,39 @@ export function lastDoneText(
   return `last done ${d} days ago`
 }
 
-/** One task line: a big checkbox, the title, and small chips for what the app knows. */
+/** One task line: a big checkbox, the title, chips, and its subtasks folded underneath. */
 export function TaskRow({
   task,
   today,
   onCheck,
   showBucket,
   compact,
+  dragProps,
+  dropIndicator,
+  handle,
 }: {
   task: Task
   today: string
-  /** Absent: no checkbox (the task page or a done list). */
-  onCheck?: () => void
+  /** Absent: no checkbox (the task page header or a done list). */
+  onCheck?: (task: Task) => void
   showBucket?: string
   compact?: boolean
+  dragProps?: HTMLAttributes<HTMLLIElement> & { draggable?: boolean }
+  dropIndicator?: DropIndicator
+  /** Show a drag handle on a desktop. */
+  handle?: boolean
 }) {
   const state = useFarmStore((s) => s.state)
   const logs = live.logs(state)
+  const [expanded, setExpanded] = useState(false)
   const recurring = task.bucket === 'recurring'
   const due = recurring ? dueState(task, logs, today) : null
+  const children = live
+    .tasks(state)
+    .filter((t) => t.projectId === task.id)
+    .sort((a, b) => Number(a.done ?? false) - Number(b.done ?? false) || a.order - b.order)
+  const openChildren = children.filter((t) => !t.done)
+
   const chips: { text: string; tone?: 'warn' | 'muted' }[] = []
   if (recurring) {
     chips.push({
@@ -56,16 +72,28 @@ export function TaskRow({
 
   return (
     <li
+      {...dragProps}
       className={clsx(
-        'flex items-start gap-3 py-2',
+        'group/row relative flex items-start gap-2 py-2',
         due === 'out-of-season' && 'opacity-50',
         task.done && 'opacity-60',
+        dropIndicator === 'before' && 'shadow-[inset_0_2px_0_0_theme(colors.lime.600)]',
+        dropIndicator === 'after' && 'shadow-[inset_0_-2px_0_0_theme(colors.lime.600)]',
       )}
     >
-      {onCheck && (
+      {handle && (
+        <span
+          aria-hidden
+          className="mt-1 hidden w-3 shrink-0 cursor-grab select-none text-stone-300 group-hover/row:text-stone-500 md:block"
+          title="Drag to reorder or move"
+        >
+          ⋮⋮
+        </span>
+      )}
+      {onCheck && !task.done && (
         <button
           type="button"
-          onClick={onCheck}
+          onClick={() => onCheck(task)}
           aria-label={recurring ? `Did: ${task.title}` : `Done: ${task.title}`}
           className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md border-2 border-stone-400 text-transparent hover:border-lime-700 hover:text-lime-700 dark:border-stone-500"
         >
@@ -98,7 +126,57 @@ export function TaskRow({
             ))}
           </p>
         )}
+        {children.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setExpanded((x) => !x)}
+            aria-expanded={expanded}
+            className="mt-0.5 text-xs text-stone-500 underline decoration-dotted dark:text-stone-400"
+          >
+            {expanded ? '▾' : '▸'} {openChildren.length} of {children.length} subtasks open
+          </button>
+        )}
+        {expanded && children.length > 0 && (
+          <Subtasks parent={task} items={children} today={today} onCheck={onCheck} />
+        )}
       </div>
     </li>
+  )
+}
+
+function Subtasks({
+  parent,
+  items,
+  today,
+  onCheck,
+}: {
+  parent: Task
+  items: Task[]
+  today: string
+  onCheck?: (task: Task) => void
+}) {
+  const open = items.filter((t) => !t.done)
+  const drag = useTaskDrag(open, { bucket: parent.bucket, projectId: parent.id })
+  return (
+    <ul
+      {...drag.containerProps}
+      className={clsx(
+        'mt-1 border-l-2 border-stone-100 pl-3 dark:border-stone-800',
+        drag.overEnd && 'border-lime-600',
+      )}
+    >
+      {items.map((t) => (
+        <TaskRow
+          key={t.id}
+          task={t}
+          today={today}
+          onCheck={onCheck}
+          compact
+          handle
+          dragProps={t.done ? undefined : drag.rowProps(t)}
+          dropIndicator={drag.indicator(t.id)}
+        />
+      ))}
+    </ul>
   )
 }

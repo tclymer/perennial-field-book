@@ -8,7 +8,7 @@ import { DEFAULT_BUCKET_NAMES } from '@/model/types'
 import { live } from '@/events/reduce'
 
 export interface ParseContext {
-  blocks: { id: string; code: string; name: string }[]
+  blocks: { id: string; code: string; name: string; species?: string }[]
   rows: { id: string; blockId: string; number: number }[]
   features: { id: string; name: string }[]
   people: { id: string; name: string }[]
@@ -299,6 +299,16 @@ export function parseTitle(raw: string, ctx: ParseContext): ParsedTitle {
   if (blockHit && !targets.some((t) => t.kind === 'row')) {
     targets.push({ kind: 'block', id: blockHit.id })
   }
+  // A crop word with no particular block means every block of that crop.
+  if (!blockHit) {
+    const seen = new Set<string>()
+    for (const b of ctx.blocks) {
+      const sp = b.species?.trim()
+      if (!sp || seen.has(sp.toLowerCase())) continue
+      seen.add(sp.toLowerCase())
+      if (phraseAt(tt, tokens(sp)) >= 0) targets.push({ kind: 'species', species: sp })
+    }
+  }
   const labels = new Set([...ctx.labels].map((l) => l.toUpperCase()))
   for (const word of text.split(/[\s,;]+/)) {
     const w = word.replace(/[^A-Za-z0-9-]/g, '').toUpperCase()
@@ -329,7 +339,12 @@ export function parseTitle(raw: string, ctx: ParseContext): ParsedTitle {
 /** Build a parse context from the farm state. Tree labels are passed in by the caller. */
 export function contextFrom(state: FarmState, labels: Iterable<string>): ParseContext {
   return {
-    blocks: live.blocks(state).map((b) => ({ id: b.id, code: b.code, name: b.name })),
+    blocks: live.blocks(state).map((b) => ({
+      id: b.id,
+      code: b.code,
+      name: b.name,
+      ...(b.species ? { species: b.species } : {}),
+    })),
     rows: live.rows(state).map((r) => ({ id: r.id, blockId: r.blockId, number: r.number })),
     features: live.features(state).map((f) => ({ id: f.id, name: f.name })),
     people: live

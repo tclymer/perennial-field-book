@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useFarmStore } from '@/state/store'
 import { live } from '@/events/reduce'
 import { addLog, deleteLog, updateLog } from '@/state/taskActions'
-import { blockOfTarget, hoursOf, logsToCsv, targetLabel, totals } from '@/engine/logs'
+import { blocksOfTarget, hoursOf, logsToCsv, targetLabel, totals } from '@/engine/logs'
 import { downloadText, fileSlug } from '@/events/bundle'
 import { allCategories, categoryLabel } from '@/model/categories'
 import type { WorkLog } from '@/model/types'
@@ -30,8 +30,8 @@ export default function LogsPage() {
         (l) =>
           !block ||
           (block === 'overhead'
-            ? !l.targets.some((t) => t.kind === 'farm' || blockOfTarget(state, t))
-            : l.targets.some((t) => blockOfTarget(state, t) === block)),
+            ? !l.targets.some((t) => t.kind === 'farm' || blocksOfTarget(state, t).length)
+            : l.targets.some((t) => blocksOfTarget(state, t).includes(block))),
       )
       .filter((l) => !from || l.date >= from)
       .filter((l) => !to || l.date <= to)

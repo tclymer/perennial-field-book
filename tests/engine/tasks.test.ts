@@ -15,9 +15,9 @@ import type { FarmState, Task, WorkLog } from '@/model/types'
 
 const ctx: ParseContext = {
   blocks: [
-    { id: 'blk_pp1', code: 'PP1', name: 'Pawpaws Block 1' },
-    { id: 'blk_pp2', code: 'PP2', name: 'Pawpaws Block 2' },
-    { id: 'blk_per', code: 'PER', name: 'Persimmons' },
+    { id: 'blk_pp1', code: 'PP1', name: 'Pawpaws Block 1', species: 'pawpaw' },
+    { id: 'blk_pp2', code: 'PP2', name: 'Pawpaws Block 2', species: 'pawpaw' },
+    { id: 'blk_per', code: 'PER', name: 'Persimmons', species: 'persimmon' },
     { id: 'blk_y', code: 'Y', name: 'Yard' },
   ],
   rows: [1, 2, 3, 4, 5].map((n) => ({ id: `row_pp1_${n}`, blockId: 'blk_pp1', number: n })),
@@ -46,6 +46,16 @@ describe('parseTitle', () => {
     expect(parseTitle('weed PP1 row 3', ctx).targets).toEqual([{ kind: 'row', id: 'row_pp1_3' }])
     expect(parseTitle('fertilize the persimmons', ctx).targets).toEqual([
       { kind: 'block', id: 'blk_per' },
+    ])
+  })
+
+  it('reads a crop word as every block of that crop', () => {
+    expect(parseTitle('thin pawpaws', ctx).targets).toEqual([
+      { kind: 'species', species: 'pawpaw' },
+    ])
+    // A named block wins over the crop word.
+    expect(parseTitle('thin pawpaws in PP2', ctx).targets).toEqual([
+      { kind: 'block', id: 'blk_pp2' },
     ])
   })
 

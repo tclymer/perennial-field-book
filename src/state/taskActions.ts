@@ -108,6 +108,43 @@ export function nudgeTask(id: string, direction: -1 | 1): void {
   ])
 }
 
+export interface Placement {
+  bucket: Bucket
+  projectId: string | null
+  /** Position among the open tasks of that list or project. */
+  index: number
+}
+
+/** Put a task at a position in a list or under a parent, renumbering its new neighbours. */
+export function placeTask(id: string, dest: Placement): void {
+  const t = state().tasks[id]
+  if (!t || dest.projectId === id) return
+  const siblings = live
+    .tasks(state())
+    .filter(
+      (x) =>
+        x.id !== id &&
+        !x.done &&
+        (dest.projectId
+          ? x.projectId === dest.projectId
+          : x.bucket === dest.bucket && !x.projectId),
+    )
+    .sort((a, b) => a.order - b.order || a.createdAt - b.createdAt)
+  const at = Math.max(0, Math.min(dest.index, siblings.length))
+  const ordered = [...siblings.slice(0, at), t, ...siblings.slice(at)]
+  const events: NewEvent[] = []
+  ordered.forEach((x, i) => {
+    const patch: PayloadOf<'task.patch'> = { id: x.id }
+    if (x.order !== i + 1) patch.order = i + 1
+    if (x.id === id) {
+      if (t.bucket !== dest.bucket) patch.bucket = dest.bucket
+      if ((t.projectId ?? null) !== dest.projectId) patch.projectId = dest.projectId
+    }
+    if (Object.keys(patch).length > 1) events.push({ type: 'task.patch', payload: patch })
+  })
+  if (events.length) commit(events)
+}
+
 export function deleteTask(id: string): void {
   commit([{ type: 'task.delete', payload: { id } }])
 }

@@ -23,6 +23,7 @@ import { QuickAdd } from '@/ui/tasks/QuickAdd'
 import { TargetPicker } from '@/ui/tasks/TargetPicker'
 import { TaskRow, lastDoneText } from '@/ui/tasks/TaskRow'
 import { Toast } from '@/ui/tasks/Toast'
+import { useTaskDrag } from '@/ui/tasks/useTaskDrag'
 
 const MONTHS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D']
 
@@ -73,6 +74,9 @@ export default function TaskPage() {
     .filter((l) => l.taskId === task.id)
     .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
   const people = live.people(state).filter((p) => p.active || p.id === task.ownerId)
+  const openSubtasks = subtasks.filter((t) => !t.done)
+  // Hooks must run every render; the early return above has already handled a missing task.
+  const drag = useTaskDrag(openSubtasks, { bucket: task.bucket, projectId: task.id })
   const projects = live.tasks(state).filter((t) => t.bucket === 'project' && t.id !== task.id)
 
   const file = (t: Task, values: DoneSheetResult) => {
@@ -303,23 +307,34 @@ export default function TaskPage() {
         </Field>
       </Card>
 
-      {isProject && (
+      {(isProject || subtasks.length > 0 || !task.done) && (
         <Card>
           <h2 className="font-semibold">Subtasks</h2>
           <div className="mt-2">
-            <QuickAdd bucket="now" projectId={task.id} placeholder="Add a subtask…" />
+            <QuickAdd bucket={task.bucket} projectId={task.id} placeholder="Add a subtask…" />
           </div>
-          <ul className="mt-1 divide-y divide-stone-100 dark:divide-stone-800">
+          <ul
+            className={clsx(
+              'mt-1 divide-y divide-stone-100 dark:divide-stone-800',
+              drag.overEnd && 'ring-2 ring-lime-600',
+            )}
+            {...drag.containerProps}
+          >
             {subtasks.map((t) => (
               <TaskRow
                 key={t.id}
                 task={t}
                 today={date}
-                onCheck={t.done ? undefined : () => setSheet(t)}
+                onCheck={t.done ? undefined : setSheet}
+                handle
+                dragProps={t.done ? undefined : drag.rowProps(t)}
+                dropIndicator={drag.indicator(t.id)}
               />
             ))}
             {subtasks.length === 0 && (
-              <li className="py-2 text-sm text-stone-500 dark:text-stone-400">None yet.</li>
+              <li className="py-2 text-sm text-stone-500 dark:text-stone-400">
+                None yet. Any task can have them.
+              </li>
             )}
           </ul>
         </Card>

@@ -10,6 +10,7 @@ import {
   completeTask,
   moveTask,
   nudgeTask,
+  placeTask,
   quickAdd,
   reopenTask,
   setBucketName,
@@ -73,6 +74,22 @@ describe('quick add and completion', () => {
     expect(thisWeek(s(), '2026-09-19').now.map((t) => t.id)).toEqual([b, a])
     moveTask(a, 'soon')
     expect(s().tasks[a]).toMatchObject({ bucket: 'soon', order: 1 })
+
+    // Dragging: into another list at a position, and under a parent as a subtask.
+    const d = quickAdd('mulch', 'soon')!
+    const e = quickAdd('stake', 'soon')!
+    placeTask(b, { bucket: 'soon', projectId: null, index: 1 })
+    const soon = live
+      .tasks(s())
+      .filter((t) => t.bucket === 'soon' && !t.projectId)
+      .sort((x, y) => x.order - y.order)
+      .map((t) => t.id)
+    expect(soon).toEqual([a, b, d, e])
+    expect(s().tasks[b]).toMatchObject({ order: 2 })
+    placeTask(e, { bucket: 'soon', projectId: d, index: 0 })
+    expect(s().tasks[e]).toMatchObject({ projectId: d, order: 1 })
+    placeTask(a, { bucket: 'soon', projectId: null, index: 99 })
+    expect(s().tasks[a]!.order).toBe(3)
   })
 
   it('files a log when a task is checked off, and keeps recurring tasks open', () => {

@@ -11,6 +11,7 @@ function sameTarget(a: Target, b: Target): boolean {
   if (a.kind !== b.kind) return false
   if (a.kind === 'farm') return true
   if (a.kind === 'tree' && b.kind === 'tree') return a.posKey === b.posKey
+  if (a.kind === 'species' && b.kind === 'species') return a.species === b.species
   return 'id' in a && 'id' in b && a.id === b.id
 }
 
@@ -37,6 +38,17 @@ export function TargetPicker({
   const options: { label: string; target: Target }[] = []
   if (!q || 'whole farm'.includes(q))
     options.push({ label: 'Whole farm', target: { kind: 'farm' } })
+  const species = new Set(
+    live
+      .blocks(state)
+      .map((b) => b.species?.trim())
+      .filter((s): s is string => Boolean(s)),
+  )
+  for (const sp of species) {
+    const label = `All ${sp} blocks`
+    if (!q || label.toLowerCase().includes(q))
+      options.push({ label, target: { kind: 'species', species: sp } })
+  }
   for (const b of live.blocks(state)) {
     const label = `${b.code} ${b.name}`
     if (!q || label.toLowerCase().includes(q))

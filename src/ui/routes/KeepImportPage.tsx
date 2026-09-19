@@ -75,8 +75,8 @@ export default function KeepImportPage() {
   return (
     <div className="space-y-4">
       <PageHeader
-        title="Paste a list from Keep"
-        subtitle="Headings become lists or projects; lines become tasks."
+        title="Paste a list"
+        subtitle="From Google Keep, a note, a text, anywhere. Headings become lists or projects; lines become tasks."
       >
         <Link to="/tasks" className="text-sm underline decoration-dotted">
           Tasks
@@ -109,8 +109,8 @@ export default function KeepImportPage() {
           onChange={(e) => setText(e.target.value)}
         />
         <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
-          Select all in the Keep note, copy, paste here. Indentation is usually lost, so the
-          headings are guessed; correct any guess below before importing.
+          Copy the whole list and paste it here. Indentation is usually lost in a paste, so headings
+          are guessed from their words; correct any guess below before importing.
         </p>
       </Card>
 

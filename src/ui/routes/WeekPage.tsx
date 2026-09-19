@@ -12,6 +12,7 @@ import { DoneSheet, type DoneSheetResult } from '@/ui/tasks/DoneSheet'
 import { QuickAdd } from '@/ui/tasks/QuickAdd'
 import { TaskRow } from '@/ui/tasks/TaskRow'
 import { Toast } from '@/ui/tasks/Toast'
+import { useTaskDrag } from '@/ui/tasks/useTaskDrag'
 
 /** The phone's home: what to do now, what to keep up with, and what the season opened. */
 export default function WeekPage() {
@@ -21,6 +22,7 @@ export default function WeekPage() {
   const [sheet, setSheet] = useState<Task | null>(null)
   const [toast, setToast] = useState<{ message: string; undo?: NewEvent[] } | null>(null)
   const closeToast = useCallback(() => setToast(null), [])
+  const drag = useTaskDrag(week.now, { bucket: 'now', projectId: null })
 
   const check = (task: Task) => {
     // A recurring task with an estimate logs in one tap; anything else asks the two chips.
@@ -65,9 +67,18 @@ export default function WeekPage() {
       <Section
         title={bucketName(state.farm, 'now')}
         empty="Nothing here. Add one above, or enjoy it."
+        listProps={drag.containerProps}
       >
         {week.now.map((t) => (
-          <TaskRow key={t.id} task={t} today={date} onCheck={() => check(t)} />
+          <TaskRow
+            key={t.id}
+            task={t}
+            today={date}
+            onCheck={check}
+            handle
+            dragProps={drag.rowProps(t)}
+            dropIndicator={drag.indicator(t.id)}
+          />
         ))}
       </Section>
 
@@ -78,7 +89,7 @@ export default function WeekPage() {
         link={{ to: '/tasks?bucket=recurring', label: 'All' }}
       >
         {week.due.map((t) => (
-          <TaskRow key={t.id} task={t} today={date} onCheck={() => check(t)} />
+          <TaskRow key={t.id} task={t} today={date} onCheck={check} />
         ))}
       </Section>
 
@@ -125,12 +136,14 @@ function Section({
   hint,
   empty,
   link,
+  listProps,
   children,
 }: {
   title: string
   hint?: string
   empty?: string
   link?: { to: string; label: string }
+  listProps?: React.HTMLAttributes<HTMLElement>
   children: React.ReactNode
 }) {
   const items = Array.isArray(children) ? children.filter(Boolean) : children ? [children] : []
@@ -148,7 +161,9 @@ function Section({
       {items.length === 0 ? (
         <p className="mt-2 text-sm text-stone-500 dark:text-stone-400">{empty}</p>
       ) : (
-        <ul className="mt-1 divide-y divide-stone-100 dark:divide-stone-800">{children}</ul>
+        <ul className="mt-1 divide-y divide-stone-100 dark:divide-stone-800" {...listProps}>
+          {children}
+        </ul>
       )}
     </Card>
   )

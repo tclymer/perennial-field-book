@@ -188,7 +188,7 @@ function pageTitle(pathname: string): string {
   if (pathname.startsWith('/t/')) return decodeURIComponent(pathname.slice(3))
   if (pathname.startsWith('/varieties')) return 'Varieties'
   if (pathname.startsWith('/search')) return 'Search'
-  if (pathname.startsWith('/import/keep')) return 'Paste a list from Keep'
+  if (pathname.startsWith('/import/keep')) return 'Paste a list'
   if (pathname.startsWith('/import')) return 'Import from the planner'
   if (pathname.startsWith('/settings')) return 'Settings'
   if (pathname.startsWith('/about')) return 'About'
