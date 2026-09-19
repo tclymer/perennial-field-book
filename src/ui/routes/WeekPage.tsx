@@ -3,7 +3,10 @@ import { Link } from 'react-router-dom'
 import { useFarmStore } from '@/state/store'
 import { today } from '@/state/actions'
 import { ensureCurrentPerson } from '@/state/people'
-import { completeTask, moveTask, undoEvents } from '@/state/taskActions'
+import { completeTask, moveTask, undoEvents, undoLog } from '@/state/taskActions'
+import { live } from '@/events/reduce'
+import { addDays } from '@/engine/tasks'
+import { hoursOf } from '@/engine/logs'
 import { bucketName, thisWeek } from '@/engine/tasks'
 import type { NewEvent } from '@/events/types'
 import type { Task } from '@/model/types'
@@ -23,6 +26,12 @@ export default function WeekPage() {
   const [toast, setToast] = useState<{ message: string; undo?: NewEvent[] } | null>(null)
   const closeToast = useCallback(() => setToast(null), [])
   const drag = useTaskDrag(week.now, { bucket: 'now', projectId: null })
+  const since = addDays(date, -6)
+  const lately = live
+    .logs(state)
+    .filter((l) => l.date >= since)
+    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : b.createdAt - a.createdAt))
+    .slice(0, 20)
 
   const check = (task: Task) => {
     // A recurring task with an estimate logs in one tap; anything else asks the two chips.
@@ -105,6 +114,42 @@ export default function WeekPage() {
               </Button>
             </li>
           ))}
+        </Section>
+      )}
+
+      {lately.length > 0 && (
+        <Section
+          title="Done lately"
+          hint="The last seven days. Undo takes the log back and reopens the task."
+          link={{ to: '/logs', label: 'All logs' }}
+        >
+          {lately.map((l) => {
+            const task = l.taskId ? state.tasks[l.taskId] : undefined
+            return (
+              <li key={l.id} className="flex flex-wrap items-baseline gap-x-2 py-1.5 text-sm">
+                <span className="tabular-nums text-stone-500 dark:text-stone-400">
+                  {l.date === date ? 'today' : l.date.slice(5)}
+                </span>
+                <span className="min-w-0 flex-1">
+                  {task ? (
+                    <Link to={`/tasks/${task.id}`} className="underline decoration-dotted">
+                      {task.title}
+                    </Link>
+                  ) : (
+                    (l.notes ?? 'Work logged')
+                  )}
+                  {hoursOf(l) > 0 && (
+                    <span className="ml-2 text-stone-500 dark:text-stone-400">
+                      {hoursOf(l).toFixed(1)} h
+                    </span>
+                  )}
+                </span>
+                <Button variant="ghost" onClick={() => undoLog(l.id)}>
+                  Undo
+                </Button>
+              </li>
+            )
+          })}
         </Section>
       )}
 

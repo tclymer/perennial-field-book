@@ -206,6 +206,18 @@ function categoryFor(t: Task, sheet: DoneSheet): string | undefined {
   return sheet.category ?? t.category
 }
 
+/** Take back a check-off: remove its log and, if the task was closed by it, reopen it. */
+export function undoLog(logId: string): void {
+  const log = state().logs[logId]
+  if (!log || log.deleted) return
+  const events: NewEvent[] = [{ type: 'log.delete', payload: { id: logId } }]
+  const task = log.taskId ? state().tasks[log.taskId] : undefined
+  if (task && task.done && task.bucket !== 'recurring') {
+    events.push({ type: 'task.patch', payload: { id: task.id, done: null, doneAt: null } })
+  }
+  commit(events)
+}
+
 // Logs on their own
 
 export interface LogInput {

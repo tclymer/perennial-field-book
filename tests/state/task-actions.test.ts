@@ -15,6 +15,7 @@ import {
   reopenTask,
   setBucketName,
   undoEvents,
+  undoLog,
   updateTask,
 } from '@/state/taskActions'
 import { createPerson, currentPerson, ensureCurrentPerson, setCurrentPerson } from '@/state/people'
@@ -127,6 +128,14 @@ describe('quick add and completion', () => {
     expect(live.logs(s())).toHaveLength(1)
     reopenTask(once)
     expect(s().tasks[once]!.done).toBeUndefined()
+
+    // Taking back a check-off removes the log and reopens a one-off task.
+    const gate = quickAdd('Oil the gate')!
+    completeTask(gate, { personIds: [tim], durationMinutes: 10 })
+    const gateLog = live.logs(s()).find((l) => l.taskId === gate)!
+    undoLog(gateLog.id)
+    expect(s().tasks[gate]!.done).toBeUndefined()
+    expect(s().logs[gateLog.id]!.deleted).toBe(true)
 
     const manual = addLog({
       personIds: [tim],
