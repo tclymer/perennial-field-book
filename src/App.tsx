@@ -18,6 +18,8 @@ const JoinPage = lazy(() => import('./ui/routes/JoinPage'))
 const WeekPage = lazy(() => import('./ui/routes/WeekPage'))
 const TasksPage = lazy(() => import('./ui/routes/TasksPage'))
 const TaskPage = lazy(() => import('./ui/routes/TaskPage'))
+const ReviewPage = lazy(() => import('./ui/routes/ReviewPage'))
+const LogsPage = lazy(() => import('./ui/routes/LogsPage'))
 const NotFound = lazy(() => import('./ui/routes/NotFound'))
 
 /** Each route gets its own error boundary and loading fallback. */
@@ -65,6 +67,22 @@ export default function App() {
           element={
             <Page>
               <TaskPage />
+            </Page>
+          }
+        />
+        <Route
+          path="review"
+          element={
+            <Page>
+              <ReviewPage />
+            </Page>
+          }
+        />
+        <Route
+          path="logs"
+          element={
+            <Page>
+              <LogsPage />
             </Page>
           }
         />

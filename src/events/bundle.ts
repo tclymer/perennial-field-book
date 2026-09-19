@@ -67,7 +67,11 @@ export function fileSlug(name: string): string {
 }
 
 export function downloadJson(filename: string, text: string): void {
-  const blob = new Blob([text], { type: 'application/json' })
+  downloadText(filename, text, 'application/json')
+}
+
+export function downloadText(filename: string, text: string, mime: string): void {
+  const blob = new Blob([text], { type: mime })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url

@@ -15,14 +15,12 @@ function state() {
 
 export function createPerson(name: string, email?: string): string {
   const id = newId('per')
-  useFarmStore
-    .getState()
-    .commit([
-      {
-        type: 'person.create',
-        payload: { id, name: name.trim(), active: true, ...(email ? { email } : {}) },
-      },
-    ])
+  useFarmStore.getState().commit([
+    {
+      type: 'person.create',
+      payload: { id, name: name.trim(), active: true, ...(email ? { email } : {}) },
+    },
+  ])
   return id
 }
 

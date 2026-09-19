@@ -28,6 +28,7 @@ const DESKTOP_NAV: [string, string][] = [
   ['/', 'Map'],
   ['/week', 'Week'],
   ['/tasks', 'Tasks'],
+  ['/logs', 'Logs'],
   ['/blocks', 'Blocks'],
   ['/varieties', 'Varieties'],
   ['/search', 'Search'],
@@ -180,6 +181,8 @@ function pageTitle(pathname: string): string {
   if (pathname.startsWith('/week')) return 'This week'
   if (pathname.startsWith('/tasks/')) return 'Task'
   if (pathname.startsWith('/tasks')) return 'Tasks'
+  if (pathname.startsWith('/review')) return 'Weekly review'
+  if (pathname.startsWith('/logs')) return 'Work logs'
   if (/^\/blocks\/[^/]+\/grid/.test(pathname)) return 'Block grid'
   if (pathname.startsWith('/blocks')) return 'Blocks'
   if (pathname.startsWith('/t/')) return decodeURIComponent(pathname.slice(3))
