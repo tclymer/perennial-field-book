@@ -254,9 +254,11 @@ export const personPatch = z.object({
   email: short.nullable().optional(),
 })
 
+const taskTitle = z.string().min(1).max(200)
+
 export const taskCreate = z.object({
   id,
-  title: short.min(1).max(200),
+  title: taskTitle,
   bucket,
   projectId: id.optional(),
   targets: targets.optional(),
@@ -274,7 +276,7 @@ export const taskCreate = z.object({
 })
 export const taskPatch = z.object({
   id,
-  title: short.min(1).max(200).optional(),
+  title: taskTitle.optional(),
   bucket: bucket.optional(),
   projectId: id.nullable().optional(),
   targets: targets.optional(),

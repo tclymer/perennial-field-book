@@ -43,13 +43,31 @@ function nextOrder(bucket: Bucket, projectId?: string): number {
 
 export type TaskFields = Omit<PayloadOf<'task.create'>, 'id' | 'order'>
 
+const TITLE_MAX = 200
+const NOTES_MAX = 4000
+
+/** Keep a title within its limit; the overflow is not lost, it goes to the notes. */
+export function fitTitle(fields: TaskFields): TaskFields {
+  const title = fields.title.trim()
+  if (title.length <= TITLE_MAX) return { ...fields, title }
+  const cut = title.lastIndexOf(' ', TITLE_MAX - 1)
+  const head = title.slice(0, cut > TITLE_MAX / 2 ? cut : TITLE_MAX).trim()
+  const rest = title.slice(head.length).trim()
+  const notes = [rest, fields.notes ?? ''].filter(Boolean).join('\n').slice(0, NOTES_MAX)
+  return { ...fields, title: head, notes }
+}
+
 /** Create a task from its fields. */
 export function createTask(fields: TaskFields): string {
   const id = newId('tsk')
+  const fitted = fitTitle(fields)
+  if (fitted.notes && fitted.notes.length > NOTES_MAX)
+    fitted.notes = fitted.notes.slice(0, NOTES_MAX)
+  if (fitted.season && fitted.season.length > 120) fitted.season = fitted.season.slice(0, 120)
   commit([
     {
       type: 'task.create',
-      payload: { id, ...fields, order: nextOrder(fields.bucket, fields.projectId) },
+      payload: { id, ...fitted, order: nextOrder(fields.bucket, fields.projectId) },
     },
   ])
   return id

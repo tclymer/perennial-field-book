@@ -24,6 +24,7 @@ export default function KeepImportPage() {
   const [text, setText] = useState('')
   const [choices, setChoices] = useState<Record<number, Choice>>({})
   const [done, setDone] = useState<number | null>(null)
+  const [failed, setFailed] = useState<string[]>([])
 
   const groups = useMemo(() => {
     if (!text.trim()) return []
@@ -44,32 +45,50 @@ export default function KeepImportPage() {
 
   const importAll = () => {
     let count = 0
+    const problems: string[] = []
+    const attempt = (line: string, make: () => void) => {
+      try {
+        make()
+        count += 1
+      } catch (err) {
+        problems.push(
+          `${line.slice(0, 60)}: ${err instanceof Error ? err.message.split('\n')[0] : 'could not be saved'}`,
+        )
+      }
+    }
     groups.forEach((g, i) => {
       const c = choiceFor(i, g)
       if (c.guess === 'skip') return
       let projectId: string | undefined
       if (c.guess === 'project' && g.heading) {
-        projectId = createTask({ title: g.heading, bucket: 'project' })
+        const heading = g.heading
+        attempt(heading, () => {
+          projectId = createTask({ title: heading, bucket: 'project' })
+        })
       }
       const bucket: Bucket = c.guess === 'project' ? 'now' : c.bucket
       for (const item of g.items) {
         const { done: isDone, ...fields } = item.parsed
-        createTask({
-          ...fields,
-          bucket,
-          ...(projectId ? { projectId } : {}),
-          ...(isDone ? { done: true, doneAt: today() } : {}),
-        })
-        count += 1
+        attempt(item.raw, () =>
+          createTask({
+            ...fields,
+            bucket,
+            ...(projectId ? { projectId } : {}),
+            ...(isDone ? { done: true, doneAt: today() } : {}),
+          }),
+        )
       }
       if (c.guess === 'task' && g.heading) {
-        createTask({ title: g.heading, bucket: c.bucket })
-        count += 1
+        const heading = g.heading
+        attempt(heading, () => createTask({ title: heading, bucket: c.bucket }))
       }
     })
     setDone(count)
-    setText('')
-    setChoices({})
+    setFailed(problems)
+    if (problems.length === 0) {
+      setText('')
+      setChoices({})
+    }
   }
 
   return (
@@ -83,6 +102,20 @@ export default function KeepImportPage() {
         </Link>
       </PageHeader>
 
+      {failed.length > 0 && (
+        <Card className="border-rose-300 dark:border-rose-700">
+          <p role="alert" className="text-sm">
+            {failed.length} {failed.length === 1 ? 'line' : 'lines'} could not be imported; the rest
+            were. Fix them in the box and import again (the imported ones are already in Tasks, so
+            remove them from the box first).
+          </p>
+          <ul className="mt-1 list-disc pl-5 text-xs text-stone-600 dark:text-stone-400">
+            {failed.map((f, i) => (
+              <li key={i}>{f}</li>
+            ))}
+          </ul>
+        </Card>
+      )}
       {done !== null && (
         <Card className="border-lime-300 dark:border-lime-700">
           <p className="text-sm">

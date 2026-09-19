@@ -157,6 +157,18 @@ describe('quick add and completion', () => {
     expect(s().logs[manual]).toMatchObject({ category: 'mowing', targets: [{ kind: 'farm' }] })
   })
 
+  it('keeps a long pasted line by moving its tail into the notes', () => {
+    const long =
+      'run conduit to the barn and then across the yard to the new shed, being careful of the buried water line that runs diagonally from the well to the house and past the old orchard fence toward the road frontage where the gate is'
+    const id = quickAdd(long)!
+    const t = s().tasks[id]!
+    expect(t.title.length).toBeLessThanOrEqual(200)
+    expect(t.title.endsWith(' ')).toBe(false)
+    expect(`${t.title} ${t.notes}`.replace(/\s+/g, ' ')).toBe(
+      long[0]!.toUpperCase() + long.slice(1),
+    )
+  })
+
   it('renames buckets per farm', () => {
     expect(bucketName(s().farm, 'now')).toBe('Monkeys')
     setBucketName('now', 'Today')
