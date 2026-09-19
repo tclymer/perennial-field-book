@@ -26,6 +26,7 @@ const tabClass = ({ isActive }: { isActive: boolean }) =>
 
 const DESKTOP_NAV: [string, string][] = [
   ['/', 'Map'],
+  ['/week', 'Week'],
   ['/blocks', 'Blocks'],
   ['/varieties', 'Varieties'],
   ['/search', 'Search'],
@@ -33,6 +34,7 @@ const DESKTOP_NAV: [string, string][] = [
 ]
 
 const PHONE_TABS: [string, string, string][] = [
+  ['/week', 'Week', '☑'],
   ['/', 'Map', '◎'],
   ['/blocks', 'Blocks', '▦'],
   ['/search', 'Search', '⌕'],
@@ -174,6 +176,7 @@ export default function Layout() {
 function pageTitle(pathname: string): string {
   if (pathname === '/' || pathname === '') return 'Map'
   if (pathname.startsWith('/start')) return 'Set up your farm'
+  if (pathname.startsWith('/week')) return 'This week'
   if (/^\/blocks\/[^/]+\/grid/.test(pathname)) return 'Block grid'
   if (pathname.startsWith('/blocks')) return 'Blocks'
   if (pathname.startsWith('/t/')) return decodeURIComponent(pathname.slice(3))

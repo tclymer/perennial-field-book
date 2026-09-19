@@ -15,6 +15,7 @@ const SettingsPage = lazy(() => import('./ui/routes/SettingsPage'))
 const AboutPage = lazy(() => import('./ui/routes/AboutPage'))
 const AuthPage = lazy(() => import('./ui/routes/AuthPage'))
 const JoinPage = lazy(() => import('./ui/routes/JoinPage'))
+const WeekPage = lazy(() => import('./ui/routes/WeekPage'))
 const NotFound = lazy(() => import('./ui/routes/NotFound'))
 
 /** Each route gets its own error boundary and loading fallback. */
@@ -38,6 +39,14 @@ export default function App() {
           element={
             <Page>
               <MapPage />
+            </Page>
+          }
+        />
+        <Route
+          path="week"
+          element={
+            <Page>
+              <WeekPage />
             </Page>
           }
         />
