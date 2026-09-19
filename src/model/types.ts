@@ -111,6 +111,8 @@ export interface Variety extends Stamped {
   id: string
   species: string
   name: string
+  /** A type within the species, e.g. Asian, American, or Hybrid for persimmons. */
+  group?: string
   aliases: string[]
   /** Where the scionwood or the trees came from. */
   source?: string
