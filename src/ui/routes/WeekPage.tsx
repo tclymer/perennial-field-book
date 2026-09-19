@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useFarmStore } from '@/state/store'
 import { today } from '@/state/actions'
 import { ensureCurrentPerson } from '@/state/people'
-import { completeTask, moveTask, undoEvents, undoLog } from '@/state/taskActions'
+import { completeTask, deleteTask, moveTask, undoEvents, undoLog } from '@/state/taskActions'
 import { live } from '@/events/reduce'
 import { addDays } from '@/engine/tasks'
 import { hoursOf } from '@/engine/logs'
@@ -47,6 +47,14 @@ export default function WeekPage() {
     setSheet(task)
   }
 
+  const remove = (task: Task) => {
+    deleteTask(task.id)
+    setToast({
+      message: `Deleted ${task.title}.`,
+      undo: [{ type: 'task.restore', payload: { id: task.id } }],
+    })
+  }
+
   const file = (task: Task, values: DoneSheetResult) => {
     const undo = completeTask(task.id, values)
     setSheet(null)
@@ -84,6 +92,7 @@ export default function WeekPage() {
             task={t}
             today={date}
             onCheck={check}
+            onDelete={remove}
             handle
             dragProps={drag.rowProps(t)}
             dropIndicator={drag.indicator(t.id)}
@@ -98,7 +107,7 @@ export default function WeekPage() {
         link={{ to: '/tasks?bucket=recurring', label: 'All' }}
       >
         {week.due.map((t) => (
-          <TaskRow key={t.id} task={t} today={date} onCheck={check} />
+          <TaskRow key={t.id} task={t} today={date} onCheck={check} onDelete={remove} />
         ))}
       </Section>
 

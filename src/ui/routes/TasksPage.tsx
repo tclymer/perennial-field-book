@@ -6,6 +6,7 @@ import { live } from '@/events/reduce'
 import { today } from '@/state/actions'
 import {
   completeTask,
+  deleteTask,
   moveTask,
   nudgeTask,
   reopenTask,
@@ -40,6 +41,14 @@ export default function TasksPage() {
     setToast({
       message: task.bucket === 'recurring' ? `Logged ${task.title}.` : `Done: ${task.title}.`,
       undo,
+    })
+  }
+
+  const remove = (task: Task) => {
+    deleteTask(task.id)
+    setToast({
+      message: `Deleted ${task.title}.`,
+      undo: [{ type: 'task.restore', payload: { id: task.id } }],
     })
   }
 
@@ -79,7 +88,7 @@ export default function TasksPage() {
 
       <div className={clsx(isDesktop && 'grid gap-3 xl:grid-cols-5 md:grid-cols-3')}>
         {columns.map((bucket) => (
-          <Column key={bucket} bucket={bucket} today={date} onCheck={setSheet} />
+          <Column key={bucket} bucket={bucket} today={date} onCheck={setSheet} onDelete={remove} />
         ))}
       </div>
 
@@ -110,10 +119,12 @@ function Column({
   bucket,
   today,
   onCheck,
+  onDelete,
 }: {
   bucket: Bucket
   today: string
   onCheck: (task: Task) => void
+  onDelete: (task: Task) => void
 }) {
   const state = useFarmStore((s) => s.state)
   const [showDone, setShowDone] = useState(false)
@@ -152,6 +163,7 @@ function Column({
                     task={t}
                     today={today}
                     onCheck={onCheck}
+                    onDelete={onDelete}
                     handle
                     dragProps={drag.rowProps(t)}
                     dropIndicator={drag.indicator(t.id)}

@@ -28,6 +28,7 @@ export function TaskRow({
   task,
   today,
   onCheck,
+  onDelete,
   showBucket,
   compact,
   dragProps,
@@ -38,6 +39,8 @@ export function TaskRow({
   today: string
   /** Absent: no checkbox (the task page header or a done list). */
   onCheck?: (task: Task) => void
+  /** Absent: no delete button. */
+  onDelete?: (task: Task) => void
   showBucket?: string
   compact?: boolean
   dragProps?: HTMLAttributes<HTMLLIElement> & { draggable?: boolean }
@@ -137,9 +140,26 @@ export function TaskRow({
           </button>
         )}
         {expanded && children.length > 0 && (
-          <Subtasks parent={task} items={children} today={today} onCheck={onCheck} />
+          <Subtasks
+            parent={task}
+            items={children}
+            today={today}
+            onCheck={onCheck}
+            onDelete={onDelete}
+          />
         )}
       </div>
+      {onDelete && (
+        <button
+          type="button"
+          onClick={() => onDelete(task)}
+          aria-label={`Delete ${task.title}`}
+          title="Delete (undo from the toast or Settings)"
+          className="mt-0.5 shrink-0 rounded px-1.5 text-base leading-none text-stone-300 hover:bg-stone-100 hover:text-rose-600 dark:text-stone-600 dark:hover:bg-stone-800 md:opacity-0 md:group-hover/row:opacity-100"
+        >
+          ×
+        </button>
+      )}
     </li>
   )
 }
@@ -149,11 +169,13 @@ function Subtasks({
   items,
   today,
   onCheck,
+  onDelete,
 }: {
   parent: Task
   items: Task[]
   today: string
   onCheck?: (task: Task) => void
+  onDelete?: (task: Task) => void
 }) {
   const open = items.filter((t) => !t.done)
   const drag = useTaskDrag(open, { bucket: parent.bucket, projectId: parent.id })
@@ -171,6 +193,7 @@ function Subtasks({
           task={t}
           today={today}
           onCheck={onCheck}
+          onDelete={onDelete}
           compact
           handle
           dragProps={t.done ? undefined : drag.rowProps(t)}

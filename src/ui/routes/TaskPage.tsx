@@ -339,6 +339,13 @@ export default function TaskPage() {
                 task={t}
                 today={date}
                 onCheck={t.done ? undefined : setSheet}
+                onDelete={(x) => {
+                  deleteTask(x.id)
+                  setToast({
+                    message: `Deleted ${x.title}.`,
+                    undo: [{ type: 'task.restore', payload: { id: x.id } }],
+                  })
+                }}
                 handle
                 dragProps={t.done ? undefined : drag.rowProps(t)}
                 dropIndicator={drag.indicator(t.id)}
