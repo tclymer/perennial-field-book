@@ -69,7 +69,11 @@ export default function ImportPage() {
       <PageHeader
         title="Import from the planner"
         subtitle="Turn each planting in a Perennial Profit Planner backup into a block, linked for the comparison later."
-      />
+      >
+        <Link to="/planner" className="text-sm underline decoration-dotted">
+          Compare a season with the plan
+        </Link>
+      </PageHeader>
       <Card>
         <label className="text-sm">
           Planner backup file:{' '}

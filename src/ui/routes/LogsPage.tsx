@@ -65,6 +65,9 @@ export default function LogsPage() {
           <Button variant="primary" onClick={() => setEditing('new')}>
             Add a log
           </Button>
+          <Link to="/planner" className="self-center text-sm underline decoration-dotted">
+            Compare with the planner
+          </Link>
           <Button
             disabled={logs.length === 0}
             onClick={() =>

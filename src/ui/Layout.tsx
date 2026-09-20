@@ -30,6 +30,7 @@ const DESKTOP_NAV: [string, string][] = [
   ['/tasks', 'Tasks'],
   ['/harvest', 'Harvest'],
   ['/logs', 'Logs'],
+  ['/planner', 'Planner'],
   ['/blocks', 'Blocks'],
   ['/varieties', 'Varieties'],
   ['/search', 'Search'],

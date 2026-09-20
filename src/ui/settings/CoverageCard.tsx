@@ -2,6 +2,7 @@ import { useFarmStore } from '@/state/store'
 import { setCoverage } from '@/state/plannerActions'
 import { coverageOf, type Coverage } from '@/engine/compare'
 import { allCategories } from '@/model/categories'
+import { Link } from 'react-router-dom'
 import { Card, inputClass } from '@/ui/components'
 
 const LEVELS: { value: Coverage; label: string }[] = [
@@ -21,9 +22,12 @@ export function CoverageCard() {
     <Card>
       <h2 className="font-semibold">How completely do you track each kind of work?</h2>
       <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
-        Used only by the planner comparison. A category where some work goes unlogged would make the
-        plan look cheaper than it is, so only the ones you mark as fully logged can change the
-        planner's estimates.
+        Used only by the{' '}
+        <Link to="/planner" className="underline decoration-dotted">
+          planner comparison
+        </Link>
+        . A category where some work goes unlogged would make the plan look cheaper than it is, so
+        only the ones you mark as fully logged can change the planner's estimates.
       </p>
       <div className="mt-2 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {allCategories(state.farm?.categories).map((c) => (
