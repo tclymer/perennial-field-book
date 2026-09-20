@@ -33,8 +33,18 @@ export async function signOut(): Promise<void> {
   }
 }
 
+let refreshing: Promise<RemoteFarm[] | null> | null = null
+
 /** Re-read the account and its farms. A dead session signs the app out. */
-export async function refreshAccount(): Promise<RemoteFarm[] | null> {
+export function refreshAccount(): Promise<RemoteFarm[] | null> {
+  if (refreshing) return refreshing
+  refreshing = readAccount().finally(() => {
+    refreshing = null
+  })
+  return refreshing
+}
+
+async function readAccount(): Promise<RemoteFarm[] | null> {
   const { session, setSession, set } = useSync.getState()
   if (!session) return null
   try {

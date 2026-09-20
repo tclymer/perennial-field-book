@@ -33,6 +33,7 @@ interface FarmDetail {
 /** Who is on the farm, invite links, leaving, and deleting from the server. */
 export function ShareCard() {
   const session = useSession()
+  const token = session?.token
   const farmId = useFarmStore((s) => s.farmId)
   const linked = useSync((s) => s.linked)
   const navigate = useNavigate()
@@ -50,7 +51,7 @@ export function ShareCard() {
     api<FarmDetail>('GET', `/api/farms/${farmId}`)
       .then(setDetail)
       .catch(() => setDetail(null))
-  }, [farmId, session, linked])
+  }, [farmId, token, linked])
 
   useEffect(load, [load])
 

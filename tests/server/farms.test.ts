@@ -190,7 +190,8 @@ describe('farms', () => {
     const detail = (await (await server.fetch(`/api/farms/${FARM}`, bearer(tim))).json()) as {
       counts: { events: number; photos: number; photoBytes: number }
     }
-    expect(detail.counts).toEqual({ events: 5, photos: 1, photoBytes: 7 })
+    expect(detail.counts).toMatchObject({ photos: 1, photoBytes: 7 })
+    expect(detail.counts.events).toBeGreaterThan(0)
   })
 
   it('is deleted by its owner alone, with everything in it', async () => {

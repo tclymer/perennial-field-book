@@ -78,8 +78,10 @@ route('GET', '/api/farms/:id', async ({ env, params, user }) => {
     )
       .bind(farmId)
       .all<{ id: string; name: string; email: string; role: Role; addedAt: number }>(),
+    // The highest sequence number stands in for the event count: counting them would read
+    // every row of the farm on a call the settings page makes whenever it opens.
     env.DB.prepare(
-      `SELECT (SELECT COUNT(*) FROM events WHERE farm_id = ?) AS events,
+      `SELECT (SELECT COALESCE(MAX(seq), 0) FROM events WHERE farm_id = ?) AS events,
               (SELECT COUNT(*) FROM photos WHERE farm_id = ?) AS photos,
               (SELECT COALESCE(SUM(bytes), 0) FROM photos WHERE farm_id = ?) AS photoBytes`,
     )

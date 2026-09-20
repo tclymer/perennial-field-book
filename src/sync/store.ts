@@ -42,6 +42,23 @@ interface SyncStore {
 
 const SESSION_KEY = 'fieldbook:session'
 
+/**
+ * Whether two sessions say the same thing. Identity matters: a component that watches the
+ * session and refreshes the account would otherwise refresh forever, since each refresh
+ * replaced the object.
+ */
+function sameSession(a: Session | null, b: Session | null): boolean {
+  if (a === b) return true
+  if (!a || !b) return false
+  return (
+    a.token === b.token &&
+    a.user.id === b.user.id &&
+    a.user.email === b.user.email &&
+    a.user.name === b.user.name &&
+    a.user.picture === b.user.picture
+  )
+}
+
 function readSession(): Session | null {
   try {
     const raw = localStorage.getItem(SESSION_KEY)
@@ -65,7 +82,7 @@ function writeSession(session: Session | null): void {
   }
 }
 
-export const useSync = create<SyncStore>()((set) => ({
+export const useSync = create<SyncStore>()((set, get) => ({
   session: readSession(),
   farms: [],
   linked: false,
@@ -74,6 +91,8 @@ export const useSync = create<SyncStore>()((set) => ({
   pending: 0,
   error: null,
   setSession: (session) => {
+    const current = get().session
+    if (sameSession(current, session)) return
     writeSession(session)
     set({ session, ...(session ? {} : { farms: [] }) })
   },

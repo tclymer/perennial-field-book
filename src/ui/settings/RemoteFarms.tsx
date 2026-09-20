@@ -16,9 +16,11 @@ export function RemoteFarms({ onOpened, returnTo }: { onOpened: () => void; retu
   const [busy, setBusy] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
 
+  // The token, not the session object: watching the object would refresh in a loop.
+  const token = session?.token
   useEffect(() => {
-    if (session) void refreshAccount()
-  }, [session])
+    if (token) void refreshAccount()
+  }, [token])
 
   if (!session) {
     return (
