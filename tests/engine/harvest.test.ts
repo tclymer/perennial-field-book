@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { materialize } from '@/events/reduce'
 import type { AnyEvent, NewEvent } from '@/events/types'
 import {
+  allVarietiesOf,
   cropsOf,
   harvestsToCsv,
   placesFor,
@@ -10,6 +11,7 @@ import {
   sessions,
   treeShares,
   treeYieldByYear,
+  varietiesIn,
   yieldBy,
 } from '@/engine/harvest'
 import { isCountUnit, unitFor } from '@/model/harvest'
@@ -168,6 +170,19 @@ describe('harvest', () => {
     const figPlaces = placesFor(state, 'fig')
     expect(figPlaces.map((p) => p.label)).toEqual(['GH Greenhouse trees', 'Blue House'])
     expect(figPlaces.some((p) => p.id === 'blk_pp1')).toBe(false)
+  })
+
+  it('narrows varieties to the ones standing in a place', () => {
+    const blocks = placesFor(state, 'pawpaw')
+    expect(varietiesIn(state, 'pawpaw', blocks[0]!).map((v) => v.name)).toEqual(['Shenandoah'])
+    // The greenhouse holds figs, not pawpaws.
+    const house = placesFor(state, 'fig').find((p) => p.kind === 'feature')!
+    expect(varietiesIn(state, 'fig', house).map((v) => v.name)).toEqual(['Chicago Hardy'])
+    expect(varietiesIn(state, 'pawpaw', house)).toEqual([])
+    // With no place, every variety of the crop that stands somewhere.
+    expect(varietiesIn(state, 'pawpaw', null).map((v) => v.name)).toEqual(['Shenandoah'])
+    // The search is not limited to a place, so a variety with no trees is still findable.
+    expect(allVarietiesOf(state, 'fig').map((v) => v.name)).toEqual(['Chicago Hardy'])
   })
 
   it('builds the tally sheet for a session with box numbers', () => {

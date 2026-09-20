@@ -2,7 +2,7 @@
  * Harvest arithmetic (DESIGN.md §3.6): the day's tally sheet, yields grouped for reports,
  * per-tree shares derived from variety + place entries, and the CSV. Pure functions.
  */
-import type { FarmState, Harvest, LngLat, Ring } from '@/model/types'
+import type { FarmState, Harvest, LngLat, Ring, Variety } from '@/model/types'
 import { live } from '@/events/reduce'
 import { cropKey } from '@/model/harvest'
 import { positionByKey, positions, varietyAt } from '@/state/derived'
@@ -289,6 +289,49 @@ export function placesFor(state: FarmState, crop: string): Place[] {
     out.push({ kind: 'feature', id: f.id, label: f.name })
   }
   return out
+}
+
+/** Is this position in that place? A block by id, a greenhouse by its outline. */
+export function positionInPlace(
+  state: FarmState,
+  p: { blockId: string; coord: LngLat },
+  place: Place | null,
+): boolean {
+  if (!place) return true
+  if (place.kind === 'block') return p.blockId === place.id
+  const f = state.features[place.id]
+  if (!f || f.deleted) return false
+  if (f.geometry.type !== 'Polygon') return false
+  return inRing(f.geometry.coordinates, p.coord)
+}
+
+/**
+ * The varieties of a crop actually standing in a place (or anywhere, with no place), most
+ * planted first. The entry screen offers these; anything else is found by searching.
+ */
+export function varietiesIn(state: FarmState, crop: string, place: Place | null): Variety[] {
+  const key = cropKey(crop)
+  const counts = new Map<string, number>()
+  for (const p of positions(state)) {
+    const v = varietyAt(state, p)
+    if (!v || cropKey(v.species) !== key) continue
+    if (!positionInPlace(state, p, place)) continue
+    counts.set(v.id, (counts.get(v.id) ?? 0) + 1)
+  }
+  return [...counts.entries()]
+    .map(([id, n]) => ({ variety: state.varieties[id], n }))
+    .filter((x): x is { variety: Variety; n: number } => Boolean(x.variety && !x.variety.deleted))
+    .sort((a, b) => b.n - a.n || a.variety.name.localeCompare(b.variety.name))
+    .map((x) => x.variety)
+}
+
+/** Every variety of a crop, for the search that is not limited to one place. */
+export function allVarietiesOf(state: FarmState, crop: string): Variety[] {
+  const key = cropKey(crop)
+  return live
+    .varieties(state)
+    .filter((v) => cropKey(v.species) === key)
+    .sort((a, b) => a.name.localeCompare(b.name))
 }
 
 /** Varieties and places used in the latest sessions of a crop, most recent first. */

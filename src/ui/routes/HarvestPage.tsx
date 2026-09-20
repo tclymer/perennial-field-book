@@ -2,11 +2,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import clsx from 'clsx'
 import { useFarmStore } from '@/state/store'
-import { live } from '@/events/reduce'
 import { positions } from '@/state/derived'
 import { today } from '@/state/actions'
 import { addHarvest, deleteHarvest } from '@/state/harvestActions'
-import { cropsOf, placesFor, recentChoices, sessionOf } from '@/engine/harvest'
+import {
+  allVarietiesOf,
+  cropsOf,
+  placesFor,
+  recentChoices,
+  sessionOf,
+  varietiesIn,
+  type Place,
+} from '@/engine/harvest'
 import { cropKey, isCountUnit, unitFor } from '@/model/harvest'
 import { useDevice } from '@/state/device'
 import { Button, Card, PageHeader, inputClass } from '@/ui/components'
@@ -25,7 +32,7 @@ export default function HarvestPage() {
   const [crop, setCrop] = useState(lastCrop ?? crops[0] ?? '')
   const [date, setDate] = useState(today())
   const [varietyId, setVarietyId] = useState<string | null>(null)
-  const [place, setPlace] = useState<{ kind: 'block' | 'feature'; id: string } | null>(null)
+  const [place, setPlace] = useState<Place | null>(null)
   const [perTree, setPerTree] = useState(false)
   const [treeLabel, setTreeLabel] = useState('')
   const [amount, setAmount] = useState('')
@@ -41,13 +48,15 @@ export default function HarvestPage() {
   const session = useMemo(() => sessionOf(state, date, key), [state, date, key])
   const recent = useMemo(() => recentChoices(state, key), [state, key])
   const places = useMemo(() => placesFor(state, key), [state, key])
+  const everyVariety = useMemo(() => allVarietiesOf(state, key), [state, key])
+  // Only what stands in the chosen place, so sixty varieties never become sixty chips.
+  // Until the trees are recorded there is nothing to narrow by, so show them all.
+  const narrowed = useMemo(() => varietiesIn(state, key, place), [state, key, place])
   const varieties = useMemo(() => {
-    const all = live.varieties(state).filter((v) => cropKey(v.species) === key)
+    const list = narrowed.length ? narrowed : everyVariety
     const order = new Map(recent.varieties.map((id, i) => [id, i]))
-    return all.sort(
-      (a, b) => (order.get(a.id) ?? 99) - (order.get(b.id) ?? 99) || a.name.localeCompare(b.name),
-    )
-  }, [state, key, recent])
+    return [...list].sort((a, b) => (order.get(a.id) ?? 99) - (order.get(b.id) ?? 99))
+  }, [narrowed, everyVariety, recent])
   const labels = useMemo(
     () =>
       positions(state)
@@ -67,6 +76,16 @@ export default function HarvestPage() {
     setPerTree(false)
     setTreeLabel('')
   }, [key])
+
+  // A crop picked in only one place needs no choosing.
+  useEffect(() => {
+    if (!place && places.length === 1) setPlace(places[0]!)
+  }, [places, place])
+
+  // A variety that does not stand in the newly chosen place cannot be what was just picked.
+  useEffect(() => {
+    if (varietyId && !varieties.some((v) => v.id === varietyId)) setVarietyId(null)
+  }, [varietyId, varieties])
 
   if (crops.length === 0) {
     return (
@@ -150,33 +169,48 @@ export default function HarvestPage() {
       )}
 
       <Card className="space-y-3">
-        {varieties.length > 0 && (
-          <ChipRow label="Variety">
+        {!perTree && places.length > 0 && (
+          <ChipRow label="Where">
+            <Chip active={place === null} onClick={() => setPlace(null)}>
+              Anywhere
+            </Chip>
+            {places.map((p) => (
+              <Chip key={p.id} active={place?.id === p.id} onClick={() => setPlace(p)}>
+                {p.label}
+              </Chip>
+            ))}
+          </ChipRow>
+        )}
+
+        {everyVariety.length > 0 && (
+          <ChipRow label={place ? `Variety in ${place.label}` : 'Variety'}>
             <Chip active={varietyId === null} onClick={() => setVarietyId(null)}>
               Mixed
             </Chip>
-            {varieties.slice(0, pickVariety ? 0 : 8).map((v) => (
-              <Chip key={v.id} active={varietyId === v.id} onClick={() => setVarietyId(v.id)}>
-                {v.name}
-              </Chip>
-            ))}
-            {varieties.length > 8 && (
+            {!pickVariety &&
+              varieties.slice(0, 10).map((v) => (
+                <Chip key={v.id} active={varietyId === v.id} onClick={() => setVarietyId(v.id)}>
+                  {v.name}
+                </Chip>
+              ))}
+            {(varieties.length > 10 || everyVariety.length > varieties.length) && (
               <input
-                className={clsx(inputClass, 'w-36')}
-                placeholder="find a variety…"
+                className={clsx(inputClass, 'w-40')}
+                placeholder={`find any ${key}…`}
                 value={pickVariety}
                 onChange={(e) => setPickVariety(e.target.value)}
                 aria-label="Find a variety"
               />
             )}
             {pickVariety &&
-              varieties
+              everyVariety
                 .filter((v) => v.name.toLowerCase().includes(pickVariety.trim().toLowerCase()))
                 .slice(0, 12)
                 .map((v) => (
                   <Chip
                     key={v.id}
                     active={varietyId === v.id}
+                    tone={varieties.some((x) => x.id === v.id) ? 'plain' : 'dashed'}
                     onClick={() => {
                       setVarietyId(v.id)
                       setPickVariety('')
@@ -188,21 +222,10 @@ export default function HarvestPage() {
           </ChipRow>
         )}
 
-        {!perTree && places.length > 0 && (
-          <ChipRow label="Where">
-            <Chip active={place === null} onClick={() => setPlace(null)}>
-              Anywhere
-            </Chip>
-            {places.map((p) => (
-              <Chip
-                key={p.id}
-                active={place?.id === p.id}
-                onClick={() => setPlace({ kind: p.kind, id: p.id })}
-              >
-                {p.label}
-              </Chip>
-            ))}
-          </ChipRow>
+        {place && narrowed.length === 0 && everyVariety.length > 0 && (
+          <p className="text-xs text-stone-500 dark:text-stone-400">
+            No {key} trees are recorded in {place.label} yet, so every {key} variety is offered.
+          </p>
         )}
 
         <div className="flex flex-wrap items-center gap-2">
