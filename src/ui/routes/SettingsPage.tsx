@@ -17,6 +17,7 @@ import { PeopleCard, TaskSettingsCard } from '@/ui/settings/PeopleCard'
 import { HarvestUnitsCard } from '@/ui/settings/HarvestUnitsCard'
 import { CoverageCard } from '@/ui/settings/CoverageCard'
 import { RemoteFarms } from '@/ui/settings/RemoteFarms'
+import { LongList } from '@/ui/LongList'
 
 export default function SettingsPage() {
   const navigate = useNavigate()
@@ -362,12 +363,29 @@ function RecentlyDeleted() {
       })
   if (items.length === 0) return null
   items.sort((a, b) => b.at - a.at)
+  // Only the kinds actually in the list, so the filter never offers an empty choice.
+  const kinds = [...new Set(items.map((it) => it.kind))]
   return (
     <Card>
       <h2 className="font-semibold">Recently deleted</h2>
-      <ul className="mt-2 divide-y divide-stone-100 dark:divide-stone-800 text-sm">
-        {items.map((it) => (
-          <li key={it.id} className="flex items-center justify-between gap-2 py-1.5">
+      <p className="mt-1 mb-2 text-xs text-stone-500 dark:text-stone-400">
+        Nothing is ever really thrown away, so this list only grows. Newest first.
+      </p>
+      <LongList
+        items={items}
+        keyOf={(it) => it.id}
+        search={(it) => `${KIND_LABEL[it.kind]} ${it.label}`}
+        noun="deleted things"
+        placeholder="Filter by name…"
+        filters={[
+          { label: 'Everything', match: () => true },
+          ...kinds.map((k) => ({
+            label: KIND_LABEL[k],
+            match: (it: (typeof items)[number]) => it.kind === k,
+          })),
+        ]}
+        row={(it) => (
+          <span className="flex items-center justify-between gap-2">
             <span>
               <Pill className="mr-2">{KIND_LABEL[it.kind]}</Pill>
               {it.label}
@@ -379,9 +397,9 @@ function RecentlyDeleted() {
             >
               Restore
             </Button>
-          </li>
-        ))}
-      </ul>
+          </span>
+        )}
+      />
     </Card>
   )
 }

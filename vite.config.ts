@@ -87,5 +87,8 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx', 'src/**/*.test.ts'],
+    // MapLibre is reached through a dynamic import, and a dependency left external cannot be
+    // mocked, so the popup tests would run against the real thing and its WebGL map.
+    server: { deps: { inline: ['maplibre-gl'] } },
   },
 })

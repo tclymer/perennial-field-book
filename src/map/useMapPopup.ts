@@ -19,9 +19,14 @@ export function useMapPopup(map: MlMap | null): void {
       return e.tool === 'none' && e.editMode === 'none'
     }
 
-    const onPosition = async (e: MapMouseEvent & { features?: GeoJSON.Feature[] }) => {
+    const onPosition = async (
+      e: MapMouseEvent & { features?: GeoJSON.Feature[] },
+      near?: GeoJSON.Feature,
+    ) => {
       if (!idle()) return
-      const f = e.features?.[0]
+      // When another handler passes a feature it found, that is the one meant, not whatever
+      // layer the click itself landed on.
+      const f = near ?? e.features?.[0]
       if (!f) return
       const p = f.properties as Record<string, unknown>
       const label = String(p.label ?? '')
@@ -38,7 +43,7 @@ export function useMapPopup(map: MlMap | null): void {
       el.className = 'fb-popup'
       el.innerHTML =
         `<strong>${esc(label)}</strong><div>${line2} ${line3}</div>` +
-        `<a href="#/t/${encodeURIComponent(label)}">Open tree page →</a>`
+        `<a href="#/t/${encodeURIComponent(label)}">Tree page →</a>`
 
       if (posKey.includes(':')) {
         const actions = document.createElement('div')
@@ -74,8 +79,25 @@ export function useMapPopup(map: MlMap | null): void {
         .addTo(map)
     }
 
+    /**
+     * Layers overlap: a tree stands inside a greenhouse which stands inside a block, and
+     * MapLibre runs a handler for each layer under the click. Without a precedence rule the
+     * last one registered wins, which is how tapping a tree used to open its block instead.
+     */
+    const near = (e: MapMouseEvent, layers: string[], pad = 6): GeoJSON.Feature | undefined => {
+      const present = layers.filter((l) => map.getLayer(l))
+      if (present.length === 0) return undefined
+      // A tap is never exact, so give a small dot a few pixels of slack either way.
+      const box: [[number, number], [number, number]] = [
+        [e.point.x - pad, e.point.y - pad],
+        [e.point.x + pad, e.point.y + pad],
+      ]
+      return map.queryRenderedFeatures(box, { layers: present })[0]
+    }
+
     const onFeature = async (e: MapMouseEvent & { features?: GeoJSON.Feature[] }) => {
       if (!idle()) return
+      if (near(e, ['position-dot'])) return
       const f = e.features?.[0]
       if (!f) return
       const p = f.properties as Record<string, unknown>
@@ -136,6 +158,10 @@ export function useMapPopup(map: MlMap | null): void {
     // A block answers the day's question: what is waiting here, and what has come off it.
     const onBlock = async (e: MapMouseEvent & { features?: GeoJSON.Feature[] }) => {
       if (!idle()) return
+      // A tree just missed is still a tree, not the block behind it.
+      const tree = near(e, ['position-dot'])
+      if (tree) return onPosition(e, tree)
+      if (near(e, ['feature-point', 'feature-fill'], 0)) return
       const f = e.features?.[0]
       if (!f) return
       const p = f.properties as Record<string, unknown>
@@ -158,8 +184,8 @@ export function useMapPopup(map: MlMap | null): void {
         .setHTML(
           `<div class="fb-popup"><strong>${esc(p.code)}</strong> ${esc(p.name)}` +
             (lines.length ? `<div>${lines.join('<br>')}</div>` : '') +
-            `<a href="#/blocks/${encodeURIComponent(id)}/grid">Open the block grid →</a>` +
-            (tasks > 0 ? `<br><a href="#/tasks">See the tasks →</a>` : '') +
+            `<a href="#/blocks/${encodeURIComponent(id)}/grid">Block grid →</a>` +
+            (tasks > 0 ? `<br><a href="#/tasks">Tasks →</a>` : '') +
             `</div>`,
         )
         .addTo(map)

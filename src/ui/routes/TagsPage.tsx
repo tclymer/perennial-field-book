@@ -8,6 +8,7 @@ import { targetLabel } from '@/engine/logs'
 import { ensureTag, forgetTag, renameTag, unpairTag } from '@/state/tagActions'
 import { nfcSupported, scanOnce, writeTagUrl } from '@/state/nfc'
 import { Button, Card, Field, PageHeader, Pill, inputClass } from '@/ui/components'
+import { LongList } from '@/ui/LongList'
 
 /**
  * The tags on the farm and what each is on. Pairing happens on a tag's own page, which is
@@ -129,15 +130,31 @@ export default function TagsPage() {
         </Card>
       ) : (
         <Card>
-          <ul className="divide-y divide-stone-100 dark:divide-stone-800">
-            {tags.map((t) => {
+          <LongList
+            items={tags}
+            keyOf={(t) => t.id}
+            search={(t) =>
+              [
+                formatTagId(t.id),
+                t.name ?? '',
+                t.target ? targetLabel(state, t.target) : 'not paired',
+              ].join(' ')
+            }
+            noun="tags"
+            placeholder="Filter by serial, note, or what it is on…"
+            filters={[
+              { label: 'All tags', match: () => true },
+              { label: 'Paired', match: (t) => Boolean(t.target) },
+              { label: 'Not paired', match: (t) => !t.target },
+            ]}
+            row={(t) => {
               const missing = t.target ? targetMissing(state, t.target) : false
               const label =
                 t.target?.kind === 'tree'
                   ? (positionByKey(state).get(t.target.posKey)?.label ?? '')
                   : ''
               return (
-                <li key={t.id} className="flex flex-wrap items-center gap-2 py-2 text-sm">
+                <span className="flex flex-wrap items-center gap-2">
                   <Link
                     to={`/tag/${t.id}`}
                     className="font-mono text-xs underline decoration-dotted"
@@ -188,10 +205,10 @@ export default function TagsPage() {
                   <Button variant="ghost" onClick={() => forgetTag(t.id)}>
                     Forget
                   </Button>
-                </li>
+                </span>
               )
-            })}
-          </ul>
+            }}
+          />
         </Card>
       )}
     </div>
