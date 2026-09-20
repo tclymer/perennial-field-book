@@ -281,6 +281,10 @@ export interface FarmMeta {
   bucketNames?: Partial<Record<Bucket, string>>
   /** Categories this farm added beyond the standard list. */
   categories?: string[]
+  /** How completely each work category is recorded, which decides what may be trued up. */
+  coverage?: Record<string, 'complete' | 'partial' | 'untracked'>
+  /** Which category feeds which planner cost item: plantingId → costItemId → category. */
+  costItemMap?: Record<string, Record<string, string>>
 }
 
 export interface FarmState {
