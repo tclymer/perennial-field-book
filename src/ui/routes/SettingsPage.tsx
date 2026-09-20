@@ -14,6 +14,7 @@ import { SyncCard } from '@/ui/settings/SyncCard'
 import { ShareCard } from '@/ui/settings/ShareCard'
 import { PeopleCard, TaskSettingsCard } from '@/ui/settings/PeopleCard'
 import { HarvestUnitsCard } from '@/ui/settings/HarvestUnitsCard'
+import { CoverageCard } from '@/ui/settings/CoverageCard'
 import { RemoteFarms } from '@/ui/settings/RemoteFarms'
 
 export default function SettingsPage() {
@@ -29,6 +30,7 @@ export default function SettingsPage() {
       <PeopleCard />
       <TaskSettingsCard />
       <HarvestUnitsCard />
+      <CoverageCard />
       <ImagerySettings />
       <OfflineSave />
       <DataSettings />

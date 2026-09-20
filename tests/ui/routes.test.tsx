@@ -42,6 +42,8 @@ const routes: [string, RegExp | string][] = [
   ['#/logs', /Work logs/i],
   ['#/harvest', /tally/i],
   ['#/harvest/reports', /Harvest reports/i],
+  ['#/planner', /beside what the plan assumed/i],
+  ['#/planner/map', /Only labor lines appear/i],
   ['#/import/keep', /Paste a list/i],
   ['#/blocks', /Blocks/i],
   ['#/blocks/blk_pp1/grid', /Row defaults/i],

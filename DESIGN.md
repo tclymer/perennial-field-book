@@ -68,6 +68,8 @@ useful it might be to a farm.
 | 2026-09-16 | If the tool takes off, revisit paid Google usage or a bring-your-own-key option. Add a donation link on the About page at some point. | User's call. Not iteration one. |
 | 2026-09-17 | A block is planted by default: every position is a tree record from the moment a row exists, and a row's default variety flows to trees that have none of their own. "Planned" is an opt-in status for layouts on bare ground, and marking a planned block planted records everything at once. | Drawing rows over real trees felt like creating the trees, so having to declare them real afterwards was wrong. Planned stays for comparing layouts. |
 | 2026-09-17 | Sync is a hosted adapter on Cloudflare: Pages Functions in this repository, D1 for the event log and membership, R2 for photos. Google sign-in for identity only; farms are shared by invite link; the owner can remove members. Google Drive is dropped. | Drive's `drive.file` scope (the only one without a security audit) cannot see files another account created, nor files added later to a picked folder, so "each person on their own Google account" cannot work through Drive. Hosting brings custody of other farms' data, accepted with the protections in §8.3. |
+| 2026-09-20 | Corrections reach the planner by round-tripping its own backup: the field book reads the file, applies only the ticked changes to its raw JSON, and writes it back for the planner to restore. | The planner's import replaces the whole farm and strips unknown keys, so there is no merge to aim at. Round-tripping works today with no planner change; the field book warns when the backup was not exported the same day, because later planner edits would be lost. |
+| 2026-09-20 | Each work category is marked complete, partial, or not tracked, and only complete ones may change a planner estimate. | Tim records the jobs that move the needle, not every last hour. Without this a half-logged category would quietly make the plan look cheaper than reality. |
 | 2026-09-20 | Harvest entry copies the paper sheet: one entry per weighed box, the number written on the box, tallied by variety for the day. Variety and place are optional, so figs can be a plain count of half pints. Units are per crop, changeable per farm. | It is what the packing table already does; anything else would be extra work at the busiest moment. |
 | 2026-09-20 | The phone tabs become Week, Harvest, Map, Search, Settings. Blocks keeps its desktop nav place, search, and a link from the map. | Harvest must be one tap away in season; the block grid is rarely the phone's entry point. |
 | 2026-09-19 | Task buckets ship with Threefold's Keep names as the default labels (Monkeys, Mini Tasks/Projects, Long Term, Spinning Plates, Projects), renameable per farm in Settings. | Zero relearning for the pilot farm; other farms rename them. |
@@ -303,15 +305,23 @@ editing is a desktop job.
   barns, solar, fences, drainage, and organization.
 - **Yield comparison.** Harvested quantity per planting beside the planner's expected yield for
   that year (mature yield per plant × plants × ramp fraction).
-- **Push actuals.** The planner stores per-year actuals as a fraction of mature yield
-  (`YearActual { year, yieldRealization, note }`), entered by hand in its planting editor
-  today. The manager computes that fraction as `harvested / (maturePerPlant × plantsPerRow ×
-  rows)`. Three ways to get it across, in order of effort:
-  1. The manager shows the fraction per planting and it is typed into the planner. Works today.
-  2. The manager writes a full planner backup with actuals inserted, and the planner restores
-     it. Overwrites any planner edits made since the backup was taken, so it is fragile.
-  3. The planner gains a small "import actuals" action that merges only the actuals from a
-     file the manager exports. The right answer for iteration five; a modest planner change.
+- **What can be trued up.** The planner stores rates, not totals, so a measured total is
+  divided by the line's own basis before it is compared: eleven hours of mowing over PP1's
+  0.29 acres is 37 hours an acre against an estimate of four. Four things can cross over:
+  the year planted (from the earliest tree record, and without it the planner ignores
+  actuals entirely), the yield realized (harvested weight ÷ mature yield, computed exactly
+  as the planner computes expected yield), units picked per hour (harvest weight ÷ harvest
+  hours, probably the most valuable number of the lot), and a labor line's hours on its own
+  basis. Prices cannot: the field book records no sales. Actual hours have no home in the
+  planner's model either, so truing up a line overwrites its estimate; the old value and the
+  evidence are appended to that line's notes so the provenance survives inside the planner.
+- **Push actuals.** The field book reads a backup, shows the diff, and writes the ticked
+  changes back into the same file's raw JSON, preserving every other key, the farm id, and
+  the schema version. Restoring it in the planner lands them. Since that import replaces the
+  whole farm, the field book shows the backup's export date and warns when it is not today.
+- **Coverage.** Every row carries how completely its category is recorded. Only a category
+  marked as fully logged can change an estimate; a partly logged one is shown for interest
+  and an untracked one is blocked outright.
 - **Seed seasonal tasks.** The planner's task calendar (cost item + months) can generate
   `later` tasks per block with a season tag, e.g. "Winter pruning, Pawpaw Block 1, Jan–Feb".
 
@@ -631,7 +641,11 @@ Each iteration is usable on its own.
    Settings.
    *Done when:* paper harvest records are retired.
 5. **Planner comparison.** Linking, category map, hours and yield comparison, push actuals,
-   seasonal task seeding. May need a small import feature on the planner side.
+   seasonal task seeding. Built 2026-09-20: allocation of logged hours to plantings, a diff
+   per planting (planted year, yield realized, units picked per hour, and a rate per labor
+   line) with the evidence and coverage behind each row, write-back into the planner's own
+   backup, an overhead summary, and seasonal tasks from the plan's calendar. No planner-side
+   change was needed.
 6. **Certification exports.** Materials on logs, date-range exports.
 7. **Later candidates.** NFC tag kit and printing, weather snapshot on spray logs, voice
    entry parsed to a log, Bluetooth scale, box labels with QR for harvest entry, a donation

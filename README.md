@@ -33,6 +33,11 @@ and work logs) built; harvest and the planner comparison follow. The product des
   each box as it comes off the scale. The box number to write on the box comes back, the
   day's tally adds up beside each variety, and reports total yield by variety, place, and
   year with a CSV. Trial blocks get per-tree yield derived automatically.
+- **Compare with the planner.** Open a Perennial Profit Planner backup and see a season of
+  records beside the plan's assumptions: yield realized, units picked per hour, and each
+  labor line's hours on its own basis, with the logs behind every number. Tick the
+  corrections you believe and download the backup to restore. Seasonal tasks can be seeded
+  from the plan's own calendar.
 - **Search** across trees, rows, blocks, varieties, places, and tasks.
 - **Imagery.** Google satellite through the Map Tiles API when a key is present, held to the
   free tier by a daily quota, with automatic fallback to free public imagery (Pennsylvania's

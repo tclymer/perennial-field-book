@@ -184,6 +184,8 @@ function pageTitle(pathname: string): string {
   if (pathname.startsWith('/tasks')) return 'Tasks'
   if (pathname.startsWith('/harvest/reports')) return 'Harvest reports'
   if (pathname.startsWith('/harvest')) return 'Harvest'
+  if (pathname.startsWith('/planner/map')) return 'Which work feeds which line'
+  if (pathname.startsWith('/planner')) return 'Compare with the planner'
   if (pathname.startsWith('/review')) return 'Weekly review'
   if (pathname.startsWith('/logs')) return 'Work logs'
   if (/^\/blocks\/[^/]+\/grid/.test(pathname)) return 'Block grid'
