@@ -15,6 +15,30 @@ function ftPerDegLon(lat: number): number {
 }
 
 /** Feet east and north of `origin`. */
+/**
+ * Decimals a coordinate may carry when it is handed to the drawing library, which refuses
+ * anything finer and drops those shapes without raising. Generated coordinates are full
+ * floats, so rows, outlines, and tree positions all have to be rounded on the way out.
+ * Nine decimals is under a tenth of a millimetre, so nothing on a farm notices.
+ */
+export const DRAW_PRECISION = 9
+const DRAW_FACTOR = 10 ** DRAW_PRECISION
+
+export function snapCoord(p: LngLat): LngLat {
+  return [
+    Math.round(p[0] * DRAW_FACTOR) / DRAW_FACTOR,
+    Math.round(p[1] * DRAW_FACTOR) / DRAW_FACTOR,
+  ]
+}
+
+/** How many decimals a number is written with, for checking a coordinate is safe to draw. */
+export function decimalsOf(n: number): number {
+  const s = String(n)
+  const dot = s.indexOf('.')
+  if (dot < 0 || s.includes('e') || s.includes('E')) return 0
+  return s.length - dot - 1
+}
+
 export function toLocal(origin: LngLat, p: LngLat): XY {
   return [
     (p[0] - origin[0]) * ftPerDegLon(origin[1]),

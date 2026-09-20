@@ -15,6 +15,7 @@ import {
 import { TerraDrawMapLibreGLAdapter } from 'terra-draw-maplibre-gl-adapter'
 import type { LngLat, Polyline, Ring } from '@/model/types'
 import { newId } from '@/model/ids'
+import { DRAW_PRECISION, snapCoord } from '@/engine/geo'
 
 export type DrawShape = 'line' | 'polygon' | 'point'
 
@@ -35,6 +36,8 @@ export interface DrawHandlers {
   onProvisional?: (g: DrawnGeometry | null) => void
   /** A loaded shape while it is being dragged, before the drag ends. */
   onEditing?: (id: string, g: DrawnGeometry) => void
+  /** Shapes the draw library refused to load, so an edit session can say so rather than look broken. */
+  onRejected?: (count: number, reason: string) => void
 }
 
 export interface DrawController {
@@ -62,6 +65,15 @@ const POINT_STYLE = {
   pointWidth: 6,
   pointOutlineColor: '#1c1917' as const,
   pointOutlineWidth: 1,
+}
+
+/**
+ * Terra Draw refuses any feature whose coordinates carry more decimals than the adapter's
+ * `coordinatePrecision`, and `addFeatures` drops those without raising, so every coordinate
+ * is rounded on the way in. See `snapCoord`.
+ */
+function snapPair(c: readonly number[]): [number, number] {
+  return snapCoord([c[0]!, c[1]!]) as [number, number]
 }
 
 /** Drop vertices that repeat the previous one, which a double click leaves behind. */
@@ -96,11 +108,11 @@ function toStore(id: string, g: DrawnGeometry): GeoJSONStoreFeatures {
       type: 'Feature',
       id,
       properties: { mode: 'linestring' },
-      geometry: { type: 'LineString', coordinates: g.coordinates.map(([a, b]) => [a, b]) },
+      geometry: { type: 'LineString', coordinates: g.coordinates.map(snapPair) },
     }
   }
   if (g.shape === 'polygon') {
-    const ring = g.coordinates.map(([a, b]) => [a, b])
+    const ring = g.coordinates.map(snapPair)
     ring.push(ring[0])
     return {
       type: 'Feature',
@@ -113,13 +125,13 @@ function toStore(id: string, g: DrawnGeometry): GeoJSONStoreFeatures {
     type: 'Feature',
     id,
     properties: { mode: 'point' },
-    geometry: { type: 'Point', coordinates: [g.coordinates[0], g.coordinates[1]] },
+    geometry: { type: 'Point', coordinates: snapPair(g.coordinates) },
   }
 }
 
 export function createDraw(map: MlMap, handlers: DrawHandlers): DrawController {
   const draw = new TerraDraw({
-    adapter: new TerraDrawMapLibreGLAdapter({ map, coordinatePrecision: 9 }),
+    adapter: new TerraDrawMapLibreGLAdapter({ map, coordinatePrecision: DRAW_PRECISION }),
     idStrategy: {
       isValidId: (id) => typeof id === 'string' && id.length > 0,
       getId: () => newId('evt').replace('evt_', 'draw_'),
@@ -218,12 +230,20 @@ export function createDraw(map: MlMap, handlers: DrawHandlers): DrawController {
       editing = true
       draw.setMode('select')
       if (features.length) {
-        draw.addFeatures(features.map((f) => toStore(f.id, f.geometry)))
-        loaded = features.map((f) => f.id)
+        // addFeatures reports each feature's validity and drops the invalid ones without
+        // throwing. Only what it accepted is editable, so only that is worth tracking.
+        const results = draw.addFeatures(features.map((f) => toStore(f.id, f.geometry)))
+        const rejected = results.filter((r) => !r.valid)
+        if (rejected.length) {
+          handlers.onRejected?.(rejected.length, rejected[0]?.reason ?? 'unknown')
+          if (import.meta.env.DEV) console.warn('Draw rejected features', rejected)
+        }
+        const ok = new Set(results.filter((r) => r.valid).map((r) => String(r.id)))
+        loaded = features.map((f) => f.id).filter((id) => ok.has(id))
         // A single shape is what the user came to edit: show its corners right away.
-        if (features.length === 1) {
+        if (loaded.length === 1) {
           try {
-            draw.selectFeature(features[0].id)
+            draw.selectFeature(loaded[0])
           } catch {
             // Selection is a convenience; the shape is still editable by clicking it.
           }

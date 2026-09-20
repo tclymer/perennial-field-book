@@ -195,6 +195,13 @@ export function useDraw(map: MlMap | null, state: FarmState, enabled: boolean): 
           nudgePosition(id, g.coordinates)
         }
       },
+      onRejected: (count, reason) => {
+        useEditor
+          .getState()
+          .say(
+            `${count} shape${count === 1 ? '' : 's'} could not be opened for editing (${reason}).`,
+          )
+      },
     })
     controller.current = c
     return () => {
