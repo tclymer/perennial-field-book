@@ -118,6 +118,17 @@ Farm
 - **Area.** Each block has an area, taken from the planner planting when linked, otherwise
   computed from rows (length × row spacing) or a drawn outline. Used to split farm-wide labor.
 
+**Block or feature?** The question is whether hours spent there should land on a crop. A block
+is a place that grows something you harvest, so hours logged against it are allocated to that
+crop and can be compared with the planner (§3.4, §6). A feature is a landmark with no crop of
+its own: barns, the compost area, fence lines, the back property. Hours against a feature go to
+overhead, which is the right answer for cleaning out a barn and the wrong answer for pruning.
+A place can be both, and the two greenhouses are: the greenhouse is a feature, drawn as a
+polygon, and the figs inside it are a block. `placesFor()` then offers the greenhouse as a
+harvest place because its polygon contains the crop's trees, so picking can be recorded where
+it happened while the hours still reach the figs. When in doubt: if trees live in it and you
+pick from it, make it a block.
+
 ### 3.2 Trees, varieties, and the graft plan
 
 - **Variety.** Species, name, aliases, scion source (where it was ordered from), notes.
