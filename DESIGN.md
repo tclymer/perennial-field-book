@@ -656,7 +656,16 @@ Each iteration is usable on its own.
 
 ---
 
-## 9a. Iteration one build notes (2026-09-17)
+## 9a. Build and deploy notes
+
+**Bump `package.json` version on every deploy**, in the same commit. The minor number is the
+last iteration finished and the patch counts deploys within it, so 0.5.3 is the third deploy
+since iteration five. The version and the build time show under the Settings heading and on
+the About page, which is how to tell whether a device is running the newest code. A device
+keeps the version it loaded until it reloads: the service worker updates on prompt, so an
+open tab shows the update toast rather than swapping underneath.
+
+## 9b. Iteration one build notes (2026-09-17)
 
 Steps 1 through 12 and 14 of §9 are built and committed; steps 12's console work and 13
 (deploy) wait on Tim. Things learned while building, worth knowing before touching the code:

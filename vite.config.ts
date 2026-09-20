@@ -15,7 +15,9 @@ export default defineConfig({
   base: process.env.VITE_BASE ?? '/',
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
-    __BUILD_DATE__: JSON.stringify(new Date().toISOString().slice(0, 10)),
+    __BUILD_DATE__: JSON.stringify(
+      `${new Date().toISOString().slice(0, 16).replace('T', ' ')} UTC`,
+    ),
   },
   plugins: [
     react(),

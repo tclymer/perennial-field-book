@@ -9,6 +9,7 @@ import { parseImport } from '@/events/bundle'
 import { nextTheme, themeLabel, useTheme } from '@/ui/theme'
 import { OfflineSave } from '@/ui/map/OfflineSave'
 import type { EntityKind } from '@/model/types'
+import { APP_VERSION, BUILD_DATE } from '@/version'
 import { AccountCard } from '@/ui/settings/AccountCard'
 import { SyncCard } from '@/ui/settings/SyncCard'
 import { ShareCard } from '@/ui/settings/ShareCard'
@@ -21,7 +22,10 @@ export default function SettingsPage() {
   const navigate = useNavigate()
   return (
     <div className="space-y-4">
-      <PageHeader title="Settings" />
+      <PageHeader
+        title="Settings"
+        subtitle={`Version ${APP_VERSION}${BUILD_DATE ? `, built ${BUILD_DATE}` : ''}`}
+      />
       <FarmSettings />
       <AccountCard />
       <SyncCard />
