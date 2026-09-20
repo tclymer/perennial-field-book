@@ -6,6 +6,7 @@ import { blockVarietyColors } from '@/state/colors'
 import {
   currentTreeByPos,
   positions,
+  slots,
   varietiesByName,
   varietyAt,
   varietyColors,
@@ -14,6 +15,8 @@ import {
   assignVariety,
   commitEvents,
   planGrafts,
+  removePositions,
+  restorePositions,
   setBlockStatus,
   setRowDefaultVariety,
   unplanGrafts,
@@ -40,6 +43,8 @@ export default function BlockGridPage() {
   const [undo, setUndo] = useState<{ events: NewEvent[]; label: string } | null>(null)
   const [varietyId, setVarietyId] = useState<string | null>(null)
   const [plantedYear, setPlantedYear] = useState(0)
+  // Spots taken out of a row are hidden by default; a thinned row would otherwise be mostly gaps.
+  const [showRemoved, setShowRemoved] = useState(false)
 
   useEffect(() => {
     if (!undo) return
@@ -55,19 +60,24 @@ export default function BlockGridPage() {
         .sort((a, b) => a.number - b.number),
     [state, id],
   )
+  const shown = showRemoved ? slots(state) : positions(state)
   const byRow = useMemo(() => {
     const m = new Map<string, ReturnType<typeof positions>>()
-    for (const p of positions(state)) {
+    for (const p of shown) {
       if (p.blockId !== id || !p.rowId) continue
       const list = m.get(p.rowId) ?? []
       list.push(p)
       m.set(p.rowId, list)
     }
     return m
-  }, [state, id])
-  const loose = positions(state).filter((p) => p.blockId === id && !p.rowId)
+  }, [shown, id])
+  const loose = shown.filter((p) => p.blockId === id && !p.rowId)
+  const takenOut = useMemo(
+    () => slots(state).filter((p) => p.blockId === id && p.skipped).length,
+    [state, id],
+  )
   // Trees whose position is no longer generated, after a row was shortened or re-laid out.
-  const known = new Set(positions(state).map((p) => p.posKey))
+  const known = new Set(slots(state).map((p) => p.posKey))
   const orphans = live
     .trees(state)
     .filter((t) => !known.has(t.posKey) && blockIdOfPosKey(state, t.posKey) === id)
@@ -132,6 +142,13 @@ export default function BlockGridPage() {
   }
 
   const keys = [...selected]
+  const goneKeys = new Set(
+    slots(state)
+      .filter((p) => p.skipped)
+      .map((p) => p.posKey),
+  )
+  const selectedGone = keys.filter((k) => goneKeys.has(k)).length
+  const selectedLive = keys.length - selectedGone
   const act = (label: string, run: () => NewEvent[]) => {
     const inverse = run()
     setUndo(inverse.length ? { events: inverse, label } : null)
@@ -174,6 +191,16 @@ export default function BlockGridPage() {
           <Field label="Plan year">
             <NumberInput value={planYear} min={2000} max={2100} step={1} onChange={setPlanYear} />
           </Field>
+        )}
+        {takenOut > 0 && (
+          <label className="flex items-center gap-1.5 self-end pb-1 text-sm">
+            <input
+              type="checkbox"
+              checked={showRemoved}
+              onChange={(e) => setShowRemoved(e.target.checked)}
+            />
+            Show {takenOut} spot{takenOut === 1 ? '' : 's'} taken out
+          </label>
         )}
       </PageHeader>
 
@@ -242,17 +269,31 @@ export default function BlockGridPage() {
                             'flex h-9 w-full items-center justify-center rounded border text-[10px] leading-none',
                             isSel
                               ? 'border-stone-900 dark:border-white ring-2 ring-lime-500'
-                              : 'border-stone-300 dark:border-stone-600',
-                            !tree && 'opacity-60',
+                              : p.skipped
+                                ? 'border-dashed border-stone-300 dark:border-stone-700'
+                                : 'border-stone-300 dark:border-stone-600',
+                            !tree && !p.skipped && 'opacity-60',
+                            p.skipped && 'opacity-40',
                           )}
-                          style={{ background: colorOf(p.posKey) }}
-                          title={`${p.label}${v ? ` · ${v.name}` : ''}${tree ? ` · ${tree.status}` : ' · empty'}${plan && !plan.doneEventId ? ` · plan ${planYear}: ${state.varieties[plan.varietyId]?.name ?? ''}` : ''}`}
+                          style={{ background: p.skipped ? undefined : colorOf(p.posKey) }}
+                          title={
+                            p.skipped
+                              ? `Slot ${p.slot}, taken out of the row. It holds no number; put it back to give it one.`
+                              : `${p.label}${v ? ` · ${v.name}` : ''}${tree ? ` · ${tree.status}` : ' · empty'}${plan && !plan.doneEventId ? ` · plan ${planYear}: ${state.varieties[plan.varietyId]?.name ?? ''}` : ''}`
+                          }
                           onClick={(e) => toggle(p.posKey, e.shiftKey, column)}
                           onDoubleClick={() => {
+                            if (p.skipped) return
                             window.location.hash = `#/t/${encodeURIComponent(p.label)}`
                           }}
                         >
-                          <span className="rounded bg-white/70 px-1 text-stone-900">{p.index}</span>
+                          {p.skipped ? (
+                            <span className="text-stone-400">·</span>
+                          ) : (
+                            <span className="rounded bg-white/70 px-1 text-stone-900">
+                              {p.index}
+                            </span>
+                          )}
                         </button>
                       </td>
                     )
@@ -320,6 +361,32 @@ export default function BlockGridPage() {
           >
             Clear plan
           </Button>
+          <Button
+            disabled={selectedLive === 0}
+            onClick={() =>
+              act(
+                selectedLive === 1
+                  ? 'spot taken out of the row'
+                  : `${selectedLive} spots taken out`,
+                () => removePositions(keys),
+              )
+            }
+            title="Record these trees as removed and stop their spots counting, so the rest move up a number"
+          >
+            Take out of the row
+          </Button>
+          {selectedGone > 0 && (
+            <Button
+              onClick={() =>
+                act(selectedGone === 1 ? 'spot put back' : `${selectedGone} spots put back`, () =>
+                  restorePositions(keys),
+                )
+              }
+              title="Give these spots their numbers back, each in its own place in the row"
+            >
+              Put back in the row
+            </Button>
+          )}
           <Button
             variant="ghost"
             disabled={keys.length === 0}

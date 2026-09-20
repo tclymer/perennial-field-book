@@ -254,6 +254,52 @@ tree page shows its derived share by year.
 Name, active flag. Every device has a current user. Logs default to that person and can be
 switched with one tap, which covers the owner who will not carry the phone.
 
+### 3.8 Taking a spot out of a row (2026-09-20)
+
+Rows generate their slots from a count or a spacing. A row also carries `skips`, the slots
+that hold nothing: a fig thinned out on the way from twelve trees a row down to two, or a spot
+skipped for rocky ground. A skipped slot is left out of the numbering, so the trees that
+remain count one upward with no gap, which is what Threefold wants: the number should say
+where a tree stands in the row today, not how many neighbours it has outlived.
+
+The slot itself stays, and that is the point. A position's key is `${rowId}:${slot}`, and
+trees, harvests, work logs, graft plans, nudges and NFC tags all hold that key. Renumbering
+changes what a position is *called*, never what it *is*, so nothing has to be rewritten. This
+is also why reversing a row still refuses when it holds trees: that would move the keys.
+
+Two consequences follow:
+
+- `positionByKey` includes skipped slots, so a harvest recorded before the tree came out can
+  still say where it came from. Those labels carry `(removed)` so they cannot be read as the
+  live tree that has since taken their number.
+- `positionByLabel` leaves them out, so a search or a link never lands on a spot that is gone.
+
+Taking a spot out also records the tree as removed. Putting it back returns it to its own
+place in the row with its old number, not to the end. Only a tree wanted somewhere that was
+never a slot needs the row's count raised, and that one does land at the end.
+
+### 3.9 NFC tags (2026-09-20)
+
+A tag is written once, with a link carrying the tag's own factory serial:
+`https://<origin>/#/tag/<serial>`. Nothing about a tree is in it. What the tag points at lives
+in the farm log as a `Tag` whose `target` is the ordinary `Target` union, so a tag can be on a
+tree, a row, a block, a building, a crop, or the whole farm.
+
+That split is the whole design. Moving a tag to another tree is a change in the app, never a
+rewrite of the tag, which is what Threefold asked for: pair, unpair, pair again. It also means
+a tag survives everything that moves a label. Thinning a row renumbers the trees after the
+gap, and regrafting changes a tree's variety, but a tag is paired to a position key and
+neither touches it. A tag on a tree that dies and is regrafted needs no attention at all.
+
+Web NFC reads a serial and writes a tag, and exists only in Chrome on Android. Neither is
+required: a serial can be typed in by hand, and a tag that has been written is an ordinary
+link that any phone follows with no app running. The app degrades to typing rather than
+pretending the feature is missing.
+
+Hardware note for the orchard: an ordinary NFC sticker will not read through the metal tree
+tags, because the metal detunes the antenna. Either buy tags sold as on-metal, which carry a
+ferrite layer, or hang a separate plastic tag on the same wire.
+
 ---
 
 ## 4. Phone experience

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Button, Card, Field, NumberInput, PageHeader, Pill, inputClass } from '@/ui/components'
 import { PRESETS, PRESET_IDS, autoPreset } from '@/map/presets'
 import { initialView, useDevice } from '@/state/device'
@@ -34,6 +34,7 @@ export default function SettingsPage() {
       <PeopleCard />
       <TaskSettingsCard />
       <HarvestUnitsCard />
+      <TagsCard />
       <CoverageCard />
       <ImagerySettings />
       <OfflineSave />
@@ -41,6 +42,27 @@ export default function SettingsPage() {
       <RecentlyDeleted />
       <Appearance />
     </div>
+  )
+}
+
+function TagsCard() {
+  const tags = useFarmStore((s) => s.state.tags)
+  const n = Object.values(tags).filter((t) => !t.deleted).length
+  const paired = Object.values(tags).filter((t) => !t.deleted && t.target).length
+  return (
+    <Card>
+      <h2 className="font-semibold">NFC tags</h2>
+      <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
+        {n === 0
+          ? 'None yet. A tag is written once and then points at whatever you pair it to, so it keeps working when a row is renumbered or a tree is regrafted.'
+          : `${n} tag${n === 1 ? '' : 's'}, ${paired} paired.`}
+      </p>
+      <p className="mt-2">
+        <Link to="/tags" className="text-sm underline decoration-dotted">
+          Tags and pairing
+        </Link>
+      </p>
+    </Card>
   )
 }
 
@@ -297,6 +319,7 @@ const KIND_LABEL: Record<EntityKind, string> = {
   task: 'Task',
   log: 'Work log',
   harvest: 'Harvest',
+  tag: 'Tag',
 }
 
 function RecentlyDeleted() {

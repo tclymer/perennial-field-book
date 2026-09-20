@@ -16,7 +16,7 @@ import type {
   RowLayout,
 } from '@/model/types'
 import type { PayloadOf } from '@/model/schema'
-import { newId, normalizeCode } from '@/model/ids'
+import { newId, normalizeCode, parsePosKey } from '@/model/ids'
 import { live } from '@/events/reduce'
 import type { NewEvent } from '@/events/types'
 import { polylineLengthFt, positionCount } from '@/engine/geo'
@@ -245,6 +245,123 @@ export function setRowNotes(id: string, notes: string | null): void {
 
 export function deleteRow(id: string): void {
   commit([{ type: 'row.delete', payload: { id } }])
+}
+
+/**
+ * Take a spot out of a row: the tree standing there is recorded as removed, and the slot
+ * stops counting, so the trees after it move up a number. The slot itself stays, so nothing
+ * that points at this position by key has to be rewritten, and putting the spot back later
+ * restores its original number.
+ */
+export function removePosition(posKey: string, date?: string): Result {
+  const parsed = parsePosKey(posKey)
+  if (!('rowId' in parsed)) return refuse('Only a spot in a row can be taken out this way.')
+  const row = state().rows[parsed.rowId]
+  if (!row || row.deleted) return refuse('That row no longer exists.')
+  if ((row.skips ?? []).includes(parsed.index)) return refuse('That spot is already out.')
+  const tree = currentTree(posKey)
+  const events: NewEvent[] = []
+  if (tree && tree.status !== 'removed') {
+    events.push({
+      type: 'tree.event',
+      payload: { id: newId('tev'), treeId: tree.id, kind: 'removed', date: date ?? today() },
+    })
+  }
+  events.push({
+    type: 'row.patch',
+    payload: { id: row.id, skips: [...(row.skips ?? []), parsed.index].sort((a, b) => a - b) },
+  })
+  commit(events)
+  return ok
+}
+
+/**
+ * Take several spots out at once, which is how a row gets thinned: select every other tree
+ * and remove them together. Returns the events that would put them back, for undo.
+ */
+export function removePositions(posKeys: string[], date?: string): NewEvent[] {
+  const events: NewEvent[] = []
+  const inverse: NewEvent[] = []
+  const added = new Map<string, Set<number>>()
+  for (const posKey of posKeys) {
+    const parsed = parsePosKey(posKey)
+    if (!('rowId' in parsed)) continue
+    const row = state().rows[parsed.rowId]
+    if (!row || row.deleted) continue
+    const already = added.get(row.id) ?? new Set(row.skips ?? [])
+    if (already.has(parsed.index)) continue
+    if (!added.has(row.id)) {
+      inverse.push({
+        type: 'row.patch',
+        payload: { id: row.id, skips: row.skips?.length ? [...row.skips] : null },
+      })
+    }
+    already.add(parsed.index)
+    added.set(row.id, already)
+    const tree = currentTree(posKey)
+    if (tree && tree.status !== 'removed') {
+      const id = newId('tev')
+      events.push({
+        type: 'tree.event',
+        payload: { id, treeId: tree.id, kind: 'removed', date: date ?? today() },
+      })
+      // Dropping the history entry is not enough on its own: the status it set stays until
+      // the log is replayed, so put the old one back explicitly.
+      inverse.push({ type: 'tree.event.delete', payload: { id } })
+      inverse.push({ type: 'tree.patch', payload: { id: tree.id, status: tree.status } })
+    }
+  }
+  for (const [rowId, set] of added) {
+    events.push({
+      type: 'row.patch',
+      payload: { id: rowId, skips: [...set].sort((a, b) => a - b) },
+    })
+  }
+  if (events.length) commit(events)
+  return inverse
+}
+
+/** Put several spots back. Each returns to its own place in the row, not to the end. */
+export function restorePositions(posKeys: string[]): NewEvent[] {
+  const events: NewEvent[] = []
+  const inverse: NewEvent[] = []
+  const removed = new Map<string, Set<number>>()
+  for (const posKey of posKeys) {
+    const parsed = parsePosKey(posKey)
+    if (!('rowId' in parsed)) continue
+    const row = state().rows[parsed.rowId]
+    if (!row || row.deleted) continue
+    const set = removed.get(row.id) ?? new Set(row.skips ?? [])
+    if (!set.has(parsed.index)) continue
+    if (!removed.has(row.id)) {
+      inverse.push({
+        type: 'row.patch',
+        payload: { id: row.id, skips: row.skips?.length ? [...row.skips] : null },
+      })
+    }
+    set.delete(parsed.index)
+    removed.set(row.id, set)
+  }
+  for (const [rowId, set] of removed) {
+    events.push({
+      type: 'row.patch',
+      payload: { id: rowId, skips: set.size ? [...set].sort((a, b) => a - b) : null },
+    })
+  }
+  if (events.length) commit(events)
+  return inverse
+}
+
+/** Put a spot back into a row's numbering. It returns to its own place, not to the end. */
+export function restorePosition(posKey: string): Result {
+  const parsed = parsePosKey(posKey)
+  if (!('rowId' in parsed)) return refuse('Only a spot in a row can be put back this way.')
+  const row = state().rows[parsed.rowId]
+  if (!row || row.deleted) return refuse('That row no longer exists.')
+  const skips = (row.skips ?? []).filter((n) => n !== parsed.index)
+  if (skips.length === (row.skips ?? []).length) return refuse('That spot is already in the row.')
+  commit([{ type: 'row.patch', payload: { id: row.id, skips: skips.length ? skips : null } }])
+  return ok
 }
 
 /** Renumber a block's rows along its numbering side. Explicit, never automatic. */

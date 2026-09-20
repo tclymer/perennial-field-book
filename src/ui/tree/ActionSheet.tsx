@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { Tree, TreeStatus } from '@/model/types'
-import { addTreeEvent, plantTree, replaceTree, today } from '@/state/actions'
+import { addTreeEvent, plantTree, removePosition, replaceTree, today } from '@/state/actions'
 import { addPhoto } from '@/state/photos'
 import { useFarmStore } from '@/state/store'
 import { Button, Field, inputClass } from '@/ui/components'
@@ -17,6 +17,7 @@ type Action =
   | 'status'
   | 'replace'
   | 'plant'
+  | 'takeout'
 
 const STATUSES: TreeStatus[] = ['alive', 'struggling', 'dead', 'removed']
 
@@ -36,6 +37,7 @@ export function ActionSheet({
   onDone?: (message: string) => void
 }) {
   const farmId = useFarmStore((s) => s.farmId)
+  const inRow = posKey.includes(':')
   const [action, setAction] = useState<Action | null>(null)
   const [date, setDate] = useState(today())
   const [note, setNote] = useState('')
@@ -66,6 +68,13 @@ export function ActionSheet({
     if (action === 'replace') {
       replaceTree(posKey, { varietyId: varietyId ?? undefined, date, how })
       close('New tree recorded; the old one is kept in the history.')
+      return
+    }
+    if (action === 'takeout') {
+      const r = removePosition(posKey, date)
+      close(
+        r.ok ? 'Spot taken out of the row. The trees after it have moved up a number.' : r.reason,
+      )
       return
     }
     if (!tree) return
@@ -129,6 +138,7 @@ export function ActionSheet({
             {btn('died', 'Died')}
             {btn('removed', 'Removed')}
             {btn('replace', 'Replace tree…')}
+            {inRow && btn('takeout', 'Take the spot out of the row…')}
           </>
         ) : (
           btn('plant', 'Plant a tree here…')
@@ -175,6 +185,13 @@ export function ActionSheet({
                 <option value="grafted">grafted onto rootstock here</option>
               </select>
             </Field>
+          )}
+          {action === 'takeout' && (
+            <p className="text-xs text-stone-600 dark:text-stone-400">
+              The tree is recorded as removed and this spot stops counting, so the trees after it in
+              the row each move up a number. Nothing already recorded here is lost, and putting the
+              spot back later returns it to its own place with its old number.
+            </p>
           )}
           {action === 'status' && (
             <Field label="Status">

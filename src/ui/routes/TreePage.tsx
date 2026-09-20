@@ -5,6 +5,7 @@ import { positionByLabel, treesAt, varietyAt } from '@/state/derived'
 import { live } from '@/events/reduce'
 import { describeNumbering } from '@/engine/layout'
 import { parseTreeLabel } from '@/model/ids'
+import { formatTagId, tagsFor } from '@/engine/tags'
 import type { Tree } from '@/model/types'
 import { Button, Card, PageHeader, Pill, inputClass, type Tone } from '@/ui/components'
 import { ActionSheet } from '@/ui/tree/ActionSheet'
@@ -58,6 +59,7 @@ export default function TreePage() {
   const variety = varietyAt(state, position)
   const events = current ? live.treeEvents(state, current.id) : []
   const rowVariety = row?.defaultVarietyId ? state.varieties[row.defaultVarietyId] : undefined
+  const tags = tagsFor(state, { kind: 'tree', posKey: position.posKey })
 
   return (
     <div className="space-y-4">
@@ -81,6 +83,13 @@ export default function TreePage() {
             Block grid
           </Link>
         )}
+        <Link to="/tags" className="text-sm underline decoration-dotted">
+          {tags.length === 0
+            ? 'No tag'
+            : tags.length === 1
+              ? `Tag ${formatTagId(tags[0]!.id)}`
+              : `${tags.length} tags`}
+        </Link>
       </PageHeader>
 
       <Card>

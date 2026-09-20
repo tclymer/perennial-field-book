@@ -82,6 +82,12 @@ export interface Row extends Stamped {
   layout: RowLayout
   /** Trees in this row inherit it unless they say otherwise. */
   defaultVarietyId?: string
+  /**
+   * Slots the row generates but that hold nothing: a spot thinned out, or one skipped for
+   * rocky ground. The slot stays so no key moves; it is simply left out of the numbering,
+   * so the trees that remain count one upward with no gap.
+   */
+  skips?: number[]
   notes?: string
 }
 
@@ -287,6 +293,23 @@ export interface FarmMeta {
   costItemMap?: Record<string, Record<string, string>>
 }
 
+/**
+ * An NFC tag paired to something on the farm. The id is the tag's own serial, the number
+ * burned in at the factory, so a tag is the same tag whatever it is written with and a tag
+ * that gets rewritten can be recovered. What it points at can be changed or cleared as often
+ * as you like, which is the whole point: the tag stays on the trunk, the pairing moves.
+ */
+export interface Tag extends Stamped {
+  id: string
+  /** What the tag currently opens. Absent means the tag exists but is paired to nothing. */
+  target?: Target
+  /** When the current pairing was made, ISO date. */
+  pairedAt?: string
+  /** A note to tell one tag from another in a list: "blue sticker", "north gate". */
+  name?: string
+  notes?: string
+}
+
 export interface FarmState {
   farm: FarmMeta | null
   blocks: Record<string, Block>
@@ -300,6 +323,8 @@ export interface FarmState {
   tasks: Record<string, Task>
   logs: Record<string, WorkLog>
   harvests: Record<string, Harvest>
+  /** NFC tags by their own serial number. */
+  tags: Record<string, Tag>
   /** Position coordinate overrides by posKey. */
   nudges: Record<string, LngLat>
   /** Graft plans keyed `${year}:${posKey}`. */
@@ -320,6 +345,7 @@ export type EntityKind =
   | 'task'
   | 'log'
   | 'harvest'
+  | 'tag'
 
 export function planKey(year: number, posKey: string): string {
   return `${year}:${posKey}`

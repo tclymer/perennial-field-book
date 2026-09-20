@@ -16,6 +16,7 @@ import { HomeButton, goHome } from '@/ui/map/HomeButton'
 import { HighlightBar } from '@/ui/map/HighlightBar'
 import { coordsOfVarieties } from '@/state/colors'
 import { bboxOf, padBounds } from '@/engine/geo'
+import { flyToFeature } from '@/map/bounds'
 import { useEditor } from '@/ui/map/editorStore'
 import { useIsDesktop } from '@/ui/useIsDesktop'
 
@@ -51,6 +52,13 @@ export default function MapPage() {
     if (coord) map.easeTo({ center: coord, zoom: Math.max(map.getZoom(), 20), duration: 800 })
   }, [map, focus])
 
+  // A tag paired to a building or area: show it.
+  const featureParam = params.get('feature')
+  useEffect(() => {
+    if (!map || !featureParam) return
+    flyToFeature(map, useFarmStore.getState().state, featureParam)
+  }, [map, featureParam])
+
   // "Show on map" from the varieties page or search: light the variety up and fit to it.
   const highlightParam = params.get('highlight')
   const setHighlight = useEditor((s) => s.setHighlight)
@@ -67,7 +75,7 @@ export default function MapPage() {
 
   // First open on this device: fit to whatever has been drawn rather than a remembered view.
   useEffect(() => {
-    if (!map || focus || highlightParam || lastView) return
+    if (!map || focus || featureParam || highlightParam || lastView) return
     goHome(map, useFarmStore.getState().state)
     // Only once, when the map first appears.
     // eslint-disable-next-line react-hooks/exhaustive-deps

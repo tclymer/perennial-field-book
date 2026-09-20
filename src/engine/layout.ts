@@ -20,36 +20,67 @@ export interface PositionInfo {
   /** Null for a loose position. */
   rowId: string | null
   rowNumber: number | null
+  /**
+   * The number this position is known by, counting only positions that hold a spot. Removing
+   * one renumbers those after it, which is what the label shows. Not the key: `posKey` keeps
+   * the slot the row generated, so no record ever has to be rewritten.
+   */
   index: number
+  /** The slot the row generated, from 1 upward, including ones since taken out. */
+  slot: number
+  /** True when the row no longer keeps a spot here: thinned out, or never planted. */
+  skipped: boolean
   coord: LngLat
   label: string
   nudged: boolean
 }
 
+/**
+ * Every slot the row generates, skipped ones included and marked. Live positions are
+ * numbered one upward with no gap where a slot was taken out; a skipped slot carries its old
+ * label with a note, so a harvest recorded before it went still says where it came from.
+ */
 export function positionsForRow(
   block: Block,
   row: Row,
   nudges: Record<string, LngLat>,
 ): PositionInfo[] {
+  const skipped = new Set(row.skips ?? [])
+  let index = 0
   return positionsAlong(row.polyline, row.layout).map((coord, i) => {
-    const index = i + 1
-    const posKey = rowPosKey(row.id, index)
+    const slot = i + 1
+    const gone = skipped.has(slot)
+    if (!gone) index += 1
+    const posKey = rowPosKey(row.id, slot)
     const nudge = nudges[posKey]
     return {
       posKey,
       blockId: block.id,
       rowId: row.id,
       rowNumber: row.number,
-      index,
+      index: gone ? 0 : index,
+      slot,
+      skipped: gone,
       coord: nudge ?? coord,
-      label: treeLabel(block.code, row.number, index),
+      label: gone
+        ? `${treeLabel(block.code, row.number, slot)} ${REMOVED_SUFFIX}`
+        : treeLabel(block.code, row.number, index),
       nudged: Boolean(nudge),
     }
   })
 }
 
-/** Every position in the farm, rows first in row order, then loose positions. */
+/** Marks a label as belonging to a spot the row no longer keeps, so it cannot be confused
+ * with a live one that has since taken its number. */
+export const REMOVED_SUFFIX = '(removed)'
+
+/** Every position that holds a spot, rows first in row order, then loose positions. */
 export function allPositions(state: FarmState): PositionInfo[] {
+  return allSlots(state).filter((p) => !p.skipped)
+}
+
+/** Every slot, including the ones taken out, for resolving a key an old record still holds. */
+export function allSlots(state: FarmState): PositionInfo[] {
   const out: PositionInfo[] = []
   const rows = live.rows(state).sort((a, b) => a.number - b.number)
   for (const row of rows) {
@@ -66,6 +97,8 @@ export function allPositions(state: FarmState): PositionInfo[] {
       rowId: null,
       rowNumber: null,
       index: p.number,
+      slot: p.number,
+      skipped: false,
       coord: p.coord,
       label: treeLabel(block.code, null, p.number),
       nudged: false,
@@ -132,12 +165,20 @@ export function rowUpBearing(rows: Row[]): number {
 }
 
 /** The highest position index in a row that holds a live tree, or 0. */
+/**
+ * The highest slot in a row that still holds a tree, so shortening the row can refuse rather
+ * than drop one. A tree recorded as removed holds nothing, and neither does a slot that has
+ * been taken out of the row, so neither keeps the row long.
+ */
 export function occupiedMaxIndex(state: FarmState, rowId: string): number {
   let max = 0
   const prefix = `${rowId}:`
+  const skipped = new Set(state.rows[rowId]?.skips ?? [])
   for (const t of live.trees(state)) {
     if (!t.posKey.startsWith(prefix)) continue
+    if (t.status === 'removed') continue
     const idx = Number(t.posKey.slice(prefix.length))
+    if (skipped.has(idx)) continue
     if (idx > max) max = idx
   }
   return max

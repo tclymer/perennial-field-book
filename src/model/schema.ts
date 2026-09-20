@@ -109,12 +109,16 @@ export const rowCreate = z.object({
   defaultVarietyId: id.optional(),
   notes: text.optional(),
 })
+/** Slots the row generates but that hold nothing; see `Row.skips`. */
+export const skips = z.array(z.number().int().min(1).max(10000)).max(10000)
+
 export const rowPatch = z.object({
   id,
   number: z.number().int().min(1).max(10000).optional(),
   polyline: polyline.optional(),
   layout: rowLayout.optional(),
   defaultVarietyId: id.nullable().optional(),
+  skips: skips.nullable().optional(),
   notes: text.nullable().optional(),
 })
 
@@ -244,6 +248,29 @@ export const farmPatch = z.object({
   costItemMap: z.record(id, z.record(short.min(1), short)).optional(),
 })
 
+/**
+ * An NFC tag's serial, as hex with no separators. Seven bytes on the usual chips, but the
+ * standard allows four and ten, so the range is loose.
+ */
+export const tagId = z
+  .string()
+  .regex(/^[0-9a-f]{8,20}$/, 'A tag id is the serial number in hex, lower case.')
+
+export const tagCreate = z.object({
+  id: tagId,
+  target: target.optional(),
+  pairedAt: isoDate.optional(),
+  name: short.optional(),
+  notes: text.optional(),
+})
+export const tagPatch = z.object({
+  id: tagId,
+  target: target.nullable().optional(),
+  pairedAt: isoDate.nullable().optional(),
+  name: short.nullable().optional(),
+  notes: text.nullable().optional(),
+})
+
 const quantity = z.number().min(0).max(1_000_000)
 export const harvestCreate = z.object({
   id,
@@ -366,6 +393,10 @@ export const PAYLOADS = {
   'position.delete': byId,
   'position.restore': byId,
   'position.nudge': nudge,
+  'tag.create': tagCreate,
+  'tag.patch': tagPatch,
+  'tag.delete': byId,
+  'tag.restore': byId,
   'feature.create': featureCreate,
   'feature.patch': featurePatch,
   'feature.delete': byId,

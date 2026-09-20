@@ -8,6 +8,8 @@ const FirstRunPage = lazy(() => import('./ui/routes/FirstRunPage'))
 const BlocksPage = lazy(() => import('./ui/routes/BlocksPage'))
 const BlockGridPage = lazy(() => import('./ui/routes/BlockGridPage'))
 const TreePage = lazy(() => import('./ui/routes/TreePage'))
+const TagPage = lazy(() => import('./ui/routes/TagPage'))
+const TagsPage = lazy(() => import('./ui/routes/TagsPage'))
 const VarietiesPage = lazy(() => import('./ui/routes/VarietiesPage'))
 const SearchPage = lazy(() => import('./ui/routes/SearchPage'))
 const ImportPage = lazy(() => import('./ui/routes/ImportPage'))
@@ -169,6 +171,22 @@ export default function App() {
           element={
             <Page>
               <TreePage />
+            </Page>
+          }
+        />
+        <Route
+          path="tag/:id"
+          element={
+            <Page>
+              <TagPage />
+            </Page>
+          }
+        />
+        <Route
+          path="tags"
+          element={
+            <Page>
+              <TagsPage />
             </Page>
           }
         />

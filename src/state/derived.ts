@@ -4,7 +4,7 @@
  */
 import type { FarmState, LngLat, Tree, Variety } from '@/model/types'
 import { live } from '@/events/reduce'
-import { allPositions, type PositionInfo } from '@/engine/layout'
+import { allPositions, allSlots, type PositionInfo } from '@/engine/layout'
 import { parsePosKey } from '@/model/ids'
 
 function memo<T>(compute: (s: FarmState) => T): (s: FarmState) => T {
@@ -21,14 +21,24 @@ function memo<T>(compute: (s: FarmState) => T): (s: FarmState) => T {
 /** Every position with its coordinate and label. */
 export const positions = memo((s) => allPositions(s))
 
-/** Position lookup by key. */
+/** Every slot, taken-out ones included; the numbering skips those but records still name them. */
+export const slots = memo((s) => allSlots(s))
+
+/**
+ * Position lookup by key, including slots the row no longer keeps. A harvest or a log
+ * recorded before a tree was taken out still points at its key, and it should still be able
+ * to say where it came from.
+ */
 export const positionByKey = memo((s) => {
   const m = new Map<string, PositionInfo>()
-  for (const p of positions(s)) m.set(p.posKey, p)
+  for (const p of slots(s)) m.set(p.posKey, p)
   return m
 })
 
-/** Position lookup by label, upper-cased. */
+/**
+ * Position lookup by label, upper-cased. Taken-out slots are left out: their old number now
+ * belongs to a different tree, so a search or a link must never land on them.
+ */
 export const positionByLabel = memo((s) => {
   const m = new Map<string, PositionInfo>()
   for (const p of positions(s)) m.set(p.label.toUpperCase(), p)
