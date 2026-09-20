@@ -5,7 +5,7 @@ import { db } from '@/events/db'
 import { live } from '@/events/reduce'
 import { resetStoreForTests, useFarmStore } from '@/state/store'
 import { createBlock, createVariety } from '@/state/actions'
-import { addHarvest, deleteHarvest, setUnit, updateHarvest } from '@/state/harvestActions'
+import { addHarvest, deleteHarvest, setUnits, updateHarvest } from '@/state/harvestActions'
 import { createPerson, setCurrentPerson } from '@/state/people'
 import { sessionOf } from '@/engine/harvest'
 import { useDevice } from '@/state/device'
@@ -54,11 +54,11 @@ describe('harvest entries', () => {
   it('keeps the unit an entry was made with when the farm changes its mind', () => {
     const first = addHarvest({ crop: 'fig', quantity: 20 })
     expect(s().harvests[first]?.unit).toBe('half pint')
-    setUnit('fig', 'pint')
+    setUnits('fig', ['pint'])
     const second = addHarvest({ crop: 'fig', quantity: 10 })
     expect(s().harvests[first]?.unit).toBe('half pint')
     expect(s().harvests[second]?.unit).toBe('pint')
-    expect(s().farm?.units).toEqual({ fig: 'pint' })
+    expect(s().farm?.units).toEqual({ fig: ['pint'] })
   })
 
   it('edits and deletes an entry', () => {

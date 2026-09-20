@@ -21,10 +21,28 @@ export function cropKey(crop: string): string {
   return crop.trim().toLowerCase()
 }
 
-/** The farm's unit for a crop: its own setting, else the default, else pounds. */
-export function unitFor(farm: FarmMeta | null | undefined, crop: string): string {
+/**
+ * The units a crop is measured in, the usual one first. A crop can have more than one: figs
+ * are sold by the half pint but picked into bins that go on the scale, and apples are the
+ * same story with bushels and pounds. Reports never add different units together, so keeping
+ * both is safe.
+ *
+ * Older farms stored a single unit as a string; both shapes read the same way here, so no
+ * saved farm needs converting.
+ */
+export function unitsFor(farm: FarmMeta | null | undefined, crop: string): string[] {
   const key = cropKey(crop)
-  return farm?.units?.[key] ?? DEFAULT_UNITS[key] ?? DEFAULT_UNITS[key.replace(/s$/, '')] ?? 'lb'
+  const set = farm?.units?.[key] ?? farm?.units?.[key.replace(/s$/, '')]
+  const list = typeof set === 'string' ? [set] : (set ?? [])
+  const cleaned = list.map((u) => u.trim()).filter(Boolean)
+  if (cleaned.length) return [...new Set(cleaned)]
+  const fallback = DEFAULT_UNITS[key] ?? DEFAULT_UNITS[key.replace(/s$/, '')] ?? 'lb'
+  return [fallback]
+}
+
+/** The unit a crop is usually measured in: the first of its units. */
+export function unitFor(farm: FarmMeta | null | undefined, crop: string): string {
+  return unitsFor(farm, crop)[0]!
 }
 
 export function isCountUnit(unit: string): boolean {

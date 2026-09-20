@@ -43,7 +43,8 @@ export default function BlockGridPage() {
   const [undo, setUndo] = useState<{ events: NewEvent[]; label: string } | null>(null)
   const [varietyId, setVarietyId] = useState<string | null>(null)
   const [plantedYear, setPlantedYear] = useState(0)
-  // Spots taken out of a row are hidden by default; a thinned row would otherwise be mostly gaps.
+  // A taken-out spot always shows as a gap, so the row keeps its shape. This turns those
+  // gaps back into buttons, for putting one back.
   const [showRemoved, setShowRemoved] = useState(false)
 
   useEffect(() => {
@@ -60,18 +61,20 @@ export default function BlockGridPage() {
         .sort((a, b) => a.number - b.number),
     [state, id],
   )
-  const shown = showRemoved ? slots(state) : positions(state)
+  // Every slot, taken-out ones included, so a grid line is always the same place in the row.
+  // Compacting the table would make the trees look as though they had moved down the row.
+  const allShown = slots(state)
   const byRow = useMemo(() => {
     const m = new Map<string, ReturnType<typeof positions>>()
-    for (const p of shown) {
+    for (const p of allShown) {
       if (p.blockId !== id || !p.rowId) continue
       const list = m.get(p.rowId) ?? []
       list.push(p)
       m.set(p.rowId, list)
     }
     return m
-  }, [shown, id])
-  const loose = shown.filter((p) => p.blockId === id && !p.rowId)
+  }, [allShown, id])
+  const loose = allShown.filter((p) => p.blockId === id && !p.rowId && !p.skipped)
   const takenOut = useMemo(
     () => slots(state).filter((p) => p.blockId === id && p.skipped).length,
     [state, id],
@@ -199,7 +202,7 @@ export default function BlockGridPage() {
               checked={showRemoved}
               onChange={(e) => setShowRemoved(e.target.checked)}
             />
-            Show {takenOut} spot{takenOut === 1 ? '' : 's'} taken out
+            Select the {takenOut} spot{takenOut === 1 ? '' : 's'} taken out
           </label>
         )}
       </PageHeader>
@@ -253,11 +256,24 @@ export default function BlockGridPage() {
             <tbody>
               {Array.from({ length: maxLen }, (_, i) => (
                 <tr key={i}>
-                  <td className="text-right text-stone-400">{i + 1}</td>
+                  <td className="text-right text-stone-400" title={`Spot ${i + 1} along the row`}>
+                    {i + 1}
+                  </td>
                   {rows.map((r) => {
                     const column = (byRow.get(r.id) ?? []).map((p) => p.posKey)
                     const p = byRow.get(r.id)?.[i]
                     if (!p) return <td key={r.id} />
+                    if (p.skipped && !showRemoved)
+                      return (
+                        <td key={r.id} className="p-0">
+                          <span
+                            className="flex h-9 w-full items-center justify-center text-stone-300 dark:text-stone-700"
+                            title={`Spot ${p.slot} was taken out of this row`}
+                          >
+                            ·
+                          </span>
+                        </td>
+                      )
                     const tree = trees.get(p.posKey)
                     const v = varietyAt(state, p)
                     const plan = state.plans[planKey(planYear, p.posKey)]

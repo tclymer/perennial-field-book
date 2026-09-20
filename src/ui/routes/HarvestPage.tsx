@@ -16,7 +16,7 @@ import {
   varietiesIn,
   type Place,
 } from '@/engine/harvest'
-import { cropKey, isCountUnit, unitFor } from '@/model/harvest'
+import { cropKey, isCountUnit, unitsFor } from '@/model/harvest'
 import { useDevice } from '@/state/device'
 import { Button, Card, PageHeader, inputClass } from '@/ui/components'
 import { Chip, ChipRow } from '@/ui/harvest/Chips'
@@ -45,7 +45,11 @@ export default function HarvestPage() {
   const numberRef = useRef<HTMLInputElement>(null)
 
   const key = cropKey(crop)
-  const unit = unitFor(state.farm, key)
+  // A crop can be measured more than one way: figs by the half pint to sell, by the pound
+  // when a bin goes on the scale. The usual one is picked for you; the rest are one tap away.
+  const units = useMemo(() => unitsFor(state.farm, key), [state.farm, key])
+  const [unitChoice, setUnitChoice] = useState<string | null>(null)
+  const unit = unitChoice && units.includes(unitChoice) ? unitChoice : units[0]!
   const counts = isCountUnit(unit)
   const session = useMemo(() => sessionOf(state, date, key), [state, date, key])
   const recent = useMemo(() => recentChoices(state, key), [state, key])
@@ -77,6 +81,7 @@ export default function HarvestPage() {
     setPlace(null)
     setPerTree(false)
     setTreeLabel('')
+    setUnitChoice(null)
   }, [key])
 
   // A crop picked in only one place needs no choosing.
@@ -280,7 +285,22 @@ export default function HarvestPage() {
                   }
                 }}
               />
-              <span className="text-lg text-stone-500 dark:text-stone-400">{unit}</span>
+              {units.length === 1 ? (
+                <span className="text-lg text-stone-500 dark:text-stone-400">{unit}</span>
+              ) : (
+                <select
+                  className={`${inputClass} w-auto text-base`}
+                  value={unit}
+                  aria-label="Unit"
+                  onChange={(e) => setUnitChoice(e.target.value)}
+                >
+                  {units.map((u) => (
+                    <option key={u} value={u}>
+                      {u}
+                    </option>
+                  ))}
+                </select>
+              )}
             </span>
           </label>
           <Button

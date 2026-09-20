@@ -50,6 +50,69 @@ export const BLOCK_PALETTE = [
   '#e879f9',
 ]
 
+/**
+ * The colour a fruit already has in your head. A map is read at a glance, so persimmons
+ * being orange and figs purple does more work than any palette order can. A species not
+ * listed falls back to the palette, skipping hues these have taken.
+ */
+export const SPECIES_DEFAULTS: Record<string, string> = {
+  pawpaw: '#a3e635',
+  persimmon: '#f97316',
+  fig: '#a855f7',
+  kiwi: '#16a34a',
+  kiwiberry: '#16a34a',
+  'kiwi berry': '#16a34a',
+  hardy_kiwi: '#16a34a',
+  jujube: '#b45309',
+  apple: '#dc2626',
+  crabapple: '#e11d48',
+  pear: '#eab308',
+  'asian pear': '#facc15',
+  quince: '#facc15',
+  medlar: '#a16207',
+  peach: '#fb923c',
+  nectarine: '#fb923c',
+  apricot: '#f59e0b',
+  plum: '#7e22ce',
+  cherry: '#be123c',
+  mulberry: '#6b21a8',
+  elderberry: '#4c1d95',
+  aronia: '#334155',
+  chokeberry: '#334155',
+  currant: '#1e293b',
+  gooseberry: '#84cc16',
+  grape: '#7c3aed',
+  blueberry: '#3b82f6',
+  raspberry: '#e11d48',
+  blackberry: '#1f2937',
+  strawberry: '#ef4444',
+  goumi: '#ef4444',
+  seaberry: '#fbbf24',
+  'sea buckthorn': '#fbbf24',
+  honeyberry: '#2563eb',
+  haskap: '#2563eb',
+  hazelnut: '#92400e',
+  hazel: '#92400e',
+  chestnut: '#78350f',
+  walnut: '#57534e',
+  heartnut: '#57534e',
+  pecan: '#713f12',
+  hickory: '#713f12',
+  citrus: '#f59e0b',
+  pomegranate: '#be123c',
+  olive: '#4d7c0f',
+}
+
+/** The colour suggested for a crop by name, before anyone has chosen one. */
+export function defaultSpeciesColor(species: string): string | undefined {
+  const key = species.trim().toLowerCase()
+  return (
+    SPECIES_DEFAULTS[key] ??
+    SPECIES_DEFAULTS[key.replace(/s$/, '')] ??
+    SPECIES_DEFAULTS[key.replace(/\s+/g, '_')]
+  )
+}
+
 /** Beyond the palette in a block, or outside a highlight. */
 export const GREY = '#a8a29e'
 export const DIM = '#d6d3d1'
@@ -111,7 +174,31 @@ export const speciesColors = memo((s) => {
     ([, a], [, b]) => b.trees - a.trees || a.name.localeCompare(b.name),
   )
   const m = new Map<string, string>()
-  ordered.forEach(([key], i) => m.set(key, SPECIES_PALETTE[i % SPECIES_PALETTE.length]!))
+  const taken = new Set<string>()
+  // A colour chosen for the crop wins, then the colour the fruit already has, and only then
+  // the palette. The palette skips what is already spoken for so two crops never match.
+  const chosen = s.farm?.speciesColors ?? {}
+  for (const [key, meta] of ordered) {
+    const pick = chosen[key] ?? defaultSpeciesColor(meta.name)
+    if (pick) {
+      m.set(key, pick)
+      taken.add(pick.toLowerCase())
+    }
+  }
+  let next = 0
+  for (const [key] of ordered) {
+    if (m.has(key)) continue
+    while (
+      next < SPECIES_PALETTE.length * 2 &&
+      taken.has(SPECIES_PALETTE[next % SPECIES_PALETTE.length]!.toLowerCase())
+    ) {
+      next += 1
+    }
+    const color = SPECIES_PALETTE[next % SPECIES_PALETTE.length]!
+    m.set(key, color)
+    taken.add(color.toLowerCase())
+    next += 1
+  }
   return m
 })
 

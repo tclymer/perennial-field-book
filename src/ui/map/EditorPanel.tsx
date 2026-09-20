@@ -1365,7 +1365,11 @@ function RowEditor({ row, code }: { row: Row; code: string }) {
   const varieties = varietiesByName(state)
   const [open, setOpen] = useState(false)
   const [newVariety, setNewVariety] = useState(false)
+  // Slots are what the layout generates; trees are what is left after any were taken out.
+  // The layout controls work in slots, but the summary has to say what is actually standing.
   const count = positionCount(row.polyline, row.layout)
+  const takenOut = (row.skips ?? []).filter((n) => n <= count).length
+  const trees = count - takenOut
   const length = rowLengthFt(row)
   const setBy = (by: 'count' | 'spacing') => {
     const layout =
@@ -1390,7 +1394,7 @@ function RowEditor({ row, code }: { row: Row; code: string }) {
             {code}-{row.number}
           </span>{' '}
           <span className="text-xs text-stone-500 dark:text-stone-400">
-            {count} trees · {Math.round(length)} ft
+            {trees} {trees === 1 ? 'tree' : 'trees'} · {Math.round(length)} ft
             {row.defaultVarietyId && state.varieties[row.defaultVarietyId]
               ? ` · ${state.varieties[row.defaultVarietyId].name}`
               : ''}
@@ -1402,6 +1406,16 @@ function RowEditor({ row, code }: { row: Row; code: string }) {
       </button>
       {open && (
         <div className="mt-2 space-y-2 rounded-md bg-stone-50 dark:bg-stone-800/60 p-2">
+          {takenOut > 0 && (
+            <p className="text-xs text-stone-500 dark:text-stone-400">
+              {takenOut} {takenOut === 1 ? 'spot has' : 'spots have'} been taken out of this row, so
+              it lays out {count} but holds {trees}. The counts below are spots. Put one back on the{' '}
+              <Link to={`/blocks/${row.blockId}/grid`} className="underline decoration-dotted">
+                block grid
+              </Link>
+              .
+            </p>
+          )}
           <div className="grid grid-cols-2 gap-2">
             <Field label="Row number">
               <NumberInput

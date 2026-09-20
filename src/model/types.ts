@@ -282,7 +282,13 @@ export interface FarmMeta {
   zoom: number
   createdAt: number
   /** Unit per crop for harvest entries; absent crops use the defaults in model/harvest.ts. */
-  units?: Record<string, string>
+  /**
+   * Units per crop, the usual one first. A string is the older single-unit shape and still
+   * reads correctly; see `unitsFor`.
+   */
+  units?: Record<string, string | string[]>
+  /** Chosen colour per crop, keyed by lower-case species name; overrides the fruit default. */
+  speciesColors?: Record<string, string>
   /** Renamed buckets; absent ones use DEFAULT_BUCKET_NAMES. */
   bucketNames?: Partial<Record<Bucket, string>>
   /** Categories this farm added beyond the standard list. */

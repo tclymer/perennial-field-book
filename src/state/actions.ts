@@ -452,6 +452,16 @@ export function deleteVariety(id: string): void {
 
 // Farm
 
+/** Set or clear the colour a crop is drawn in. Clearing goes back to the fruit's own colour. */
+export function setSpeciesColor(species: string, color: string | null): void {
+  const key = species.trim().toLowerCase()
+  if (!key) return
+  const current = { ...(state().farm?.speciesColors ?? {}) }
+  if (color) current[key] = color
+  else delete current[key]
+  commit([{ type: 'farm.patch', payload: { speciesColors: current } }])
+}
+
 export function setFarmHome(center: LngLat, zoom: number): void {
   commit([{ type: 'farm.patch', payload: { center, zoom } }])
 }

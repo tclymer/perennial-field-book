@@ -1,12 +1,14 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import clsx from 'clsx'
-import { varietyColorsBySpecies } from '@/state/colors'
+import { defaultSpeciesColor, speciesColors, varietyColorsBySpecies } from '@/state/colors'
 import { useFarmStore } from '@/state/store'
 import { positionCountByVariety, treeCountByVariety, varietiesByName } from '@/state/derived'
 import { createVariety, deleteVariety, updateVariety } from '@/state/actions'
 import { Button, Card, Field, PageHeader, Pill, inputClass } from '@/ui/components'
 import type { Variety } from '@/model/types'
+import { ColorPicker } from '@/ui/ColorPicker'
+import { setSpeciesColor } from '@/state/actions'
 
 interface SpeciesGroup {
   species: string
@@ -108,9 +110,12 @@ export default function VarietiesPage() {
                 {g.trees > 0 && ` · ${g.trees} trees`}
               </span>
             </h2>
-            <Button variant="ghost" onClick={() => setAdding(g.species)}>
-              + {g.species}
-            </Button>
+            <div className="flex items-center gap-2">
+              <SpeciesColor species={g.species} />
+              <Button variant="ghost" onClick={() => setAdding(g.species)}>
+                + {g.species}
+              </Button>
+            </div>
           </div>
           {g.types.map((t) => (
             <div key={t.name} className="mb-2">
@@ -252,6 +257,47 @@ function NewVariety({
   )
 }
 
+/**
+ * The colour for a whole crop. Varieties take shades of it unless they say otherwise, so
+ * this is the one setting that changes how a whole orchard reads at a glance.
+ */
+function SpeciesColor({ species }: { species: string }) {
+  const state = useFarmStore((s) => s.state)
+  const [open, setOpen] = useState(false)
+  const key = species.trim().toLowerCase()
+  const chosen = state.farm?.speciesColors?.[key]
+  const inUse = speciesColors(state).get(key)
+  const suggested = defaultSpeciesColor(species)
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        title={`Colour for ${species} on the map`}
+        aria-label={`Colour for ${species} on the map`}
+        className="flex h-6 w-6 items-center justify-center rounded-full border border-stone-300 dark:border-stone-600"
+        style={{ background: inUse }}
+      />
+      {open && (
+        <div className="absolute right-0 z-20 mt-1 w-72 rounded-md border border-stone-200 bg-white p-2 shadow-lg dark:border-stone-700 dark:bg-stone-900">
+          <p className="mb-2 text-xs text-stone-500 dark:text-stone-400">
+            Colour for <span className="capitalize">{species}</span>. Its varieties take shades of
+            this unless one has a colour of its own.
+          </p>
+          <ColorPicker
+            value={chosen}
+            suggested={suggested}
+            onChange={(c) => setSpeciesColor(species, c)}
+            onClear={() => setSpeciesColor(species, null)}
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
 function VarietyCard({
   variety,
   count,
@@ -351,12 +397,12 @@ function VarietyCard({
               }}
             />
           </Field>
-          <Field label="Color on the map">
-            <input
-              type="color"
-              className="h-9 w-16 cursor-pointer rounded border border-stone-300 dark:border-stone-600"
-              defaultValue={color ?? '#a3e635'}
-              onChange={(e) => updateVariety(variety.id, { color: e.target.value })}
+          <Field label="Color on the map" className="sm:col-span-2">
+            <ColorPicker
+              value={variety.color}
+              suggested={color}
+              onChange={(c) => updateVariety(variety.id, { color: c })}
+              onClear={() => updateVariety(variety.id, { color: null })}
             />
           </Field>
           <Field label="Notes" className="sm:col-span-2">

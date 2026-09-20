@@ -243,7 +243,8 @@ export const farmPatch = z.object({
   zoom: z.number().min(0).max(24).optional(),
   bucketNames: z.partialRecord(bucket, short.min(1)).optional(),
   categories: z.array(short.min(1)).max(50).optional(),
-  units: z.record(short.min(1), short.min(1)).optional(),
+  units: z.record(short.min(1), z.union([short.min(1), z.array(short.min(1)).max(8)])).optional(),
+  speciesColors: z.record(short.min(1), short.min(1)).optional(),
   coverage: z.record(short.min(1), z.enum(['complete', 'partial', 'untracked'])).optional(),
   costItemMap: z.record(id, z.record(short.min(1), short)).optional(),
 })

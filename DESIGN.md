@@ -240,6 +240,21 @@ tallied beside the variety on the day's sheet, and the box goes to the cooler. F
 from two greenhouses and sold as mixed half pints, so they are recorded as a count per day
 with no variety. Hence: variety and place optional, one entry per box, a running tally.
 
+**Units are per crop and there can be several** (2026-09-20). Figs are sold by the half pint
+but go on the scale by the pound when a bin comes in; apples are bushels or pounds depending
+on where they are headed. `units` holds a list per crop, the usual one first, and the entry
+screen offers the rest in a dropdown. A farm that stored a single unit as a string still reads
+correctly, so nothing needed converting. Reports never add one unit to another, so keeping
+both is safe, and an entry keeps the unit it was made with for ever.
+
+**Colour follows the fruit** (2026-09-20). A map is read at a glance, so persimmons are
+orange, pawpaws light green, figs purple and kiwis deep green by default, which does more work
+than any palette order. A crop not in that list takes a palette colour, skipping any hue the
+named ones have already used so no two crops match. A farm can overrule any of it, and a
+variety can still carry a colour of its own that beats both. Colour is chosen from swatches
+with the full picker beside them, because the useful answer is almost always one of a dozen
+colours that read clearly against satellite imagery.
+
 A harvest session is a date plus a crop; entries are added rapidly one box at a time. Yield
 by variety, by block, by year, and variety-across-blocks (Shenandoah in PP1 versus PP2) are all
 group-bys over this table. Rows roll up to variety automatically because trees carry variety.
@@ -277,6 +292,11 @@ Two consequences follow:
 Taking a spot out also records the tree as removed. Putting it back returns it to its own
 place in the row with its old number, not to the end. Only a tree wanted somewhere that was
 never a slot needs the row's count raised, and that one does land at the end.
+
+**Counts and the grid.** A row's summary counts the trees standing, not the slots its layout
+makes, and the block grid keeps a line per slot with a gap where one was taken out. Compacting
+the grid made the trees look as though they had moved down the row, which is exactly the thing
+the numbering is supposed to settle.
 
 ### 3.9 NFC tags (2026-09-20)
 

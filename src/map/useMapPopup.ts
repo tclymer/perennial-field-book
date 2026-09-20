@@ -25,17 +25,52 @@ export function useMapPopup(map: MlMap | null): void {
       if (!f) return
       const p = f.properties as Record<string, unknown>
       const label = String(p.label ?? '')
+      const posKey = String(p.posKey ?? '')
       const line2 = p.variety ? esc(p.variety) : p.empty ? 'Empty position' : 'Variety unknown'
       const line3 = p.status ? `<span class="fb-status">${esc(p.status)}</span>` : ''
       const { Popup: PopupCtor } = await import('maplibre-gl')
       if (disposed) return
       popup?.remove()
-      popup = new PopupCtor({ closeButton: false, offset: 12, maxWidth: '240px' })
+
+      // A DOM node rather than a string, because taking a spot out is an action and needs a
+      // real button. The undo line replaces the buttons in place, so it is one tap away.
+      const el = document.createElement('div')
+      el.className = 'fb-popup'
+      el.innerHTML =
+        `<strong>${esc(label)}</strong><div>${line2} ${line3}</div>` +
+        `<a href="#/t/${encodeURIComponent(label)}">Open tree page →</a>`
+
+      if (posKey.includes(':')) {
+        const actions = document.createElement('div')
+        actions.className = 'fb-popup-actions'
+        const remove = document.createElement('button')
+        remove.type = 'button'
+        remove.textContent = 'Take out of the row'
+        remove.title =
+          'Record this tree as removed and stop its spot counting, so the rest of the row moves up a number'
+        remove.addEventListener('click', async () => {
+          const { removePositions } = await import('@/state/actions')
+          const { commitEvents } = await import('@/state/actions')
+          const inverse = removePositions([posKey])
+          actions.replaceChildren()
+          const said = document.createElement('span')
+          said.textContent = `${label} taken out.`
+          const undo = document.createElement('button')
+          undo.type = 'button'
+          undo.textContent = 'Undo'
+          undo.addEventListener('click', () => {
+            commitEvents(inverse)
+            popup?.remove()
+          })
+          actions.append(said, undo)
+        })
+        actions.append(remove)
+        el.append(actions)
+      }
+
+      popup = new PopupCtor({ closeButton: true, offset: 12, maxWidth: '260px' })
         .setLngLat(e.lngLat)
-        .setHTML(
-          `<div class="fb-popup"><strong>${esc(label)}</strong><div>${line2} ${line3}</div>` +
-            `<a href="#/t/${encodeURIComponent(label)}">Open tree page →</a></div>`,
-        )
+        .setDOMContent(el)
         .addTo(map)
     }
 

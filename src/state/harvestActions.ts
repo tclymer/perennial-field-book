@@ -73,8 +73,14 @@ export function deleteHarvest(id: string): void {
   commit([{ type: 'harvest.delete', payload: { id } }])
 }
 
-/** The unit this farm measures a crop in from now on; entries keep the unit they were made with. */
-export function setUnit(crop: string, unit: string): void {
-  const units = { ...(state().farm?.units ?? {}), [cropKey(crop)]: unit.trim() }
+/**
+ * Set every unit a crop can be measured in, the usual one first. Entries already recorded
+ * keep the unit they were entered with, and reports never add different units together, so
+ * this is safe to change mid-season.
+ */
+export function setUnits(crop: string, list: string[]): void {
+  const cleaned = [...new Set(list.map((u) => u.trim()).filter(Boolean))]
+  if (cleaned.length === 0) return
+  const units = { ...(state().farm?.units ?? {}), [cropKey(crop)]: cleaned }
   commit([{ type: 'farm.patch', payload: { units } }])
 }
