@@ -3,12 +3,14 @@ import { materialize } from '@/events/reduce'
 import type { AnyEvent, NewEvent } from '@/events/types'
 import {
   allVarietiesOf,
+  boxLabel,
   cropsOf,
   harvestsToCsv,
   placesFor,
   recentChoices,
   sessionOf,
   sessions,
+  shortDate,
   treeShares,
   treeYieldByYear,
   varietiesIn,
@@ -237,6 +239,17 @@ describe('harvest', () => {
       ['2026', 12, [2]],
       ['2025', 3, [2]],
     ])
+  })
+
+  it('writes the line that goes on the box', () => {
+    expect(boxLabel(state, state.harvests.h1!)).toBe('PP1 · Shenandoah · 11.5 lb · 9/10/26')
+    // A box with no variety, picked in the greenhouse.
+    expect(boxLabel(state, state.harvests.h5!)).toBe('Blue House · Mixed · 30 half pint · 9/12/26')
+    // A box from one tree names the tree.
+    expect(boxLabel(state, state.harvests.h4!)).toBe('PP1-1-1 · Mixed · 2 lb · 9/12/26')
+    // Picked anywhere: no place on the label.
+    expect(boxLabel(state, state.harvests.h6!)).toBe('Shenandoah · 6 lb · 9/20/25')
+    expect(shortDate('2026-01-05')).toBe('1/5/26')
   })
 
   it('remembers recent choices and writes CSV', () => {

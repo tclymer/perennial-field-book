@@ -98,6 +98,39 @@ export function sessions(state: FarmState): Session[] {
     .map(({ date, crop }) => sessionOf(state, date, crop))
 }
 
+/** Quantities read better without trailing zeros; counts are whole anyway. */
+export function formatQuantity(n: number): string {
+  return Number(n.toFixed(2)).toString()
+}
+
+/** 2026-09-19 as 9/19/26, the way a date is written on a box. */
+export function shortDate(iso: string): string {
+  const [y, m, d] = iso.split('-')
+  if (!y || !m || !d) return iso
+  return `${Number(m)}/${Number(d)}/${y.slice(2)}`
+}
+
+/**
+ * What to write on the box: where it came from, what it is, what it weighs, and when.
+ * The block code alone, since that is what goes on a box in the field.
+ */
+export function boxLabel(state: FarmState, h: Harvest): string {
+  const parts: string[] = []
+  if (h.posKey) {
+    parts.push(positionByKey(state).get(h.posKey)?.label ?? h.posKey)
+  } else if (h.blockId) {
+    const b = state.blocks[h.blockId]
+    if (b) parts.push(b.code)
+  } else if (h.featureId) {
+    const f = state.features[h.featureId]
+    if (f) parts.push(f.name)
+  }
+  parts.push(h.varietyId ? (state.varieties[h.varietyId]?.name ?? 'unknown') : 'Mixed')
+  parts.push(`${formatQuantity(h.quantity)} ${h.unit}`)
+  parts.push(shortDate(h.date))
+  return parts.join(' · ')
+}
+
 export function placeLabel(state: FarmState, h: Pick<Harvest, 'blockId' | 'featureId'>): string {
   if (h.blockId) {
     const b = state.blocks[h.blockId]

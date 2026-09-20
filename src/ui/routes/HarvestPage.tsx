@@ -7,7 +7,9 @@ import { today } from '@/state/actions'
 import { addHarvest, deleteHarvest } from '@/state/harvestActions'
 import {
   allVarietiesOf,
+  boxLabel,
   cropsOf,
+  formatQuantity,
   placesFor,
   recentChoices,
   sessionOf,
@@ -126,10 +128,10 @@ export default function HarvestPage() {
       ...(place?.kind === 'feature' ? { featureId: place.id } : {}),
       ...(posKey ? { posKey } : {}),
     })
-    const entry = useFarmStore.getState().state.harvests[id]
-    const name = varietyId ? (state.varieties[varietyId]?.name ?? '') : 'Mixed'
-    setLast({ id, text: `#${entry?.box ?? '?'} · ${quantity} ${unit} · ${name}` })
-    setToast({ message: `Box #${entry?.box ?? ''} recorded.`, id })
+    const after = useFarmStore.getState().state
+    const entry = after.harvests[id]
+    setLast({ id, text: entry ? boxLabel(after, entry) : '' })
+    setToast({ message: 'Box recorded.', id })
     setAmount('')
     numberRef.current?.focus()
   }
@@ -287,7 +289,7 @@ export default function HarvestPage() {
             disabled={!canAdd}
             onClick={add}
           >
-            Add box #{session.nextBox}
+            Add box
           </Button>
         </div>
 
@@ -308,7 +310,7 @@ export default function HarvestPage() {
           </h2>
           <span className="text-sm text-stone-500 dark:text-stone-400">
             {session.totals
-              .map((t) => `${round(t.quantity)} ${t.unit} in ${t.boxes} boxes`)
+              .map((t) => `${formatQuantity(t.quantity)} ${t.unit} in ${t.boxes} boxes`)
               .join(', ') || 'nothing yet'}
           </span>
         </div>
@@ -325,7 +327,7 @@ export default function HarvestPage() {
                     {line.boxes} {line.boxes === 1 ? 'box' : 'boxes'}
                   </td>
                   <td className="py-1 text-right tabular-nums">
-                    {round(line.quantity)} {line.unit}
+                    {formatQuantity(line.quantity)} {line.unit}
                   </td>
                 </tr>
               ))}
@@ -344,7 +346,7 @@ export default function HarvestPage() {
                   #{e.box}
                 </span>
                 <span className="tabular-nums">
-                  {round(e.quantity)} {e.unit}
+                  {formatQuantity(e.quantity)} {e.unit}
                 </span>
                 <span>{e.varietyId ? state.varieties[e.varietyId]?.name : 'Mixed'}</span>
                 {e.posKey && (
@@ -375,9 +377,4 @@ export default function HarvestPage() {
       )}
     </div>
   )
-}
-
-/** Weights read better without trailing zeros; counts are whole anyway. */
-export function round(n: number): string {
-  return Number(n.toFixed(2)).toString()
 }

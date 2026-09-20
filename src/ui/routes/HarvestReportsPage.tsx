@@ -6,6 +6,7 @@ import { positions } from '@/state/derived'
 import { deleteHarvest, updateHarvest } from '@/state/harvestActions'
 import {
   cropsOf,
+  formatQuantity,
   harvestsToCsv,
   placeLabel,
   sessions,
@@ -15,7 +16,6 @@ import {
 import { cropKey } from '@/model/harvest'
 import { downloadText, fileSlug } from '@/events/bundle'
 import { Button, Card, Field, PageHeader, inputClass } from '@/ui/components'
-import { round } from './HarvestPage'
 
 /** What came in, by variety, place, and year, and the sessions behind it. */
 export default function HarvestReportsPage() {
@@ -127,8 +127,8 @@ export default function HarvestReportsPage() {
                       <span className="tabular-nums">{s.date}</span>
                       <span className="capitalize">{s.crop}</span>
                       <span className="text-stone-500 dark:text-stone-400">
-                        {s.totals.map((t) => `${round(t.quantity)} ${t.unit}`).join(', ')} in{' '}
-                        {s.entries.length} {s.entries.length === 1 ? 'box' : 'boxes'}
+                        {s.totals.map((t) => `${formatQuantity(t.quantity)} ${t.unit}`).join(', ')}{' '}
+                        in {s.entries.length} {s.entries.length === 1 ? 'box' : 'boxes'}
                       </span>
                       <span className="ml-auto text-stone-400">{open === id ? '▾' : '▸'}</span>
                     </button>
@@ -203,7 +203,7 @@ function Rows({ rows }: { rows: YieldRow[] }) {
               {r.boxes}
             </td>
             <td className="py-1 text-right tabular-nums">
-              {round(r.quantity)} {r.unit}
+              {formatQuantity(r.quantity)} {r.unit}
             </td>
           </tr>
         ))}

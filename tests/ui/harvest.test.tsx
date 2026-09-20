@@ -8,6 +8,8 @@ import { db } from '@/events/db'
 import { live } from '@/events/reduce'
 import { resetStoreForTests, useFarmStore } from '@/state/store'
 import { createBlock, createVariety } from '@/state/actions'
+import { shortDate } from '@/engine/harvest'
+import { today } from '@/state/actions'
 import { installBrowserStubs } from './fixtures'
 
 beforeEach(async () => {
@@ -31,6 +33,7 @@ describe('the weighing station', () => {
       </HashRouter>,
     )
     const box = await screen.findByLabelText('Weight', {}, { timeout: 4000 })
+    fireEvent.click(await screen.findByRole('button', { name: 'PP1 Pawpaws' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Shenandoah' }))
 
     for (const weight of ['11.5', '8.5']) {
@@ -45,12 +48,14 @@ describe('the weighing station', () => {
       [1, 11.5, 'lb'],
       [2, 8.5, 'lb'],
     ])
-    expect(harvests.every((h) => h.varietyId)).toBe(true)
+    expect(harvests.every((h) => h.varietyId && h.blockId)).toBe(true)
     // The tally adds them up, and the box number is shown to write on the box.
     expect(await screen.findByText('20 lb in 2 boxes')).toBeTruthy()
-    expect(screen.getByText(/#2 · 8.5 lb · Shenandoah/)).toBeTruthy()
+    // The line to copy onto the box: where, what, how much, when.
+    const stamp = `PP1 · Shenandoah · 8.5 lb · ${shortDate(today())}`
+    expect(screen.getByText(stamp)).toBeTruthy()
     // The number box is cleared and ready for the next one.
     expect((box as HTMLInputElement).value).toBe('')
-    expect(screen.getByRole('button', { name: 'Add box #3' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Add box' })).toBeTruthy()
   })
 })

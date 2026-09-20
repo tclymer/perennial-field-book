@@ -2,10 +2,9 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import clsx from 'clsx'
 import { useFarmStore } from '@/state/store'
-import { treeYieldByYear } from '@/engine/harvest'
+import { formatQuantity, treeYieldByYear } from '@/engine/harvest'
 import { addHarvest } from '@/state/harvestActions'
 import { unitFor } from '@/model/harvest'
-import { round } from '@/ui/routes/HarvestPage'
 import { Button, inputClass } from '@/ui/components'
 
 /**
@@ -45,10 +44,10 @@ export function TreeHarvest({
             <li key={y.year} className="flex flex-wrap items-baseline gap-2 py-1.5">
               <span className="tabular-nums">{y.year}</span>
               <span className="font-medium tabular-nums">
-                {round(y.quantity)} {y.unit}
+                {formatQuantity(y.quantity)} {y.unit}
               </span>
               <span className="text-xs text-stone-500 dark:text-stone-400">
-                {y.direct > 0 && `${round(y.direct)} ${y.unit} logged on this tree`}
+                {y.direct > 0 && `${formatQuantity(y.direct)} ${y.unit} logged on this tree`}
                 {y.direct > 0 && y.sharedAmong.length > 0 && '; '}
                 {y.sharedAmong.length > 0 &&
                   `the rest is its share of boxes split across ${y.sharedAmong.join(' and ')} trees`}
