@@ -98,11 +98,44 @@ export function useMapPopup(map: MlMap | null): void {
       hideHover()
     }
 
+    // A block answers the day's question: what is waiting here, and what has come off it.
+    const onBlock = async (e: MapMouseEvent & { features?: GeoJSON.Feature[] }) => {
+      if (!idle()) return
+      const f = e.features?.[0]
+      if (!f) return
+      const p = f.properties as Record<string, unknown>
+      const id = String(p.id ?? '')
+      const tasks = Number(p.tasks ?? 0)
+      const due = Number(p.due ?? 0)
+      const harvest = String(p.harvest ?? '')
+      const lines: string[] = []
+      if (tasks > 0) {
+        lines.push(
+          `${tasks} open ${tasks === 1 ? 'task' : 'tasks'}${due > 0 ? `, ${due} due` : ''}`,
+        )
+      }
+      if (harvest) lines.push(`${esc(harvest)} this year`)
+      const { Popup: PopupCtor } = await import('maplibre-gl')
+      if (disposed) return
+      popup?.remove()
+      popup = new PopupCtor({ closeButton: false, offset: 12, maxWidth: '260px' })
+        .setLngLat(e.lngLat)
+        .setHTML(
+          `<div class="fb-popup"><strong>${esc(p.code)}</strong> ${esc(p.name)}` +
+            (lines.length ? `<div>${lines.join('<br>')}</div>` : '') +
+            `<a href="#/blocks/${encodeURIComponent(id)}/grid">Open the block grid →</a>` +
+            (tasks > 0 ? `<br><a href="#/tasks">See the tasks →</a>` : '') +
+            `</div>`,
+        )
+        .addTo(map)
+    }
+
     map.on('mousemove', 'position-dot', onHover)
     map.on('click', 'position-dot', hideHover)
     map.on('click', 'position-dot', onPosition)
     map.on('click', 'feature-point', onFeature)
     map.on('click', 'feature-fill', onFeature)
+    map.on('click', 'block-fill', onBlock)
     map.on('mouseenter', 'position-dot', enter)
     map.on('mouseleave', 'position-dot', leave)
     map.on('mouseenter', 'feature-point', enter)
@@ -116,6 +149,7 @@ export function useMapPopup(map: MlMap | null): void {
       map.off('click', 'position-dot', onPosition)
       map.off('click', 'feature-point', onFeature)
       map.off('click', 'feature-fill', onFeature)
+      map.off('click', 'block-fill', onBlock)
       map.off('mouseenter', 'position-dot', enter)
       map.off('mouseleave', 'position-dot', leave)
       map.off('mouseenter', 'feature-point', enter)

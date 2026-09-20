@@ -38,7 +38,7 @@ and work logs) built; harvest and the planner comparison follow. The product des
   labor line's hours on its own basis, with the logs behind every number. Tick the
   corrections you believe and download the backup to restore. Seasonal tasks can be seeded
   from the plan's own calendar.
-- **Search** across trees, rows, blocks, varieties, places, and tasks.
+- **Search** from the header, across trees, rows, blocks, varieties, places, and tasks.
 - **Imagery.** Google satellite through the Map Tiles API when a key is present, held to the
   free tier by a daily quota, with automatic fallback to free public imagery (Pennsylvania's
   6-inch PEMA orthoimagery, Esri World Imagery, USGS, or any XYZ URL). The free imagery over

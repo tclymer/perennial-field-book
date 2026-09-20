@@ -12,8 +12,9 @@ import {
   reopenTask,
   undoCompletion,
   undoEvents,
+  undoLog,
 } from '@/state/taskActions'
-import { bucketName, sortRecurring } from '@/engine/tasks'
+import { addDays, bucketName, sortRecurring, thisWeek } from '@/engine/tasks'
 import type { NewEvent } from '@/events/types'
 import { BUCKETS, BUCKET_HINTS, type Bucket, type Task } from '@/model/types'
 import { Button, Card, PageHeader, inputClass } from '@/ui/components'
@@ -23,6 +24,7 @@ import { QuickAdd } from '@/ui/tasks/QuickAdd'
 import { TaskRow } from '@/ui/tasks/TaskRow'
 import { Toast } from '@/ui/tasks/Toast'
 import { useTaskDrag } from '@/ui/tasks/useTaskDrag'
+import WeekPage from './WeekPage'
 
 /** The lists that carry the week go across the top; the slower two sit below them. */
 const TOP_ROW: Bucket[] = ['now', 'soon', 'recurring']
@@ -30,6 +32,13 @@ const SECOND_ROW: Bucket[] = ['later', 'project']
 
 /** Buckets as columns on a desktop; one bucket at a time on a phone. */
 export default function TasksPage() {
+  const isDesktop = useIsDesktop()
+  // The phone's job is this week, not the whole board.
+  if (!isDesktop) return <WeekPage />
+  return <TasksBoard />
+}
+
+function TasksBoard() {
   const state = useFarmStore((s) => s.state)
   const isDesktop = useIsDesktop()
   const [params, setParams] = useSearchParams()
@@ -120,6 +129,8 @@ export default function TasksPage() {
           <Column key={bucket} bucket={bucket} today={date} onCheck={setSheet} onDelete={remove} />
         ))
       )}
+
+      <SeasonAndDone today={date} onCheck={setSheet} />
 
       {sheet && (
         <DoneSheet
@@ -291,6 +302,80 @@ function RowActions({ task }: { task: Task }) {
           </option>
         ))}
       </select>
+    </div>
+  )
+}
+
+/**
+ * What the week view shows that a board cannot: items whose season has just opened, and the
+ * last few things checked off, with a way to take one back.
+ */
+function SeasonAndDone({ today: date, onCheck }: { today: string; onCheck: (task: Task) => void }) {
+  const state = useFarmStore((s) => s.state)
+  const week = thisWeek(state, date)
+  const since = addDays(date, -6)
+  const lately = live
+    .logs(state)
+    .filter((l) => l.date >= since)
+    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : b.createdAt - a.createdAt))
+    .slice(0, 8)
+  if (week.opened.length === 0 && lately.length === 0) return null
+
+  return (
+    <div className="grid gap-3 md:grid-cols-2">
+      {week.opened.length > 0 && (
+        <Card>
+          <h2 className="font-semibold">The season has opened</h2>
+          <ul className="mt-1 divide-y divide-stone-100 dark:divide-stone-800">
+            {week.opened.map((t) => (
+              <li key={t.id} className="flex items-center gap-2">
+                <div className="min-w-0 flex-1">
+                  <ul>
+                    <TaskRow task={t} today={date} onCheck={onCheck} compact />
+                  </ul>
+                </div>
+                <Button onClick={() => moveTask(t.id, 'now')}>
+                  → {bucketName(state.farm, 'now')}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+      {lately.length > 0 && (
+        <Card>
+          <div className="flex items-baseline justify-between gap-2">
+            <h2 className="font-semibold">Done lately</h2>
+            <Link to="/records" className="text-xs underline decoration-dotted">
+              All logs
+            </Link>
+          </div>
+          <ul className="mt-1 divide-y divide-stone-100 text-sm dark:divide-stone-800">
+            {lately.map((l) => {
+              const task = l.taskId ? state.tasks[l.taskId] : undefined
+              return (
+                <li key={l.id} className="flex flex-wrap items-baseline gap-x-2 py-1.5">
+                  <span className="tabular-nums text-stone-500 dark:text-stone-400">
+                    {l.date === date ? 'today' : l.date.slice(5)}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    {task ? (
+                      <Link to={`/tasks/${task.id}`} className="underline decoration-dotted">
+                        {task.title}
+                      </Link>
+                    ) : (
+                      (l.notes ?? 'Work logged')
+                    )}
+                  </span>
+                  <Button variant="ghost" onClick={() => undoLog(l.id)}>
+                    Undo
+                  </Button>
+                </li>
+              )
+            })}
+          </ul>
+        </Card>
+      )}
     </div>
   )
 }

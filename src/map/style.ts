@@ -52,7 +52,10 @@ export function overlayLayers(): LayerSpecification[] {
       id: 'block-fill',
       type: 'fill',
       source: 'blocks',
-      paint: { 'fill-color': ['coalesce', ['get', 'color'], '#a3e635'], 'fill-opacity': 0.1 },
+      paint: {
+        'fill-color': ['coalesce', ['get', 'color'], '#a3e635'],
+        'fill-opacity': ['case', ['==', ['get', 'heat'], 1], 0.45, 0.1],
+      },
     },
     {
       id: 'block-outline',

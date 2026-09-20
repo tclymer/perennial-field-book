@@ -147,7 +147,7 @@ export function useMapLayers(
       hideBlocks: hidden.positionsOfBlocks,
     })
     return {
-      blocks: blocksFC(state, hidden.blocks),
+      blocks: blocksFC(state, hidden.blocks, colorBy),
       rows: rowsFC(state, hidden.rows),
       features: featuresFC(state, hidden.features),
       positions,

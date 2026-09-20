@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import type { BlockStatus, CompassSide, FeatureKind, FillParams, Row } from '@/model/types'
 import { live } from '@/events/reduce'
 import { useFarmStore } from '@/state/store'
+import { flyToBlock } from '@/map/bounds'
 import { speciesColors } from '@/state/colors'
 import { blockSpecies, varietiesByName } from '@/state/derived'
 import {
@@ -88,6 +89,7 @@ export function EditorPanel() {
 function BlockList() {
   const state = useFarmStore((s) => s.state)
   const select = useEditor((s) => s.selectBlock)
+  const map = useEditor((s) => s.map)
   const blocks = live.blocks(state).sort((a, b) => a.code.localeCompare(b.code))
   const [adding, setAdding] = useState(false)
   return (
@@ -102,10 +104,14 @@ function BlockList() {
         {blocks.map((b) => {
           const rows = live.rows(state).filter((r) => r.blockId === b.id)
           return (
-            <li key={b.id}>
+            <li key={b.id} className="group/block flex items-center gap-2">
               <button
-                className="flex w-full items-center justify-between py-2 text-left hover:text-lime-700 dark:hover:text-lime-400"
-                onClick={() => select(b.id)}
+                className="flex flex-1 items-center justify-between py-2 text-left hover:text-lime-700 dark:hover:text-lime-400"
+                title="Show this block on the map"
+                onClick={() => {
+                  select(b.id)
+                  if (map) flyToBlock(map, state, b.id)
+                }}
               >
                 <span>
                   <span className="font-medium">{b.code}</span> {b.name}
@@ -114,6 +120,13 @@ function BlockList() {
                   {rows.length} {rows.length === 1 ? 'row' : 'rows'}
                 </span>
               </button>
+              <Link
+                to={`/blocks/${b.id}/grid`}
+                className="shrink-0 text-xs text-stone-500 underline decoration-dotted opacity-0 group-hover/block:opacity-100 dark:text-stone-400"
+                title="Open the block grid"
+              >
+                grid
+              </Link>
             </li>
           )
         })}
@@ -1509,9 +1522,18 @@ function ViewSection() {
             <option value="variety">variety (within each block)</option>
             <option value="status">status</option>
             <option value="plan">graft plan</option>
+            <option value="tasks">open tasks, by block</option>
+            <option value="yield">this year's harvest, by block</option>
           </select>
         </Field>
         {colorBy === 'species' && <SpeciesLegend />}
+        {(colorBy === 'tasks' || colorBy === 'yield') && (
+          <p className="text-xs text-stone-500 dark:text-stone-400">
+            {colorBy === 'tasks'
+              ? 'Blocks are shaded by how many open tasks point at them. Tap one to see them.'
+              : 'Blocks are shaded by what has come off them this year.'}
+          </p>
+        )}
         {colorBy === 'variety' && (
           <p className="text-xs text-stone-500 dark:text-stone-400">
             Colors are handed out per block, so the same color can mean different varieties in

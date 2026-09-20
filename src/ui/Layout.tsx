@@ -6,6 +6,7 @@ import { useFarmStore } from '@/state/store'
 import { reconcilePlantedBlocks } from '@/state/actions'
 import { installSyncTriggers, refreshSyncStatus, syncNow } from '@/sync/engine'
 import { SyncDot } from './SyncDot'
+import { HeaderSearch } from './HeaderSearch'
 import { ErrorBoundary } from './ErrorBoundary'
 import { UpdateToast } from './UpdateToast'
 import { nextTheme, themeLabel, useTheme } from './theme'
@@ -24,24 +25,23 @@ const tabClass = ({ isActive }: { isActive: boolean }) =>
     isActive ? 'text-lime-700 dark:text-lime-400' : 'text-stone-500 dark:text-stone-400',
   )
 
+/**
+ * Six places, not ten. Search lives in the header, blocks live on the map, and everything
+ * that looks backwards at a season lives under Records.
+ */
 const DESKTOP_NAV: [string, string][] = [
   ['/', 'Map'],
-  ['/week', 'Week'],
   ['/tasks', 'Tasks'],
   ['/harvest', 'Harvest'],
-  ['/logs', 'Logs'],
-  ['/planner', 'Planner'],
-  ['/blocks', 'Blocks'],
+  ['/records', 'Records'],
   ['/varieties', 'Varieties'],
-  ['/search', 'Search'],
   ['/settings', 'Settings'],
 ]
 
 const PHONE_TABS: [string, string, string][] = [
-  ['/week', 'Week', '☑'],
+  ['/tasks', 'Week', '☑'],
   ['/harvest', 'Harvest', '⚖'],
   ['/', 'Map', '◎'],
-  ['/search', 'Search', '⌕'],
   ['/settings', 'Settings', '⚙'],
 ]
 
@@ -98,7 +98,7 @@ export default function Layout() {
       >
         Skip to content
       </button>
-      <header className="z-20 border-b border-stone-200 dark:border-stone-700 bg-white/95 dark:bg-stone-900/95 backdrop-blur print:hidden">
+      <header className="relative z-20 border-b border-stone-200 dark:border-stone-700 bg-white/95 dark:bg-stone-900/95 backdrop-blur print:hidden">
         <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-2">
           <NavLink
             to="/"
@@ -115,6 +115,7 @@ export default function Layout() {
             ))}
           </nav>
           <div className="ml-auto flex items-center gap-2">
+            <HeaderSearch />
             <SyncDot />
             <button
               onClick={() => setTheme(nextTheme[theme])}
@@ -181,6 +182,7 @@ function pageTitle(pathname: string): string {
   if (pathname === '/' || pathname === '') return 'Map'
   if (pathname.startsWith('/start')) return 'Set up your farm'
   if (pathname.startsWith('/week')) return 'This week'
+  if (pathname.startsWith('/records')) return 'Records'
   if (pathname.startsWith('/tasks/')) return 'Task'
   if (pathname.startsWith('/tasks')) return 'Tasks'
   if (pathname.startsWith('/harvest/reports')) return 'Harvest reports'

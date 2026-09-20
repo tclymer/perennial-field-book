@@ -3,9 +3,10 @@ import type { Feature, FeatureCollection, LineString, Point, Polygon } from 'geo
 import type { FarmState, Ring, TreeStatus } from '@/model/types'
 import { live } from '@/events/reduce'
 import { currentTreeByPos, positions, varietyAt, varietyColors } from '@/state/derived'
+import { blockActivity, heat } from './activity'
 import { DIM, blockVarietyColors, varietyColorsBySpecies } from '@/state/colors'
 
-export type ColorBy = 'species' | 'variety' | 'status' | 'plan'
+export type ColorBy = 'species' | 'variety' | 'status' | 'plan' | 'tasks' | 'yield'
 
 export const STATUS_COLOR: Record<TreeStatus, string> = {
   alive: '#a3e635',
@@ -31,14 +32,44 @@ const fc = <G extends Point | LineString | Polygon>(
   features,
 })
 
-export function blocksFC(state: FarmState, hide: ReadonlySet<string> = new Set()) {
+export function blocksFC(
+  state: FarmState,
+  hide: ReadonlySet<string> = new Set(),
+  shade?: ColorBy,
+  today = new Date().toISOString().slice(0, 10),
+) {
+  const activity = shade === 'tasks' || shade === 'yield' ? blockActivity(state, today) : null
+  const max = activity
+    ? Math.max(
+        1,
+        ...[...activity.values()].map((a) =>
+          shade === 'tasks' ? a.tasks.length : (a.harvest[0]?.quantity ?? 0),
+        ),
+      )
+    : 1
   const out: Feature<Polygon>[] = []
   for (const b of live.blocks(state)) {
     if (hide.has(b.id) || !b.outline || b.outline.length < 3) continue
+    const a = activity?.get(b.id)
+    const value = shade === 'tasks' ? (a?.tasks.length ?? 0) : (a?.harvest[0]?.quantity ?? 0)
+    const color = activity
+      ? heat(value, max, shade === 'tasks' ? 'amber' : 'lime')
+      : (b.color ?? '#a3e635')
     out.push({
       type: 'Feature',
       id: b.id,
-      properties: { id: b.id, name: b.name, code: b.code, color: b.color ?? '#a3e635' },
+      properties: {
+        id: b.id,
+        name: b.name,
+        code: b.code,
+        color,
+        // A shaded map reads better with a solid wash than with the usual hint of colour.
+        heat: activity ? 1 : 0,
+        tasks: a?.tasks.length ?? 0,
+        due: a?.due ?? 0,
+        harvest:
+          a?.harvest.map((h) => `${Number(h.quantity.toFixed(2))} ${h.unit}`).join(', ') ?? '',
+      },
       geometry: { type: 'Polygon', coordinates: [closedRing(b.outline)] },
     })
   }
