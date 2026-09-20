@@ -123,11 +123,17 @@ is a place that grows something you harvest, so hours logged against it are allo
 crop and can be compared with the planner (§3.4, §6). A feature is a landmark with no crop of
 its own: barns, the compost area, fence lines, the back property. Hours against a feature go to
 overhead, which is the right answer for cleaning out a barn and the wrong answer for pruning.
-A place can be both, and the two greenhouses are: the greenhouse is a feature, drawn as a
-polygon, and the figs inside it are a block. `placesFor()` then offers the greenhouse as a
-harvest place because its polygon contains the crop's trees, so picking can be recorded where
-it happened while the hours still reach the figs. When in doubt: if trees live in it and you
-pick from it, make it a block.
+A place can be both, and the two greenhouses are: the greenhouse is a feature if you want the
+structure on the map, and the figs inside it are a block either way. When in doubt: if trees
+live in it and you pick from it, make it a block.
+
+Only a block carries a harvest into the planner comparison, because `harvestedIn()` matches on
+the harvest's block or its tree. A harvest filed against a feature still appears in the harvest
+reports and the CSV, but no planting claims it. So the Harvest page offers a greenhouse as a
+place only when the crop has no block anywhere (2026-09-20). Offering it alongside its own
+block gave one picking two chips, and tapping the wrong one lost the weight quietly. Geometry
+decides nothing here: outlines are a convenience for narrowing variety chips, never an
+allocation rule.
 
 ### 3.2 Trees, varieties, and the graft plan
 

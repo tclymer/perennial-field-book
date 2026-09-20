@@ -292,12 +292,19 @@ export interface Place {
   label: string
 }
 
-/** Where a crop is picked: its blocks, and greenhouses that hold trees of it (or any greenhouse). */
+/**
+ * Where a crop is picked. Blocks, and nothing else while the crop has one.
+ *
+ * A greenhouse can hold a crop, but the trees in it already belong to a block, and only a
+ * block carries a harvest into the planner comparison. Offering the greenhouse alongside its
+ * own block gave the same picking two chips, one of which filed the weight where no report
+ * would find it. So a greenhouse is offered only as a last resort: a crop with no block
+ * anywhere still needs somewhere to put a number.
+ */
 export function placesFor(state: FarmState, crop: string): Place[] {
   const key = cropKey(crop)
   const out: Place[] = []
-  const blocks = live.blocks(state)
-  for (const b of blocks) {
+  for (const b of live.blocks(state)) {
     const species = b.species ? cropKey(b.species) : undefined
     const has =
       species === key ||
@@ -306,20 +313,9 @@ export function placesFor(state: FarmState, crop: string): Place[] {
       )
     if (has) out.push({ kind: 'block', id: b.id, label: `${b.code} ${b.name}` })
   }
-  const greenhouses = live.features(state).filter((f) => f.kind === 'greenhouse')
-  const withCrop = greenhouses.filter(
-    (f) =>
-      f.geometry.type === 'Polygon' &&
-      positions(state).some(
-        (p) =>
-          cropKey(varietyAt(state, p)?.species ?? '') === key &&
-          f.geometry.type === 'Polygon' &&
-          inRing(f.geometry.coordinates, p.coord),
-      ),
-  )
-  // Greenhouses that hold this crop; failing that, offer them all only when nowhere else fits.
-  for (const f of withCrop.length ? withCrop : out.length ? [] : greenhouses) {
-    out.push({ kind: 'feature', id: f.id, label: f.name })
+  if (out.length > 0) return out
+  for (const f of live.features(state)) {
+    if (f.kind === 'greenhouse') out.push({ kind: 'feature', id: f.id, label: f.name })
   }
   return out
 }

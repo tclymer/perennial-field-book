@@ -168,17 +168,21 @@ describe('harvest', () => {
     expect(isCountUnit('half pint')).toBe(true)
     // Pawpaws are in a block; the greenhouse is not offered for them.
     expect(placesFor(state, 'pawpaw').map((p) => p.label)).toEqual(['PP1 Pawpaws Block 1'])
-    // Figs: their block, and the greenhouse whose outline contains them.
+    // Figs stand inside the Blue House, but they have a block, so only the block is offered.
+    // Two chips for one picking meant one of them filed the weight where no report looks.
     const figPlaces = placesFor(state, 'fig')
-    expect(figPlaces.map((p) => p.label)).toEqual(['GH Greenhouse trees', 'Blue House'])
+    expect(figPlaces.map((p) => p.label)).toEqual(['GH Greenhouse trees'])
     expect(figPlaces.some((p) => p.id === 'blk_pp1')).toBe(false)
+    // A crop with no block anywhere still needs somewhere to put a number.
+    expect(placesFor(state, 'quince').map((p) => p.label)).toEqual(['Blue House'])
   })
 
   it('narrows varieties to the ones standing in a place', () => {
     const blocks = placesFor(state, 'pawpaw')
     expect(varietiesIn(state, 'pawpaw', blocks[0]!).map((v) => v.name)).toEqual(['Shenandoah'])
-    // The greenhouse holds figs, not pawpaws.
-    const house = placesFor(state, 'fig').find((p) => p.kind === 'feature')!
+    // The greenhouse holds figs, not pawpaws. It is only offered for a crop with no block,
+    // so name it here rather than looking for it among the fig places.
+    const house = { kind: 'feature', id: 'ftr_blue', label: 'Blue House' } as const
     expect(varietiesIn(state, 'fig', house).map((v) => v.name)).toEqual(['Chicago Hardy'])
     expect(varietiesIn(state, 'pawpaw', house)).toEqual([])
     // With no place, every variety of the crop that stands somewhere.
