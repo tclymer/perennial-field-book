@@ -300,6 +300,10 @@ export function updateFeature(id: string, patch: Omit<PayloadOf<'feature.patch'>
   commit([{ type: 'feature.patch', payload: { id, ...patch } }])
 }
 
+export function restoreFeature(id: string): void {
+  commit([{ type: 'feature.restore', payload: { id } }])
+}
+
 export function deleteFeature(id: string): void {
   commit([{ type: 'feature.delete', payload: { id } }])
 }

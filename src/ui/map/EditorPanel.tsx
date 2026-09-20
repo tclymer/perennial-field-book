@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import clsx from 'clsx'
 import { Link } from 'react-router-dom'
 import type { BlockStatus, CompassSide, FeatureKind, FillParams, Row } from '@/model/types'
 import { live } from '@/events/reduce'
 import { useFarmStore } from '@/state/store'
-import { flyToBlock } from '@/map/bounds'
+import { flyToBlock, flyToFeature } from '@/map/bounds'
 import { speciesColors } from '@/state/colors'
 import { blockSpecies, varietiesByName } from '@/state/derived'
 import {
@@ -19,6 +20,7 @@ import {
   fillBlock,
   moveBlock,
   refillBlock,
+  restoreFeature,
   setBlockStatus,
   reverseRow,
   setBlockOutline,
@@ -86,6 +88,91 @@ export function EditorPanel() {
   )
 }
 
+/**
+ * Every section of the panel wears the same header: a quiet label on the left and, where
+ * something can be added, one button on the right. Without it the panel reads as one wall of
+ * controls.
+ */
+function PanelSection({
+  title,
+  count,
+  action,
+  className,
+  children,
+}: {
+  title: string
+  count?: number
+  action?: ReactNode
+  className?: string
+  children: ReactNode
+}) {
+  return (
+    <section
+      className={clsx(
+        'mt-4 border-t border-stone-200 pt-3 first:mt-0 first:border-t-0 first:pt-0 dark:border-stone-700',
+        className,
+      )}
+    >
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <h2 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">
+          {title}
+          {count !== undefined && count > 0 && (
+            <span className="rounded-full bg-stone-100 px-1.5 py-0.5 text-[11px] font-medium normal-case tracking-normal text-stone-600 dark:bg-stone-800 dark:text-stone-400">
+              {count}
+            </span>
+          )}
+        </h2>
+        {action}
+      </div>
+      {children}
+    </section>
+  )
+}
+
+/** A quiet round button for the one thing a section adds. */
+function AddButton({
+  label,
+  open,
+  onClick,
+}: {
+  label: string
+  open: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      aria-expanded={open}
+      title={label}
+      className={clsx(
+        'flex h-6 w-6 items-center justify-center rounded-full border text-base leading-none',
+        open
+          ? 'border-lime-700 bg-lime-700 text-white'
+          : 'border-stone-300 text-stone-600 hover:border-lime-700 hover:text-lime-700 dark:border-stone-600 dark:text-stone-400',
+      )}
+    >
+      <span aria-hidden>{open ? '×' : '+'}</span>
+    </button>
+  )
+}
+
+/** The × that removes a row: easy to reach, hard to hit by accident, always undoable. */
+function RemoveButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className="shrink-0 rounded px-1.5 text-base leading-none text-stone-300 hover:bg-stone-100 hover:text-rose-600 group-hover/row:opacity-100 dark:text-stone-600 dark:hover:bg-stone-800 md:opacity-0"
+    >
+      ×
+    </button>
+  )
+}
+
 function BlockList() {
   const state = useFarmStore((s) => s.state)
   const select = useEditor((s) => s.selectBlock)
@@ -93,8 +180,11 @@ function BlockList() {
   const blocks = live.blocks(state).sort((a, b) => a.code.localeCompare(b.code))
   const [adding, setAdding] = useState(false)
   return (
-    <section>
-      <h2 className="mb-2 font-semibold">Blocks</h2>
+    <PanelSection
+      title="Blocks"
+      count={blocks.length}
+      action={<AddButton label="New block" open={adding} onClick={() => setAdding((a) => !a)} />}
+    >
       {blocks.length === 0 && !adding && (
         <p className="text-stone-500 dark:text-stone-400">
           No blocks yet. A block is a group of rows, or a place for loose trees.
@@ -131,19 +221,15 @@ function BlockList() {
           )
         })}
       </ul>
-      {adding ? (
-        <NewBlockForm onDone={() => setAdding(false)} />
-      ) : (
+      {adding && <NewBlockForm onDone={() => setAdding(false)} />}
+      {!adding && (
         <div className="mt-3 flex flex-wrap gap-2">
-          <Button variant="primary" onClick={() => setAdding(true)}>
-            New block
-          </Button>
           <Link to="/import" className="self-center text-xs underline decoration-dotted">
             Import from the planner
           </Link>
         </div>
       )}
-    </section>
+    </PanelSection>
   )
 }
 
@@ -1414,42 +1500,54 @@ function RowEditor({ row, code }: { row: Row; code: string }) {
 
 function FeatureSection() {
   const state = useFarmStore((s) => s.state)
+  const map = useEditor((s) => s.map)
   const tool = useEditor((s) => s.tool)
   const setTool = useEditor((s) => s.setTool)
   const draft = useEditor((s) => s.featureDraft)
   const setDraft = useEditor((s) => s.setFeatureDraft)
   const features = live.features(state).sort((a, b) => a.name.localeCompare(b.name))
-  const [open, setOpen] = useState(false)
+  // Open by default: these are landmarks, and a list you cannot see is a list you forget.
+  const [open, setOpen] = useState(true)
+  const [adding, setAdding] = useState(false)
+  const [removed, setRemoved] = useState<{ id: string; name: string } | null>(null)
+  const drawing = tool === 'feature-point' || tool === 'feature-polygon'
+
   return (
-    <section className="mt-5 border-t border-stone-200 dark:border-stone-700 pt-3">
-      <button
-        className="flex w-full items-center justify-between font-semibold"
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-      >
-        Buildings and areas <Pill>{features.length}</Pill>
-      </button>
-      {open && (
-        <div className="mt-2 space-y-2">
-          <ul className="divide-y divide-stone-100 dark:divide-stone-800">
-            {features.map((f) => (
-              <li key={f.id} className="flex items-center justify-between py-1">
-                <span>
-                  {f.name}{' '}
-                  <span className="text-xs text-stone-500 dark:text-stone-400">{f.kind}</span>
-                </span>
-                <Button variant="ghost" onClick={() => deleteFeature(f.id)}>
-                  Remove
-                </Button>
-              </li>
-            ))}
-          </ul>
+    <PanelSection
+      title="Buildings and areas"
+      count={features.length}
+      action={
+        <span className="flex items-center gap-1">
+          <AddButton
+            label="Add a building or area"
+            open={adding}
+            onClick={() => {
+              setAdding((a) => !a)
+              setOpen(true)
+              if (adding && drawing) setTool('none')
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            aria-expanded={open}
+            aria-label={open ? 'Hide buildings and areas' : 'Show buildings and areas'}
+            className="px-1 text-xs text-stone-400 hover:text-stone-700 dark:hover:text-stone-200"
+          >
+            {open ? '▾' : '▸'}
+          </button>
+        </span>
+      }
+    >
+      {adding && (
+        <div className="mb-3 space-y-2 rounded-md border border-stone-200 p-2 dark:border-stone-700">
           <div className="grid grid-cols-2 gap-2">
             <Field label="Name">
               <input
                 className={inputClass}
                 value={draft.name}
                 placeholder="Blue House"
+                autoFocus
                 onChange={(e) => setDraft({ name: e.target.value })}
               />
             </Field>
@@ -1480,10 +1578,65 @@ function FeatureSection() {
             >
               {tool === 'feature-polygon' ? 'Cancel' : 'Draw an area'}
             </Button>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setAdding(false)
+                if (drawing) setTool('none')
+              }}
+            >
+              Done
+            </Button>
           </div>
         </div>
       )}
-    </section>
+
+      {open && (
+        <>
+          {features.length === 0 && !adding && (
+            <p className="text-stone-500 dark:text-stone-400">
+              Nothing yet. Barns, greenhouses, fence lines, and any area work can point at.
+            </p>
+          )}
+          <ul className="divide-y divide-stone-100 dark:divide-stone-800">
+            {features.map((f) => (
+              <li key={f.id} className="group/row flex items-center gap-1">
+                <button
+                  className="flex flex-1 items-center justify-between py-2 text-left hover:text-lime-700 dark:hover:text-lime-400"
+                  title="Show this on the map"
+                  onClick={() => map && flyToFeature(map, state, f.id)}
+                >
+                  <span>{f.name}</span>
+                  <span className="text-xs text-stone-500 dark:text-stone-400">{f.kind}</span>
+                </button>
+                <RemoveButton
+                  label={`Remove ${f.name}`}
+                  onClick={() => {
+                    deleteFeature(f.id)
+                    setRemoved({ id: f.id, name: f.name })
+                  }}
+                />
+              </li>
+            ))}
+          </ul>
+          {removed && (
+            <p className="mt-2 flex items-center justify-between gap-2 rounded bg-stone-100 px-2 py-1 text-xs dark:bg-stone-800">
+              <span>Removed {removed.name}.</span>
+              <button
+                type="button"
+                className="underline decoration-dotted"
+                onClick={() => {
+                  restoreFeature(removed.id)
+                  setRemoved(null)
+                }}
+              >
+                Undo
+              </button>
+            </p>
+          )}
+        </>
+      )}
+    </PanelSection>
   )
 }
 
@@ -1509,8 +1662,7 @@ function ViewSection() {
   const planYear = useEditor((s) => s.planYear)
   const setPlanYear = useEditor((s) => s.setPlanYear)
   return (
-    <section className="mt-5 border-t border-stone-200 dark:border-stone-700 pt-3">
-      <h2 className="mb-2 font-semibold">View</h2>
+    <PanelSection title="View">
       <div className="flex flex-wrap items-end gap-2">
         <Field label="Color trees by">
           <select
@@ -1546,6 +1698,6 @@ function ViewSection() {
           </Field>
         )}
       </div>
-    </section>
+    </PanelSection>
   )
 }

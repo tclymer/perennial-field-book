@@ -16,6 +16,29 @@ export function blockCoords(state: FarmState, blockId: string): LngLat[] {
   return out
 }
 
+/** Fly to a feature: its outline, or a close look at a point. */
+export function flyToFeature(map: MlMap, state: FarmState, featureId: string): boolean {
+  const f = state.features[featureId]
+  if (!f || f.deleted) return false
+  if (f.geometry.type === 'Point') {
+    map.easeTo({
+      center: f.geometry.coordinates,
+      zoom: Math.max(map.getZoom(), 19),
+      duration: 600,
+    })
+    return true
+  }
+  const [w, s, e, n] = padBounds(bboxOf(f.geometry.coordinates), 30)
+  map.fitBounds(
+    [
+      [w, s],
+      [e, n],
+    ],
+    { padding: 60, duration: 600, maxZoom: 20, bearing: map.getBearing() },
+  )
+  return true
+}
+
 /** Fly to a block. False when nothing has been drawn for it yet. */
 export function flyToBlock(map: MlMap, state: FarmState, blockId: string): boolean {
   const coords = blockCoords(state, blockId)
