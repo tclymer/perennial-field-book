@@ -24,6 +24,10 @@ import { TaskRow } from '@/ui/tasks/TaskRow'
 import { Toast } from '@/ui/tasks/Toast'
 import { useTaskDrag } from '@/ui/tasks/useTaskDrag'
 
+/** The lists that carry the week go across the top; the slower two sit below them. */
+const TOP_ROW: Bucket[] = ['now', 'soon', 'recurring']
+const SECOND_ROW: Bucket[] = ['later', 'project']
+
 /** Buckets as columns on a desktop; one bucket at a time on a phone. */
 export default function TasksPage() {
   const state = useFarmStore((s) => s.state)
@@ -52,7 +56,7 @@ export default function TasksPage() {
     })
   }
 
-  const columns = BUCKETS.filter((b) => isDesktop || b === picked)
+  const columns = BUCKETS.filter((b) => b === picked)
 
   return (
     <div className="space-y-4">
@@ -86,11 +90,36 @@ export default function TasksPage() {
         </div>
       )}
 
-      <div className={clsx(isDesktop && 'grid gap-3 xl:grid-cols-5 md:grid-cols-3')}>
-        {columns.map((bucket) => (
+      {isDesktop ? (
+        <div className="space-y-3">
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+            {TOP_ROW.map((bucket) => (
+              <Column
+                key={bucket}
+                bucket={bucket}
+                today={date}
+                onCheck={setSheet}
+                onDelete={remove}
+              />
+            ))}
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            {SECOND_ROW.map((bucket) => (
+              <Column
+                key={bucket}
+                bucket={bucket}
+                today={date}
+                onCheck={setSheet}
+                onDelete={remove}
+              />
+            ))}
+          </div>
+        </div>
+      ) : (
+        columns.map((bucket) => (
           <Column key={bucket} bucket={bucket} today={date} onCheck={setSheet} onDelete={remove} />
-        ))}
-      </div>
+        ))
+      )}
 
       {sheet && (
         <DoneSheet
@@ -144,16 +173,22 @@ function Column({
   const drag = useTaskDrag(open, { bucket, projectId: null })
 
   return (
-    <Card
-      className={clsx('flex min-h-40 flex-col', drag.overEnd && 'ring-2 ring-lime-600')}
-      {...drag.containerProps}
-    >
-      <h2 className="font-semibold">{bucketName(state.farm, bucket)}</h2>
+    <Card className={clsx('flex min-h-40 flex-col', drag.overEnd && 'ring-2 ring-lime-600')}>
+      <div className="flex items-baseline justify-between gap-2">
+        <h2 className="font-semibold">{bucketName(state.farm, bucket)}</h2>
+        <span className="text-sm tabular-nums text-stone-500 dark:text-stone-400">
+          {open.length}
+        </span>
+      </div>
       <p className="text-xs text-stone-500 dark:text-stone-400">{BUCKET_HINTS[bucket]}</p>
       <div className="mt-2">
         <QuickAdd bucket={bucket} placeholder={bucket === 'project' ? 'New project…' : 'Add…'} />
       </div>
-      <ul className="mt-1 flex-1 divide-y divide-stone-100 dark:divide-stone-800">
+      {/* A long list scrolls inside its own column so it never pushes the others off screen. */}
+      <ul
+        className="mt-1 max-h-[26rem] flex-1 divide-y divide-stone-100 overflow-y-auto dark:divide-stone-800"
+        {...drag.containerProps}
+      >
         {open.map((t) => (
           <li key={t.id} className="group">
             <div className="flex items-start gap-1">
