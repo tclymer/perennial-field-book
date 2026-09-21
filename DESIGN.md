@@ -516,6 +516,20 @@ is the meeting point and the shared copy.
   events not yet uploaded.
 - Full export is the event log plus a state snapshot. Import replays.
 
+**Forward compatibility, and the day it failed** (2026-09-21). Unknown event *types* have
+always passed through so a newer device's events survive in an older app's log. Unknown
+*fields* on a known type did not: `parseEvent` returned zod's parsed copy, and a zod object
+drops keys it does not declare, so an older build pulling a newer build's event stored it with
+the new field gone. Updating the app afterwards could not repair that, because the damaged
+copy was now the device's own. It showed up as a phone still drawing trees that had been taken
+out of a row on the desktop, both on the same version.
+
+`parseEvent` now validates and returns the event as it arrived. Extra fields reach the reducer
+and are merged onto the entity, which is what makes them work the moment the app understands
+them. Settings has "Fetch everything again", which pulls a farm's whole history from the
+server and overwrites what is stored, since events are keyed by id. Nothing waiting in the
+outbox is touched.
+
 ### 8.3 Sync adapter
 
 Every device keeps its full event log in IndexedDB. Sync exchanges events with the server:

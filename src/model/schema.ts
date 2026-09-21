@@ -448,14 +448,21 @@ export const envelope = z.object({
 })
 
 /**
- * Validates one event. Known types get their payload checked; unknown types pass through so
- * a newer device's events survive in an older app's log.
+ * Validates one event and returns it unchanged. Known types get their payload checked;
+ * unknown types, and unknown fields on known types, pass through so a newer device's events
+ * survive in an older app's log.
  */
 export function parseEvent(raw: unknown) {
   const env = envelope.parse(raw)
   const schema = (PAYLOADS as Record<string, z.ZodTypeAny>)[env.type]
   if (!schema) return env
-  return { ...env, payload: schema.parse(env.payload) }
+  // Check the payload, then keep the one that arrived. A zod object drops keys it does not
+  // declare, and what comes back from here is what gets written to storage, so parsing to
+  // the stripped copy quietly destroyed any field belonging to a newer build. An older
+  // phone pulling a newer desktop's event would store it with the field gone, and updating
+  // the app afterwards could not bring it back.
+  schema.parse(env.payload)
+  return env
 }
 
 export const exportBundle = z.object({

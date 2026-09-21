@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useFarmStore } from '@/state/store'
 import { useSession } from '@/sync/auth'
-import { linkFarm, syncNow, unlinkFarm } from '@/sync/engine'
+import { linkFarm, repullHistory, syncNow, unlinkFarm } from '@/sync/engine'
 import { useSync } from '@/sync/store'
 import { Button, Card } from '@/ui/components'
 
@@ -19,6 +19,7 @@ export function SyncCard() {
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [confirmStop, setConfirmStop] = useState(false)
+  const [confirmRepull, setConfirmRepull] = useState(false)
   if (!session || !farmId) return null
   const onServer = farms.some((f) => f.id === farmId)
 
@@ -91,6 +92,38 @@ export function SyncCard() {
         <Button disabled={busy || phase === 'syncing'} onClick={() => act(() => syncNow('manual'))}>
           Sync now
         </Button>
+        {confirmRepull ? (
+          <span className="flex flex-wrap items-center gap-2 text-sm">
+            <span>
+              Fetch this farm's whole history again and replace what is stored here? Nothing waiting
+              to go up is lost.
+            </span>
+            <Button
+              disabled={busy}
+              onClick={() => {
+                setConfirmRepull(false)
+                act(async () => {
+                  const n = await repullHistory()
+                  setMessage(`${n} ${n === 1 ? 'change' : 'changes'} fetched again.`)
+                })
+              }}
+            >
+              Fetch it again
+            </Button>
+            <Button variant="ghost" onClick={() => setConfirmRepull(false)}>
+              Cancel
+            </Button>
+          </span>
+        ) : (
+          <Button
+            variant="ghost"
+            disabled={busy || phase === 'syncing'}
+            title="Use this if this device is showing something the others are not"
+            onClick={() => setConfirmRepull(true)}
+          >
+            Fetch everything again
+          </Button>
+        )}
         {confirmStop ? (
           <span className="flex flex-wrap items-center gap-2 text-sm">
             <span>Stop syncing on this device? Your copy here and the server copy both stay.</span>

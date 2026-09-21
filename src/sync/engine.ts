@@ -233,6 +233,31 @@ export async function openRemoteFarm(farmId: string): Promise<boolean> {
   return ok
 }
 
+/**
+ * Pull this farm's whole history again, replacing what is stored with the server's copy.
+ *
+ * Events are stored by id, so re-pulling overwrites rather than duplicates. This exists
+ * because a build could store an event with a field it did not yet understand stripped out
+ * of it, and no later update can repair that from the device's own copy. Nothing local is
+ * lost: anything this device made and has not pushed is still in the outbox.
+ */
+export async function repullHistory(): Promise<number> {
+  const { farmId } = useFarmStore.getState()
+  if (!farmId) throw new Error('No farm is open.')
+  const link = (await getSync(farmId)) ?? { farmId, cursor: 0, linkedAt: Date.now() }
+  const { set } = useSync.getState()
+  set({ phase: 'syncing', error: null })
+  try {
+    const { received } = await pull({ ...link, cursor: 0 })
+    await useFarmStore.getState().reload()
+    set({ phase: 'idle', lastSyncAt: Date.now(), error: null })
+    return received
+  } catch (err) {
+    await fail(farmId, err)
+    throw err
+  }
+}
+
 /** Refresh the linked flag and pending count for the open farm without syncing. */
 export async function refreshSyncStatus(): Promise<void> {
   const { farmId } = useFarmStore.getState()
