@@ -18,7 +18,7 @@ import {
   type SyncRow,
 } from '@/events/db'
 import type { AnyEvent } from '@/events/types'
-import { parseEvent } from '@/model/schema'
+import { parseEnvelope, parseEvent } from '@/model/schema'
 import { useFarmStore, whenWritten } from '@/state/store'
 import { api, ApiError } from './api'
 import { refreshAccount } from './auth'
@@ -138,8 +138,15 @@ export async function pull(link: SyncRow): Promise<{ cursor: number; received: n
     for (const raw of page.events) {
       try {
         events.push(parseEvent(raw) as AnyEvent)
-      } catch (err) {
-        console.warn('Sync: skipped a malformed event from the server', err)
+      } catch {
+        // A payload this build cannot describe is almost always one a newer build wrote, and
+        // the cursor moves past it either way, so dropping it would lose it for good. Keep it
+        // on the envelope alone: the reducer will not act on it until a build understands it.
+        try {
+          events.push(parseEnvelope(raw) as AnyEvent)
+        } catch (err) {
+          console.warn('Sync: skipped an event that is not even an event', err)
+        }
       }
     }
     if (events.length > 0) {

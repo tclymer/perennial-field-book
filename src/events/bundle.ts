@@ -1,5 +1,5 @@
 /** Export and import of a whole farm: the event log plus photos, as one JSON file. */
-import { exportBundle, parseEvent, type ExportBundle } from '@/model/schema'
+import { exportBundle, parseEnvelope, parseEvent, type ExportBundle } from '@/model/schema'
 import { APP_VERSION } from '@/version'
 import type { AnyEvent } from './types'
 import { sortEvents } from './reduce'
@@ -49,7 +49,14 @@ export function parseImport(text: string): ParsedImport {
     try {
       events.push(parseEvent(e) as AnyEvent)
     } catch {
-      throw new Error(`Event ${i + 1} in the file is malformed.`)
+      // A file written by a newer build can hold payloads this one cannot describe. Refusing
+      // the whole import over that would be worse than keeping them: the reducer leaves them
+      // alone until a build understands them.
+      try {
+        events.push(parseEnvelope(e) as AnyEvent)
+      } catch {
+        throw new Error(`Event ${i + 1} in the file is malformed.`)
+      }
     }
   })
   const wrongFarm = events.find((e) => e.farmId !== bundle.farmId)

@@ -5,7 +5,7 @@ import { db, getSync, mergeEvents, putSync } from '@/events/db'
 import { resetStoreForTests, useFarmStore, whenWritten } from '@/state/store'
 import { createBlock, createRow, removePositions } from '@/state/actions'
 import { positions, slots } from '@/state/derived'
-import { linkFarm, repullHistory, resetEngineForTests } from '@/sync/engine'
+import { linkFarm, pull, repullHistory, resetEngineForTests } from '@/sync/engine'
 import { resetSyncForTests, useSync } from '@/sync/store'
 import type { AnyEvent } from '@/events/types'
 import { fromLocal } from '@/engine/geo'
@@ -74,6 +74,40 @@ describe('a device that stored an event with a field stripped out of it', () => 
 
     expect(positions(s()).filter((p) => p.rowId === rowId)).toHaveLength(4)
     expect(s().rows[rowId]?.skips).toHaveLength(8)
+  })
+
+  it('keeps an event it cannot describe, and applies it once the build catches up', async () => {
+    const farmId = await useFarmStore.getState().createFarm('Threefold', ORIGIN, 17)
+    createBlock({ code: 'PP1', name: 'Pawpaws' })
+    await whenWritten()
+    await linkFarm()
+
+    // What a newer build would send: a kind of feature this one has no name for.
+    server.receive(farmId, {
+      id: 'evt_future',
+      farmId,
+      deviceId: 'other-device',
+      ts: Date.now(),
+      type: 'feature.create',
+      payload: {
+        id: 'ftr_nursery',
+        name: 'Nursery bed',
+        kind: 'nursery',
+        geometry: { type: 'Point', coordinates: ORIGIN },
+      },
+    } as never)
+
+    const link = (await getSync(farmId))!
+    await pull(link)
+    await useFarmStore.getState().reload()
+
+    // Not acted on, but not thrown away either, and the app can say so.
+    expect(s().features['ftr_nursery']).toBeUndefined()
+    expect(s().beyond).toBe(1)
+    expect(await db.events.get('evt_future')).toBeDefined()
+    expect(((await db.events.get('evt_future'))!.payload as Record<string, unknown>).kind).toBe(
+      'nursery',
+    )
   })
 
   it('leaves work that has not gone up alone', async () => {

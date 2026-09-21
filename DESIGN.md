@@ -530,6 +530,26 @@ them. Settings has "Fetch everything again", which pulls a farm's whole history 
 server and overwrites what is stored, since events are keyed by id. Nothing waiting in the
 outbox is touched.
 
+**The general rule that came out of it** (2026-09-21): a device keeps every event it is given
+and acts only on the ones it can describe. Three parts:
+
+- **Nothing is discarded on the way in.** A pull or a file import that cannot validate a
+  payload stores the event on its envelope alone. The old behaviour skipped it and moved the
+  cursor past it, which lost it for good. That was the same permanent, silent shape as the
+  stripping bug, and it would have fired on the first new enum value: a new feature kind, a
+  new unit, a new tree event.
+- **Nothing unrecognised is acted on.** `applyTo` refuses an event whose type is unknown *or*
+  whose payload this build cannot validate, so a payload that was never checked cannot reach
+  the state. The answer is cached per event, so a replay costs one validation per event per
+  load. An event refused today is applied by the build that understands it, straight from
+  storage, with no re-sync.
+- **The gap is visible.** `FarmState.beyond` counts what was kept and not applied, and the
+  update prompt says so. A device that is behind now explains itself instead of quietly
+  showing less than the one beside it.
+
+What this does not solve, and no mechanism can: a field that changes meaning, or one that is
+removed. Add fields, never repurpose them.
+
 ### 8.3 Sync adapter
 
 Every device keeps its full event log in IndexedDB. Sync exchanges events with the server:

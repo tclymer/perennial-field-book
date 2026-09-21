@@ -335,6 +335,12 @@ export interface FarmState {
   nudges: Record<string, LngLat>
   /** Graft plans keyed `${year}:${posKey}`. */
   plans: Record<string, GraftPlan>
+  /**
+   * Events kept but not acted on, because this build does not know the type or cannot
+   * describe the payload. Always zero on an up-to-date device; above zero it means another
+   * device is ahead of this one, which is worth saying out loud rather than showing less.
+   */
+  beyond: number
   /** Number of events applied and the timestamp of the last one. */
   applied: number
   lastTs: number

@@ -20,7 +20,7 @@ import type {
   WorkLog,
 } from '@/model/types'
 import { planKey } from '@/model/types'
-import { PAYLOADS } from '@/model/schema'
+import { PAYLOADS, payloadUnderstood } from '@/model/schema'
 import type { AnyEvent, Event } from './types'
 
 export function emptyState(): FarmState {
@@ -40,6 +40,7 @@ export function emptyState(): FarmState {
     tags: {},
     nudges: {},
     plans: {},
+    beyond: 0,
     applied: 0,
     lastTs: 0,
   }
@@ -57,6 +58,23 @@ export function sortEvents<E extends AnyEvent>(events: readonly E[]): E[] {
 
 export function isKnownEvent(e: AnyEvent): e is Event {
   return Object.prototype.hasOwnProperty.call(PAYLOADS, e.type)
+}
+
+/**
+ * Whether this build can act on an event: it knows the type, and the payload is one it can
+ * describe. Both can be false for an event made by a newer build, and both can become true
+ * later, which is the point. The answer is remembered per event so a replay of a long log
+ * does not validate the same object twice.
+ */
+const understood = new WeakMap<object, boolean>()
+
+export function canApply(e: AnyEvent): e is Event {
+  if (!isKnownEvent(e)) return false
+  const hit = understood.get(e)
+  if (hit !== undefined) return hit
+  const ok = payloadUnderstood(e.type, e.payload)
+  understood.set(e, ok)
+  return ok
 }
 
 type Collections = Pick<
@@ -162,7 +180,11 @@ function treeEffects(e: Event<'tree.event'>['payload']): Partial<Tree> {
 
 /** Apply one event to a draft in place. Returns false when the event was ignored. */
 export function applyTo(draft: FarmState, event: AnyEvent): boolean {
-  if (!isKnownEvent(event)) return false
+  if (!canApply(event)) {
+    // Kept, not acted on. Counted so the app can say why this device shows less than another.
+    draft.beyond += 1
+    return false
+  }
   const ts = event.ts
   const [kind, verb, sub] = event.type.split('.')
   const coll = COLLECTION[kind]

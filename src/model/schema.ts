@@ -452,6 +452,22 @@ export const envelope = z.object({
  * unknown types, and unknown fields on known types, pass through so a newer device's events
  * survive in an older app's log.
  */
+/**
+ * Can this build make sense of the event's payload? An event that fails here is kept but not
+ * applied: a later build that understands it will apply it from storage, which is what makes
+ * a device that ran behind heal itself rather than stay quietly wrong.
+ */
+export function payloadUnderstood(type: string, payload: unknown): boolean {
+  const schema = (PAYLOADS as Record<string, z.ZodTypeAny>)[type]
+  if (!schema) return false
+  return schema.safeParse(payload).success
+}
+
+/** Validates the envelope only, so an event whose payload is beyond this build is still kept. */
+export function parseEnvelope(raw: unknown) {
+  return envelope.parse(raw)
+}
+
 export function parseEvent(raw: unknown) {
   const env = envelope.parse(raw)
   const schema = (PAYLOADS as Record<string, z.ZodTypeAny>)[env.type]
