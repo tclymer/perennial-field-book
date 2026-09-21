@@ -136,3 +136,41 @@ describe('editing a building or area', () => {
     expect(useEditor.getState().editMode).toBe('none')
   })
 })
+
+describe('sizes in the sidebar', () => {
+  it("shows a building's area in the details, not in the list", async () => {
+    await act(async () => {
+      createFeature('Back field', 'area', {
+        type: 'Polygon',
+        // Roughly 100 m by 100 m, which is about two and a half acres.
+        coordinates: [
+          [-77.083, 40.1794],
+          [-77.0818, 40.1794],
+          [-77.0818, 40.1803],
+          [-77.083, 40.1803],
+        ],
+      })
+    })
+    panel()
+    // The list stays short: name, what it is for, and kind.
+    const row = [...document.querySelectorAll('li')].find((n) =>
+      /Back field/.test(n.textContent ?? ''),
+    )
+    expect(row?.textContent).not.toMatch(/sq ft/)
+
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText('Details for Back field'))
+    })
+    expect(screen.getByText(/sq ft/)).toBeTruthy()
+    expect(screen.getByText(/ac$/)).toBeTruthy()
+  })
+
+  it('says a point has no area rather than showing zero', async () => {
+    panel()
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText('Details for Blue House'))
+    })
+    // The seeded Blue House is a point.
+    expect(screen.queryByText(/sq ft/)).toBeNull()
+  })
+})

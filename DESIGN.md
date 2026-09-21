@@ -118,7 +118,15 @@ Farm
   on the map, and notes. All three, and the shape itself, are editable after it is drawn
   (2026-09-21): Reshape loads that one feature into the map editor, where a corner resizes it
   and the body of the shape moves it onto the imagery. Polygons are draggable for that reason,
-  which also lets a block outline be shifted.
+  which also lets a block outline be shifted. The details also give a polygon's area, in square
+  feet and in acres once it is over a quarter acre; the block list gives each block's acreage
+  beside its row count.
+
+  **An edit session opens with something selected.** Terra Draw draws corner and midpoint
+  handles only on the selected shape, so a session that opened with nothing selected looked
+  inert: the shapes were loaded and the hint told you to drag a vertex, but there were no
+  vertices to see until you happened to click one. "Reshape rows and outline" now opens on the
+  block's outline, and the hint says a row can be clicked to work on that instead.
 - **Area.** Each block has an area, taken from the planner planting when linked, otherwise
   computed from rows (length × row spacing) or a drawn outline. Used to split farm-wide labor.
 

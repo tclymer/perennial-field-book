@@ -300,7 +300,10 @@ export function useDraw(map: MlMap | null, state: FarmState, enabled: boolean): 
         features.push({ id: p.posKey, geometry: { shape: 'point', coordinates: p.coord } })
       }
     }
-    c.edit(features)
+    // Open on the outline where there is one: it is the thing most often being matched to the
+    // imagery, and whatever is selected is the only thing showing corners.
+    const outline = features.find((f) => f.id.startsWith(OUTLINE_PREFIX))
+    c.edit(features, (outline ?? features[0])?.id)
     // Reloading on every state change would interrupt a drag; the session holds its shapes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editMode, blockId, editingFeatureId])

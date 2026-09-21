@@ -45,8 +45,11 @@ export interface DrawController {
   setShape: (shape: DrawShape | null) => void
   /** Make sure the drawing mode is still the one asked for; returns true if it had to be restored. */
   ensureShape: (shape: DrawShape) => boolean
-  /** Load shapes for vertex and drag editing; replaces any previous set. */
-  edit: (features: EditableFeature[]) => void
+  /**
+   * Load shapes for vertex and drag editing, replacing any previous set. `select` names the
+   * one to show corners on straight away, so an edit session does not open looking inert.
+   */
+  edit: (features: EditableFeature[], select?: string) => void
   stopEditing: () => void
   destroy: () => void
 }
@@ -227,7 +230,7 @@ export function createDraw(map: MlMap, handlers: DrawHandlers): DrawController {
       draw.setMode(MODE[shape])
       return true
     },
-    edit: (features) => {
+    edit: (features, select) => {
       clearLoaded()
       editing = true
       draw.setMode('select')
@@ -242,10 +245,12 @@ export function createDraw(map: MlMap, handlers: DrawHandlers): DrawController {
         }
         const ok = new Set(results.filter((r) => r.valid).map((r) => String(r.id)))
         loaded = features.map((f) => f.id).filter((id) => ok.has(id))
-        // A single shape is what the user came to edit: show its corners right away.
-        if (loaded.length === 1) {
+        // Open with something selected. Terra Draw shows corners only on the selected shape,
+        // so without this an edit session looks like it has nothing to grab.
+        const first = select && loaded.includes(select) ? select : loaded[0]
+        if (first) {
           try {
-            draw.selectFeature(loaded[0])
+            draw.selectFeature(first)
           } catch {
             // Selection is a convenience; the shape is still editable by clicking it.
           }

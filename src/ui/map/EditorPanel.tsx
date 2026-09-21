@@ -14,6 +14,7 @@ import { useFarmStore } from '@/state/store'
 import { flyToBlock, flyToFeature } from '@/map/bounds'
 import { speciesColors } from '@/state/colors'
 import { blockSpecies, varietiesByName } from '@/state/derived'
+import { polygonAreaSqFt } from '@/engine/geo'
 import {
   autoNumberRows,
   clearEmptyRows,
@@ -71,11 +72,11 @@ export function EditorPanel() {
   const hint = message ?? TOOL_HINT[tool] ?? ''
   const modeHint =
     editMode === 'shapes'
-      ? 'Reshaping: drag a vertex, drag the midpoint of a segment to add one, or select a vertex and press Delete. Esc when done.'
+      ? 'Reshaping the outline. Click a row to work on that instead. Drag a corner to move it, the middle of an edge to add one, or the shape itself to shift the whole thing. Esc when done.'
       : editMode === 'trees'
         ? 'Moving trees: drag any tree to where it really stands. Esc when done.'
         : editMode === 'outline'
-          ? 'Drag a corner of the outline, or the midpoint of an edge to add one; the preview follows.'
+          ? 'Drag a corner of the outline, the midpoint of an edge to add one, or the outline itself to shift it; the preview follows.'
           : ''
   return (
     <aside className="flex w-80 shrink-0 flex-col border-r border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900">
@@ -201,6 +202,7 @@ function BlockList() {
       <ul className="divide-y divide-stone-100 dark:divide-stone-800">
         {blocks.map((b) => {
           const rows = live.rows(state).filter((r) => r.blockId === b.id)
+          const acres = sqFtToAcres(blockAreaSqFt(b, rows))
           return (
             <li key={b.id} className="group/block flex items-center gap-2">
               <button
@@ -216,6 +218,7 @@ function BlockList() {
                 </span>
                 <span className="text-xs text-stone-500 dark:text-stone-400">
                   {rows.length} {rows.length === 1 ? 'row' : 'rows'}
+                  {acres > 0 && ` · ${acres.toFixed(2)} ac`}
                 </span>
               </button>
               <Link
@@ -1521,6 +1524,17 @@ function RowEditor({ row, code }: { row: Row; code: string }) {
 }
 
 /**
+ * Square feet up to about a quarter acre, then acres as well: a greenhouse is not a number of
+ * acres to anyone, and the back property is not a number of square feet.
+ */
+function formatArea(sqft: number): string {
+  if (sqft <= 0) return 'No area: this is a point on the map, not a shape.'
+  const acres = sqFtToAcres(sqft)
+  const feet = `${Math.round(sqft).toLocaleString()} sq ft`
+  return acres >= 0.25 ? `${feet} · ${acres.toFixed(2)} ac` : feet
+}
+
+/**
  * One building or area: tap the name to find it, Reshape to resize or move it on the map, and
  * the caret to rename it or say what it is for. The short description rides along on the map
  * label, because "Blue House" alone does not tell a new hand what happens in it.
@@ -1599,6 +1613,11 @@ function FeatureRow({
       </div>
       {open && (
         <div className="mb-2 space-y-2 rounded-md bg-stone-50 p-2 dark:bg-stone-800/60">
+          {f.geometry.type === 'Polygon' && (
+            <p className="text-xs text-stone-500 dark:text-stone-400">
+              {formatArea(polygonAreaSqFt(f.geometry.coordinates))}
+            </p>
+          )}
           <div className="grid grid-cols-2 gap-2">
             <Field label="Name">
               <input
