@@ -281,7 +281,6 @@ export interface FarmMeta {
   center: LngLat
   zoom: number
   createdAt: number
-  /** Unit per crop for harvest entries; absent crops use the defaults in model/harvest.ts. */
   /**
    * Units per crop, the usual one first. A string is the older single-unit shape and still
    * reads correctly; see `unitsFor`.
