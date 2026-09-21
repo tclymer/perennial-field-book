@@ -139,6 +139,7 @@ export const featureCreate = z.object({
   name: short.min(1),
   kind: featureKind,
   geometry: featureGeometry,
+  description: short.optional(),
   notes: text.optional(),
 })
 export const featurePatch = z.object({
@@ -146,6 +147,7 @@ export const featurePatch = z.object({
   name: short.min(1).optional(),
   kind: featureKind.optional(),
   geometry: featureGeometry.optional(),
+  description: short.nullable().optional(),
   notes: text.nullable().optional(),
 })
 

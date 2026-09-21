@@ -43,6 +43,7 @@ const routes: [string, RegExp | string][] = [
   ['#/records', /Work logs/i],
   ['#/records?show=harvest', /Harvest reports/i],
   ['#/records?show=planner', /beside what the plan assumed/i],
+  ['#/records?show=certification', /Certification records/i],
   ['#/harvest', /tally/i],
   ['#/harvest/reports', /Harvest reports/i],
   ['#/planner', /beside what the plan assumed/i],

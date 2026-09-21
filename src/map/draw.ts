@@ -150,7 +150,9 @@ export function createDraw(map: MlMap, handlers: DrawHandlers): DrawController {
           },
           polygon: {
             feature: {
-              draggable: false,
+              // Draggable so an area can be shifted bodily onto the imagery, not only
+              // reshaped corner by corner. Grabbing a corner still takes precedence.
+              draggable: true,
               coordinates: { midpoints: true, draggable: true, deletable: true },
             },
           },

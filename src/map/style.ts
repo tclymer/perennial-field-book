@@ -210,11 +210,12 @@ export function overlayLayers(): LayerSpecification[] {
       source: 'features',
       minzoom: 15,
       layout: {
-        'text-field': ['get', 'name'],
+        'text-field': ['coalesce', ['get', 'label'], ['get', 'name']],
         'text-font': ['Open Sans Regular'],
         'text-size': 12,
         'text-offset': [0, 0.8],
         'text-anchor': 'top',
+        'text-line-height': 1.1,
       },
       paint: {
         'text-color': '#fafaf9',

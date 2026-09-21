@@ -58,7 +58,12 @@ function normalizeRing(ring: LngLat[], anchor: { corner: LngLat; headingDeg: num
 export function useHiddenShapes(state: FarmState): HiddenShapes {
   const editMode = useEditor((s) => s.editMode)
   const blockId = useEditor((s) => s.selectedBlockId)
+  const featureId = useEditor((s) => s.editingFeatureId)
   return useMemo(() => {
+    // The one being reshaped is drawn by the editor instead, so hide the map's own copy.
+    if (editMode === 'feature' && featureId) {
+      return { ...NOTHING_HIDDEN, features: new Set([featureId]) }
+    }
     if (editMode === 'none' || !blockId) return NOTHING_HIDDEN
     if (editMode === 'trees') {
       return { ...NOTHING_HIDDEN, positionsOfBlocks: new Set([blockId]) }
@@ -71,7 +76,7 @@ export function useHiddenShapes(state: FarmState): HiddenShapes {
         .map((r) => r.id),
     )
     return { ...NOTHING_HIDDEN, blocks: new Set([blockId]), rows, features: new Set<string>() }
-  }, [editMode, blockId, state])
+  }, [editMode, blockId, featureId, state])
 }
 
 export function useDraw(map: MlMap | null, state: FarmState, enabled: boolean): void {
@@ -79,6 +84,7 @@ export function useDraw(map: MlMap | null, state: FarmState, enabled: boolean): 
   const tool = useEditor((s) => s.tool)
   const editMode = useEditor((s) => s.editMode)
   const blockId = useEditor((s) => s.selectedBlockId)
+  const editingFeatureId = useEditor((s) => s.editingFeatureId)
   const latest = useRef({ state, tool, blockId })
   latest.current = { state, tool, blockId }
 
@@ -244,11 +250,28 @@ export function useDraw(map: MlMap | null, state: FarmState, enabled: boolean): 
   useEffect(() => {
     const c = controller.current
     if (!c) return
+    const s = latest.current.state
+    if (editMode === 'feature') {
+      const f = editingFeatureId ? s.features[editingFeatureId] : undefined
+      if (!f || f.deleted) {
+        c.stopEditing()
+        return
+      }
+      c.edit([
+        {
+          id: f.id,
+          geometry:
+            f.geometry.type === 'Point'
+              ? { shape: 'point', coordinates: f.geometry.coordinates }
+              : { shape: 'polygon', coordinates: f.geometry.coordinates },
+        },
+      ])
+      return
+    }
     if (editMode === 'none' || !blockId) {
       c.stopEditing()
       return
     }
-    const s = latest.current.state
     const features: EditableFeature[] = []
     if (editMode === 'outline') {
       const block = s.blocks[blockId]
@@ -280,5 +303,5 @@ export function useDraw(map: MlMap | null, state: FarmState, enabled: boolean): 
     c.edit(features)
     // Reloading on every state change would interrupt a drag; the session holds its shapes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editMode, blockId])
+  }, [editMode, blockId, editingFeatureId])
 }

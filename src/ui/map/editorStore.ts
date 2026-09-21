@@ -8,7 +8,7 @@ import type { FillPattern } from '@/engine/fill'
 export type Tool = 'none' | 'row' | 'outline' | 'loose' | 'feature-point' | 'feature-polygon'
 
 /** What is loaded into Terra Draw for editing. */
-export type EditMode = 'none' | 'shapes' | 'trees' | 'outline'
+export type EditMode = 'none' | 'shapes' | 'trees' | 'outline' | 'feature'
 
 /** The fill form's values while an outline is being filled with rows. */
 export interface FillDraft {
@@ -50,6 +50,8 @@ interface EditorState {
   updateMove: (patch: Partial<MoveDraft>) => void
   closeMove: () => void
   selectedBlockId: string | null
+  /** The building or area being reshaped, while `editMode` is 'feature'. */
+  editingFeatureId: string | null
   tool: Tool
   editMode: EditMode
   fill: FillDraft | null
@@ -65,6 +67,8 @@ interface EditorState {
   selectBlock: (id: string | null) => void
   setTool: (tool: Tool) => void
   setEditMode: (mode: EditMode) => void
+  /** Start or stop reshaping one building or area. */
+  editFeature: (id: string | null) => void
   /** Open the fill form; with `draw` the outline tool is active so the preview follows the cursor. */
   openFill: (draft: FillDraft, draw?: boolean) => void
   updateFill: (patch: Partial<FillDraft>) => void
@@ -92,6 +96,7 @@ export const useEditor = create<EditorState>()((set) => ({
   highlight: [],
   planYear: new Date().getFullYear() + 1,
   featureDraft: { name: '', kind: 'building' },
+  editingFeatureId: null,
   message: null,
   setMap: (map) => set({ map }),
   selectBlock: (id) =>
@@ -99,6 +104,7 @@ export const useEditor = create<EditorState>()((set) => ({
       selectedBlockId: id,
       tool: 'none',
       editMode: 'none',
+      editingFeatureId: null,
       fill: null,
       move: null,
       message: null,
@@ -111,7 +117,24 @@ export const useEditor = create<EditorState>()((set) => ({
       // Leaving the outline tool mid-draw abandons the fill.
       fill: s.fill?.drawing && tool !== 'outline' ? null : s.fill,
     })),
-  setEditMode: (editMode) => set({ editMode, tool: 'none', message: null }),
+  setEditMode: (editMode) =>
+    set({
+      editMode,
+      tool: 'none',
+      message: null,
+      ...(editMode === 'feature' ? {} : { editingFeatureId: null }),
+    }),
+  editFeature: (id) =>
+    set({
+      editingFeatureId: id,
+      editMode: id ? 'feature' : 'none',
+      selectedBlockId: null,
+      tool: 'none',
+      fill: null,
+      message: id
+        ? 'Drag a corner to resize, the middle of an edge to add one, or the shape itself to move it. Esc when done.'
+        : null,
+    }),
   openFill: (fill, draw = false) =>
     set({ fill, tool: draw ? 'outline' : 'none', editMode: 'none', message: null }),
   updateFill: (patch) => set((s) => (s.fill ? { fill: { ...s.fill, ...patch } } : {})),

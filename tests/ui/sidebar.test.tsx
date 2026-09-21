@@ -8,6 +8,7 @@ import { live } from '@/events/reduce'
 import { createFeature } from '@/state/actions'
 import { resetStoreForTests, useFarmStore } from '@/state/store'
 import { EditorPanel } from '@/ui/map/EditorPanel'
+import { useEditor } from '@/ui/map/editorStore'
 import { installBrowserStubs } from './fixtures'
 
 beforeEach(async () => {
@@ -69,5 +70,69 @@ describe('the map sidebar', () => {
     })
     const back = live.features(useFarmStore.getState().state)
     expect(back.map((f) => f.name)).toEqual(['Blue House'])
+  })
+})
+
+describe('editing a building or area', () => {
+  it('renames it, and says what it is for', async () => {
+    panel()
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText('Details for Blue House'))
+    })
+    const name = screen.getByDisplayValue('Blue House')
+    await act(async () => {
+      fireEvent.change(name, { target: { value: 'Gray House' } })
+      fireEvent.blur(name)
+    })
+    const desc = screen.getByLabelText(/Short description/i)
+    await act(async () => {
+      fireEvent.change(desc, { target: { value: 'seed starting' } })
+      fireEvent.blur(desc)
+    })
+    const f = live.features(useFarmStore.getState().state)[0]!
+    expect(f.name).toBe('Gray House')
+    expect(f.description).toBe('seed starting')
+  })
+
+  it('refuses to leave it with no name at all', async () => {
+    panel()
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText('Details for Blue House'))
+    })
+    const name = screen.getByDisplayValue('Blue House')
+    await act(async () => {
+      fireEvent.change(name, { target: { value: '   ' } })
+      fireEvent.blur(name)
+    })
+    expect(live.features(useFarmStore.getState().state)[0]!.name).toBe('Blue House')
+  })
+
+  it('keeps notes separately from the description', async () => {
+    panel()
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText('Details for Blue House'))
+    })
+    const notes = screen.getByLabelText(/Notes/i)
+    await act(async () => {
+      fireEvent.change(notes, { target: { value: 'Heater serviced each October.' } })
+      fireEvent.blur(notes)
+    })
+    const f = live.features(useFarmStore.getState().state)[0]!
+    expect(f.notes).toBe('Heater serviced each October.')
+    expect(f.description).toBeUndefined()
+  })
+
+  it('turns reshaping on for one building at a time', async () => {
+    panel()
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Reshape' }))
+    })
+    expect(useEditor.getState().editingFeatureId).toBeTruthy()
+    expect(useEditor.getState().editMode).toBe('feature')
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Done' }))
+    })
+    expect(useEditor.getState().editingFeatureId).toBeNull()
+    expect(useEditor.getState().editMode).toBe('none')
   })
 })

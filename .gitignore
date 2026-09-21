@@ -5,3 +5,6 @@ coverage/
 .DS_Store
 .wrangler/
 .dev.vars
+
+# Private working notes, kept out of the repo on purpose.
+notes/

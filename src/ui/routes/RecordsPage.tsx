@@ -5,13 +5,19 @@ import clsx from 'clsx'
 const LogsPage = lazy(() => import('./LogsPage'))
 const HarvestReportsPage = lazy(() => import('./HarvestReportsPage'))
 const PlannerPage = lazy(() => import('./PlannerPage'))
+const CertificationPage = lazy(() => import('./CertificationPage'))
 
-type Section = 'work' | 'harvest' | 'planner'
+type Section = 'work' | 'harvest' | 'planner' | 'certification'
 
 const SECTIONS: { id: Section; label: string; hint: string }[] = [
   { id: 'work', label: 'Work', hint: 'Hours logged, by whom, where, and on what' },
   { id: 'harvest', label: 'Harvest', hint: 'What came in, by variety, place, and year' },
   { id: 'planner', label: 'Against the plan', hint: 'A season beside what the plan assumed' },
+  {
+    id: 'certification',
+    label: 'Certification',
+    hint: 'Inputs, harvest, planting stock and equipment, ready for an inspector',
+  },
 ]
 
 /**
@@ -48,6 +54,7 @@ export default function RecordsPage() {
         {current.id === 'work' && <LogsPage />}
         {current.id === 'harvest' && <HarvestReportsPage />}
         {current.id === 'planner' && <PlannerPage />}
+        {current.id === 'certification' && <CertificationPage />}
       </Suspense>
     </div>
   )

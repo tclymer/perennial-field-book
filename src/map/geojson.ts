@@ -193,7 +193,17 @@ export function featuresFC(state: FarmState, hide: ReadonlySet<string> = new Set
     out.push({
       type: 'Feature',
       id: f.id,
-      properties: { id: f.id, name: f.name, kind: f.kind },
+      properties: {
+        id: f.id,
+        name: f.name,
+        kind: f.kind,
+        // The label the map draws: the name, and the few words that say what it is for.
+        label: f.description
+          ? `${f.name}
+${f.description}`
+          : f.name,
+        ...(f.description ? { description: f.description } : {}),
+      },
       geometry,
     })
   }

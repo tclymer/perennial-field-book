@@ -1,7 +1,14 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import clsx from 'clsx'
 import { Link } from 'react-router-dom'
-import type { BlockStatus, CompassSide, FeatureKind, FillParams, Row } from '@/model/types'
+import type {
+  BlockStatus,
+  CompassSide,
+  Feature as FarmFeature,
+  FeatureKind,
+  FillParams,
+  Row,
+} from '@/model/types'
 import { live } from '@/events/reduce'
 import { useFarmStore } from '@/state/store'
 import { flyToBlock, flyToFeature } from '@/map/bounds'
@@ -21,6 +28,7 @@ import {
   moveBlock,
   refillBlock,
   restoreFeature,
+  updateFeature,
   setBlockStatus,
   reverseRow,
   setBlockOutline,
@@ -1512,9 +1520,144 @@ function RowEditor({ row, code }: { row: Row; code: string }) {
   )
 }
 
-function FeatureSection() {
+/**
+ * One building or area: tap the name to find it, Reshape to resize or move it on the map, and
+ * the caret to rename it or say what it is for. The short description rides along on the map
+ * label, because "Blue House" alone does not tell a new hand what happens in it.
+ */
+function FeatureRow({
+  feature: f,
+  open,
+  onToggle,
+  onRemoved,
+}: {
+  feature: FarmFeature
+  open: boolean
+  onToggle: () => void
+  onRemoved: () => void
+}) {
   const state = useFarmStore((s) => s.state)
   const map = useEditor((s) => s.map)
+  const editingFeatureId = useEditor((s) => s.editingFeatureId)
+  const editFeature = useEditor((s) => s.editFeature)
+  const reshaping = editingFeatureId === f.id
+
+  return (
+    <li className="group/row py-0.5">
+      <div className="flex items-center gap-1">
+        <button
+          className="flex flex-1 items-center justify-between py-2 text-left hover:text-lime-700 dark:hover:text-lime-400"
+          title="Show this on the map"
+          onClick={() => map && flyToFeature(map, state, f.id)}
+        >
+          <span>
+            {f.name}
+            {f.description && (
+              <span className="ml-1.5 text-xs text-stone-500 dark:text-stone-400">
+                {f.description}
+              </span>
+            )}
+          </span>
+          <span className="text-xs text-stone-500 dark:text-stone-400">{f.kind}</span>
+        </button>
+        <button
+          type="button"
+          aria-pressed={reshaping}
+          title={reshaping ? 'Stop reshaping' : 'Resize or move this on the map'}
+          onClick={() => {
+            if (reshaping) editFeature(null)
+            else {
+              editFeature(f.id)
+              if (map) flyToFeature(map, state, f.id)
+            }
+          }}
+          className={clsx(
+            'shrink-0 rounded px-1.5 py-0.5 text-xs',
+            reshaping
+              ? 'bg-lime-700 text-white'
+              : 'text-stone-500 underline decoration-dotted hover:text-lime-700 dark:text-stone-400',
+          )}
+        >
+          {reshaping ? 'Done' : 'Reshape'}
+        </button>
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={open}
+          aria-label={`Details for ${f.name}`}
+          className="shrink-0 px-1 text-xs text-stone-400 hover:text-stone-700 dark:hover:text-stone-200"
+        >
+          {open ? '▾' : '▸'}
+        </button>
+        <RemoveButton
+          label={`Remove ${f.name}`}
+          onClick={() => {
+            deleteFeature(f.id)
+            onRemoved()
+          }}
+        />
+      </div>
+      {open && (
+        <div className="mb-2 space-y-2 rounded-md bg-stone-50 p-2 dark:bg-stone-800/60">
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="Name">
+              <input
+                className={inputClass}
+                defaultValue={f.name}
+                onBlur={(e) => {
+                  const v = e.target.value.trim()
+                  if (v && v !== f.name) updateFeature(f.id, { name: v })
+                  else e.target.value = f.name
+                }}
+              />
+            </Field>
+            <Field label="Kind">
+              <select
+                className={inputClass}
+                value={f.kind}
+                onChange={(e) => updateFeature(f.id, { kind: e.target.value as FeatureKind })}
+              >
+                {KINDS.map(([v, l]) => (
+                  <option key={v} value={v}>
+                    {l}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
+          <Field label="Short description">
+            <input
+              className={inputClass}
+              defaultValue={f.description ?? ''}
+              placeholder="seed starting, tools and fuel"
+              onBlur={(e) => {
+                const v = e.target.value.trim()
+                if (v !== (f.description ?? '')) updateFeature(f.id, { description: v || null })
+              }}
+            />
+            <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
+              Shown under the name on the map. Keep it to a few words.
+            </p>
+          </Field>
+          <Field label="Notes">
+            <textarea
+              className={`${inputClass} min-h-16 w-full`}
+              defaultValue={f.notes ?? ''}
+              placeholder="Anything worth remembering about this place"
+              onBlur={(e) => {
+                const v = e.target.value.trim()
+                if (v !== (f.notes ?? '')) updateFeature(f.id, { notes: v || null })
+              }}
+            />
+          </Field>
+        </div>
+      )}
+    </li>
+  )
+}
+
+function FeatureSection() {
+  const state = useFarmStore((s) => s.state)
   const tool = useEditor((s) => s.tool)
   const setTool = useEditor((s) => s.setTool)
   const draft = useEditor((s) => s.featureDraft)
@@ -1524,6 +1667,7 @@ function FeatureSection() {
   const [open, setOpen] = useState(true)
   const [adding, setAdding] = useState(false)
   const [removed, setRemoved] = useState<{ id: string; name: string } | null>(null)
+  const [openId, setOpenId] = useState<string | null>(null)
   const drawing = tool === 'feature-point' || tool === 'feature-polygon'
 
   return (
@@ -1614,23 +1758,13 @@ function FeatureSection() {
           )}
           <ul className="divide-y divide-stone-100 dark:divide-stone-800">
             {features.map((f) => (
-              <li key={f.id} className="group/row flex items-center gap-1">
-                <button
-                  className="flex flex-1 items-center justify-between py-2 text-left hover:text-lime-700 dark:hover:text-lime-400"
-                  title="Show this on the map"
-                  onClick={() => map && flyToFeature(map, state, f.id)}
-                >
-                  <span>{f.name}</span>
-                  <span className="text-xs text-stone-500 dark:text-stone-400">{f.kind}</span>
-                </button>
-                <RemoveButton
-                  label={`Remove ${f.name}`}
-                  onClick={() => {
-                    deleteFeature(f.id)
-                    setRemoved({ id: f.id, name: f.name })
-                  }}
-                />
-              </li>
+              <FeatureRow
+                key={f.id}
+                feature={f}
+                open={openId === f.id}
+                onToggle={() => setOpenId((id) => (id === f.id ? null : f.id))}
+                onRemoved={() => setRemoved({ id: f.id, name: f.name })}
+              />
             ))}
           </ul>
           {removed && (

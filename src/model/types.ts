@@ -110,6 +110,8 @@ export interface Feature extends Stamped {
   name: string
   kind: FeatureKind
   geometry: FeatureGeometry
+  /** A few words shown beside the name on the map: "seed starting", "tools and fuel". */
+  description?: string
   notes?: string
 }
 

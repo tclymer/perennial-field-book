@@ -114,7 +114,11 @@ Farm
   the compost and wood chip area, the back property, the windbreak, fence lines. A feature is
   a map landmark and a place a task, log, or harvest can point at. A greenhouse can contain a
   block (Gray House Figs, Blue House Figs). Features carry no schedules, inventories, or
-  maintenance records of their own.
+  maintenance records of their own. Each has a name, a short description shown beside the name
+  on the map, and notes. All three, and the shape itself, are editable after it is drawn
+  (2026-09-21): Reshape loads that one feature into the map editor, where a corner resizes it
+  and the body of the shape moves it onto the imagery. Polygons are draggable for that reason,
+  which also lets a block outline be shifted.
 - **Area.** Each block has an area, taken from the planner planting when linked, otherwise
   computed from rows (length × row spacing) or a drawn outline. Used to split farm-wide labor.
 
@@ -765,7 +769,15 @@ Each iteration is usable on its own.
    line) with the evidence and coverage behind each row, write-back into the planner's own
    backup, an overhead summary, and seasonal tasks from the plan's calendar. No planner-side
    change was needed.
-6. **Certification exports.** Materials on logs, date-range exports.
+6. **Certification exports.** Materials on logs, date-range exports. Built 2026-09-21: a
+   Certification section under Records that takes a season or any date range and produces the
+   four things a certifier asks for. Input applications are listed one line per product rather
+   than per log, because an inspector reads down a product column. Planting stock counts trees
+   per variety with its source and planted dates. Harvest and the equipment and buffer logs
+   come from the same records. Every section downloads as CSV and the page prints as the
+   summary sheet. It also names the gaps up front: varieties with no source recorded, and
+   trees with no planted date.
+   *Done when:* a certifier's request is answered without opening a spreadsheet.
 7. **Later candidates.** NFC tag kit and printing, weather snapshot on spray logs, voice
    entry parsed to a log, Bluetooth scale, box labels with QR for harvest entry, a donation
    link on the About page, a bring-your-own-Google-key option per farm if the shared quota
