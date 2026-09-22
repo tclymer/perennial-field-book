@@ -442,6 +442,10 @@ export interface ThisWeek {
   due: Task[]
   /** Soon and Long Term items whose season includes this month. */
   opened: Task[]
+  /** Small jobs waiting for a gap, so one can be added or picked up from the orchard. */
+  soon: Task[]
+  /** Projects, with how many of their subtasks are still open. */
+  projects: { task: Task; open: number }[]
 }
 
 export function thisWeek(state: FarmState, today: string): ThisWeek {
@@ -464,7 +468,12 @@ export function thisWeek(state: FarmState, today: string): ThisWeek {
         t.seasonMonths.includes(month),
     )
     .sort(byOrder)
-  return { now, due, opened }
+  const soon = open.filter((t) => t.bucket === 'soon' && !t.projectId).sort(byOrder)
+  const projects = open
+    .filter((t) => t.bucket === 'project' && !t.projectId)
+    .sort(byOrder)
+    .map((task) => ({ task, open: open.filter((t) => t.projectId === task.id).length }))
+  return { now, due, opened, soon, projects }
 }
 
 export interface Review {

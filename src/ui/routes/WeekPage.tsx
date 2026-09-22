@@ -9,19 +9,24 @@ import { addDays } from '@/engine/tasks'
 import { hoursOf } from '@/engine/logs'
 import { bucketName, thisWeek } from '@/engine/tasks'
 import type { NewEvent } from '@/events/types'
-import type { Task } from '@/model/types'
+import type { Bucket, Task } from '@/model/types'
 import { Button, Card, PageHeader } from '@/ui/components'
+import { Chip } from '@/ui/harvest/Chips'
 import { DoneSheet, type DoneSheetResult } from '@/ui/tasks/DoneSheet'
 import { QuickAdd } from '@/ui/tasks/QuickAdd'
 import { TaskRow } from '@/ui/tasks/TaskRow'
 import { Toast } from '@/ui/tasks/Toast'
 import { useTaskDrag } from '@/ui/tasks/useTaskDrag'
 
+/** The lists a task can be added to from the orchard, in the order they are worked. */
+const ADD_TO: Bucket[] = ['now', 'soon', 'later', 'project']
+
 /** The phone's home: what to do now, what to keep up with, and what the season opened. */
 export default function WeekPage() {
   const state = useFarmStore((s) => s.state)
   const date = today()
   const week = thisWeek(state, date)
+  const [addTo, setAddTo] = useState<Bucket>('now')
   const [sheet, setSheet] = useState<Task | null>(null)
   const [toast, setToast] = useState<{ message: string; undo?: NewEvent[] } | null>(null)
   const closeToast = useCallback(() => setToast(null), [])
@@ -79,7 +84,22 @@ export default function WeekPage() {
         </Link>
       </PageHeader>
 
-      <QuickAdd bucket="now" />
+      {/*
+        A mini task or a project comes to mind in the orchard as often as this week's work
+        does, and walking back to the desk to write it down means losing it. The list to add
+        to is one tap, and it stays put between adds.
+      */}
+      <div className="flex flex-wrap gap-1.5">
+        {ADD_TO.map((b) => (
+          <Chip key={b} active={addTo === b} onClick={() => setAddTo(b)}>
+            {bucketName(state.farm, b)}
+          </Chip>
+        ))}
+      </div>
+      <QuickAdd
+        bucket={addTo}
+        placeholder={`Add to ${bucketName(state.farm, addTo).toLowerCase()}…`}
+      />
 
       <Section
         title={bucketName(state.farm, 'now')}
@@ -110,6 +130,37 @@ export default function WeekPage() {
           <TaskRow key={t.id} task={t} today={date} onCheck={check} onDelete={remove} />
         ))}
       </Section>
+
+      {week.soon.length > 0 && (
+        <Section
+          title={bucketName(state.farm, 'soon')}
+          hint="Small jobs for when there is a gap."
+          link={{ to: '/tasks?bucket=soon', label: 'All' }}
+        >
+          {week.soon.slice(0, 8).map((t) => (
+            <TaskRow key={t.id} task={t} today={date} onCheck={check} onDelete={remove} />
+          ))}
+        </Section>
+      )}
+
+      {week.projects.length > 0 && (
+        <Section
+          title={bucketName(state.farm, 'project')}
+          hint="Bigger pieces of work. Tap one to add to it."
+          link={{ to: '/tasks?bucket=project', label: 'All' }}
+        >
+          {week.projects.slice(0, 8).map(({ task, open }) => (
+            <li key={task.id} className="flex items-center gap-2 py-1">
+              <Link to={`/tasks/${task.id}`} className="min-w-0 flex-1 truncate">
+                {task.title}
+              </Link>
+              <span className="shrink-0 text-xs text-stone-500 dark:text-stone-400">
+                {open === 0 ? 'no steps yet' : `${open} open`}
+              </span>
+            </li>
+          ))}
+        </Section>
+      )}
 
       {week.opened.length > 0 && (
         <Section title="The season has opened" hint="Items waiting for this time of year.">
