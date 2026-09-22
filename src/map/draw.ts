@@ -32,8 +32,11 @@ export interface EditableFeature {
 export interface DrawHandlers {
   onDrawn: (g: DrawnGeometry) => void
   onEdited: (id: string, g: DrawnGeometry) => void
-  /** The shape being drawn right now, after every click or cursor move. */
-  onProvisional?: (g: DrawnGeometry | null) => void
+  /**
+   * The shape being drawn right now, after every click or cursor move. `committed` is how
+   * many corners have actually been clicked; the rest of the shape is following the cursor.
+   */
+  onProvisional?: (g: DrawnGeometry | null, committed: number) => void
   /** A loaded shape while it is being dragged, before the drag ends. */
   onEditing?: (id: string, g: DrawnGeometry) => void
   /** Shapes the draw library refused to load, so an edit session can say so rather than look broken. */
@@ -104,6 +107,28 @@ function fromStore(f: GeoJSONStoreFeatures): DrawnGeometry | null {
     return { shape: 'point', coordinates: [g.coordinates[0], g.coordinates[1]] }
   return null
 }
+
+/**
+ * How many corners of a shape being drawn have been clicked rather than being the one that
+ * follows the cursor. Terra Draw tracks this while drawing; anything else is a finished shape,
+ * where every coordinate counts.
+ */
+function committedCount(f: GeoJSONStoreFeatures): number {
+  const n = f.properties[COMMITTED_COUNT]
+  if (typeof n === 'number') return n
+  // Unknown. While a shape is still being drawn, guessing high would be the very mistake this
+  // exists to prevent, so report none and let the caller wait. A finished shape has no corner
+  // chasing the cursor, so all of them count.
+  if (f.properties[CURRENTLY_DRAWING] === true) return 0
+  const g = f.geometry
+  if (g.type === 'Polygon') return Math.max(0, (g.coordinates[0]?.length ?? 1) - 1)
+  if (g.type === 'LineString') return g.coordinates.length
+  return 1
+}
+
+/** Terra Draw's own property names for these. */
+const COMMITTED_COUNT = 'committedCoordinateCount'
+const CURRENTLY_DRAWING = 'currentlyDrawing'
 
 function toStore(id: string, g: DrawnGeometry): GeoJSONStoreFeatures {
   if (g.shape === 'line') {
@@ -197,14 +222,14 @@ export function createDraw(map: MlMap, handlers: DrawHandlers): DrawController {
     }
     if (!handlers.onProvisional) return
     if (type === 'delete') {
-      handlers.onProvisional(null)
+      handlers.onProvisional(null, 0)
       return
     }
     for (const id of ids) {
       const f = draw.getSnapshotFeature(id)
       if (!f || f.properties.mode !== draw.getMode()) continue
       const g = fromStore(f)
-      if (g) handlers.onProvisional(g)
+      if (g) handlers.onProvisional(g, committedCount(f))
       return
     }
   })

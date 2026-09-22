@@ -141,6 +141,17 @@ export function polygonAreaSqFt(ring: Ring): number {
 
 export const SQFT_PER_ACRE = 43_560
 
+/**
+ * How a farmer says an area out loud. A greenhouse bench or a trial row is a number of square
+ * feet; anything approaching a tenth of an acre is acres. Nobody thinks of 4,000 sq ft as
+ * 0.09 ac, and nobody thinks of three acres as 130,680 sq ft.
+ */
+export function areaLabel(sqft: number): string {
+  if (sqft <= 0) return ''
+  const acres = sqFtToAcres(sqft)
+  return acres < 0.1 ? `${Math.round(sqft).toLocaleString()} sq ft` : `${acres.toFixed(2)} ac`
+}
+
 export function sqFtToAcres(sqft: number): number {
   return sqft / SQFT_PER_ACRE
 }

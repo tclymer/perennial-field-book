@@ -7,6 +7,7 @@ import type {
   Feature as FarmFeature,
   FeatureKind,
   FillParams,
+  Ring,
   Row,
 } from '@/model/types'
 import { live } from '@/events/reduce'
@@ -14,7 +15,7 @@ import { useFarmStore } from '@/state/store'
 import { flyToBlock, flyToFeature } from '@/map/bounds'
 import { speciesColors } from '@/state/colors'
 import { blockSpecies, varietiesByName } from '@/state/derived'
-import { polygonAreaSqFt } from '@/engine/geo'
+import { areaLabel, polygonAreaSqFt } from '@/engine/geo'
 import {
   autoNumberRows,
   clearEmptyRows,
@@ -39,7 +40,7 @@ import {
   updateBlock,
 } from '@/state/actions'
 import { blockAreaSqFt, describeNumbering, rowLengthFt, rowUpBearing } from '@/engine/layout'
-import { positionCount, sqFtToAcres } from '@/engine/geo'
+import { distanceFt, headingDeg, positionCount, sqFtToAcres } from '@/engine/geo'
 import { fillOutline, fillSummary, firstEdgeHeading } from '@/engine/fill'
 import { planRelayout } from '@/engine/relayout'
 import { centroidOf, isIdentity } from '@/engine/transform'
@@ -202,7 +203,7 @@ function BlockList() {
       <ul className="divide-y divide-stone-100 dark:divide-stone-800">
         {blocks.map((b) => {
           const rows = live.rows(state).filter((r) => r.blockId === b.id)
-          const acres = sqFtToAcres(blockAreaSqFt(b, rows))
+          const area = areaLabel(blockAreaSqFt(b, rows))
           return (
             <li key={b.id} className="group/block flex items-center gap-2">
               <button
@@ -218,7 +219,7 @@ function BlockList() {
                 </span>
                 <span className="text-xs text-stone-500 dark:text-stone-400">
                   {rows.length} {rows.length === 1 ? 'row' : 'rows'}
-                  {acres > 0 && ` · ${acres.toFixed(2)} ac`}
+                  {area && ` · ${area}`}
                 </span>
               </button>
               <Link
@@ -384,7 +385,7 @@ function BlockEditor({ blockId }: { blockId: string }) {
     .filter((r) => r.blockId === blockId)
     .sort((a, b) => a.number - b.number)
   const loose = live.loosePositions(state).filter((p) => p.blockId === blockId)
-  const acres = sqFtToAcres(blockAreaSqFt(block, rows))
+  const area = areaLabel(blockAreaSqFt(block, rows))
   const empty = rows.length === 0 && loose.length === 0
   const toolButton = (t: Tool, label: string, title?: string) => (
     <Button
@@ -409,7 +410,7 @@ function BlockEditor({ blockId }: { blockId: string }) {
       </h2>
       <p className="mb-2 text-xs text-stone-500 dark:text-stone-400">
         {rows.length} rows · {loose.length} loose trees
-        {acres > 0 && ` · ${acres.toFixed(2)} ac`}
+        {area && ` · ${area}`}
         {block.planner && ' · linked to the planner'}
         {block.status === 'planned' && (
           <Pill tone="info" className="ml-2">
@@ -711,6 +712,41 @@ function LayoutChoice({ blockId }: { blockId: string }) {
   )
 }
 
+/**
+ * The distinct directions an outline's edges run, longest first, so rows can be squared to a
+ * side of the block rather than nudged there by eye. Edges that run the same way (the two
+ * sides of a rectangle) collapse into one, since a row along either is the same row.
+ */
+function edgeHeadings(outline: Ring | null): { label: string; headingDeg: number }[] {
+  if (!outline || outline.length < 3) return []
+  const seen: { headingDeg: number; lengthFt: number }[] = []
+  for (let i = 0; i < outline.length; i++) {
+    const a = outline[i]!
+    const b = outline[(i + 1) % outline.length]!
+    const h = ((headingDeg([a, b]) % 180) + 180) % 180
+    const len = distanceFt(a, b)
+    const near = seen.find(
+      (s) => Math.min(Math.abs(s.headingDeg - h), 180 - Math.abs(s.headingDeg - h)) < 5,
+    )
+    if (near) near.lengthFt += len
+    else seen.push({ headingDeg: h, lengthFt: len })
+  }
+  return seen
+    .sort((a, b) => b.lengthFt - a.lengthFt)
+    .slice(0, 3)
+    .map((e, i) => ({
+      label: i === 0 ? 'the long side' : i === 1 ? 'the short side' : 'the third side',
+      headingDeg: e.headingDeg,
+    }))
+}
+
+/** The turn that takes `from` to `want`, kept inside a quarter turn either way. */
+function turnTo(want: number, from: number): number {
+  let d = (((want - from) % 180) + 180) % 180
+  if (d > 90) d -= 180
+  return Math.round(d * 4) / 4
+}
+
 function FillForm({ blockId }: { blockId: string }) {
   const state = useFarmStore((s) => s.state)
   const fill = useEditor((s) => s.fill)!
@@ -858,17 +894,43 @@ function FillForm({ blockId }: { blockId: string }) {
             insetEndFt: fill.insetEndFt === fill.rowSpacingFt / 2 ? v / 2 : fill.insetEndFt,
           }),
         )}
+        {/*
+          A quarter turn each way covers every direction rows can run, because a row running
+          one way is the same row running back. Forty five degrees was not enough when the
+          heading came out square to what was wanted.
+        */}
         {!fill.drawing &&
           slider(
             'Turn rows',
             fill.rotateDeg,
-            -45,
-            45,
+            -90,
+            90,
             0.25,
             '°',
             (v) => update({ rotateDeg: v }),
             `Heading ${Math.round((((heading % 360) + 360) % 360) * 10) / 10}°`,
           )}
+        {!fill.drawing && (
+          <div className="col-span-2 flex flex-wrap items-center gap-1.5">
+            <span className="text-xs text-stone-500 dark:text-stone-400">Or square it to</span>
+            {edgeHeadings(outline).map((e) => (
+              <Button
+                key={e.label}
+                variant="ghost"
+                onClick={() => update({ rotateDeg: turnTo(e.headingDeg, fill.headingDeg) })}
+                title={`Run the rows along the ${e.label} edge of the outline`}
+              >
+                {e.label}
+              </Button>
+            ))}
+            <Button
+              variant="ghost"
+              onClick={() => update({ rotateDeg: turnTo(heading + 90, fill.headingDeg) })}
+            >
+              a quarter turn
+            </Button>
+          </div>
+        )}
         {!fill.drawing && (
           <Field
             label="Nudge the trees"
@@ -1531,7 +1593,7 @@ function formatArea(sqft: number): string {
   if (sqft <= 0) return 'No area: this is a point on the map, not a shape.'
   const acres = sqFtToAcres(sqft)
   const feet = `${Math.round(sqft).toLocaleString()} sq ft`
-  return acres >= 0.25 ? `${feet} · ${acres.toFixed(2)} ac` : feet
+  return acres >= 0.1 ? `${feet} · ${acres.toFixed(2)} ac` : feet
 }
 
 /**

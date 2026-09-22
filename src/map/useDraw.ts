@@ -152,7 +152,7 @@ export function useDraw(map: MlMap | null, state: FarmState, enabled: boolean): 
           editor.setTool('none')
         }
       },
-      onProvisional: (g) => {
+      onProvisional: (g, committed) => {
         const editor = useEditor.getState()
         const fill = editor.fill
         if (!fill?.drawing) return
@@ -160,16 +160,20 @@ export function useDraw(map: MlMap | null, state: FarmState, enabled: boolean): 
           if (fill.previewOutline) editor.updateFill({ previewOutline: null })
           return
         }
-        // The first two corners fix the row direction for good; Terra Draw may later hand
-        // the ring back rotated or reversed, and that must not change the heading.
-        const anchor = fill.anchor ?? {
-          corner: g.coordinates[0],
-          headingDeg: firstEdgeHeading(g.coordinates),
-        }
+        // The first two corners fix the row direction for good, because Terra Draw may later
+        // hand the ring back rotated or reversed and that must not change the heading.
+        //
+        // Wait for two corners to actually be clicked. While only one has been, the second
+        // coordinate is the one chasing the cursor, and locking onto that pointed the rows
+        // wherever the mouse happened to be a moment after the first click.
+        const anchor =
+          fill.anchor ??
+          (committed >= 2
+            ? { corner: g.coordinates[0], headingDeg: firstEdgeHeading(g.coordinates) }
+            : null)
         editor.updateFill({
           previewOutline: g.coordinates.length >= 3 ? g.coordinates : fill.previewOutline,
-          headingDeg: anchor.headingDeg,
-          anchor,
+          ...(anchor ? { headingDeg: anchor.headingDeg, anchor } : {}),
         })
       },
       onEditing: (id, g) => {

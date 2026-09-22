@@ -119,8 +119,28 @@ Farm
   (2026-09-21): Reshape loads that one feature into the map editor, where a corner resizes it
   and the body of the shape moves it onto the imagery. Polygons are draggable for that reason,
   which also lets a block outline be shifted. The details also give a polygon's area, in square
-  feet and in acres once it is over a quarter acre; the block list gives each block's acreage
-  beside its row count.
+  feet and in acres once it is over a tenth of an acre; the block list gives each block's size
+  beside its row count. `areaLabel` switches at a tenth of an acre: a greenhouse bench or a
+  trial row is a number of square feet, and nobody thinks of 4,000 sq ft as 0.09 ac.
+
+  **Row direction on a new planting** (2026-09-21). The heading was locked from the first two
+  coordinates of the shape being drawn, but Terra Draw creates a polygon on the *first* click
+  with every corner at that point and then has one corner follow the cursor. So two
+  coordinates existed immediately, and the heading was locked to wherever the mouse happened
+  to be a moment after the first click. Sometimes that was roughly the direction the row was
+  going, which is why it was intermittent rather than always wrong.
+
+  The library reports `committedCoordinateCount` on the shape while it is being drawn, which
+  counts corners actually clicked. The heading now waits for two of those. Measured in the
+  browser: after one click the shape already has four coordinates and a committed count of
+  one, and the count then rises with each click. Where the count is unavailable the heading
+  does not lock at all, which is no worse than the old fallback of reading the finished ring.
+
+  **Turning rows afterwards** goes a quarter turn each way rather than forty five degrees,
+  because a row running one way is the same row running back, so ninety degrees covers every
+  direction a row can run. Forty five could not reach a heading that came out square to the
+  one wanted. There are also buttons to square the rows to an edge of the outline, longest
+  side first.
 
   **An edit session opens with something selected.** Terra Draw draws corner and midpoint
   handles only on the selected shape, so a session that opened with nothing selected looked
