@@ -13,13 +13,108 @@ import { History } from '@/ui/tree/History'
 import { PhotoStrip } from '@/ui/tree/PhotoStrip'
 import { LogWork } from '@/ui/tree/LogWork'
 import { TreeHarvest } from '@/ui/tree/TreeHarvest'
-import { completePlannedGraft, updateTree } from '@/state/actions'
+import { addTreeEvent, completePlannedGraft, removePosition, updateTree } from '@/state/actions'
 
 const STATUS_TONE: Record<Tree['status'], Tone> = {
   alive: 'good',
   struggling: 'warn',
   dead: 'bad',
   removed: 'neutral',
+}
+
+/**
+ * Whether a tree is still there. It sits with the status rather than among the actions,
+ * because it happens once in a tree's life and the actions are things done weekly.
+ *
+ * It is not a note, because the status is load-bearing: a harvest recorded by variety and
+ * place is split across the living trees of that variety, so a tree that is gone and not
+ * marked keeps drawing a share and every survivor reads low.
+ */
+function GoneControl({
+  tree,
+  posKey,
+  label,
+  onDone,
+}: {
+  tree: Tree
+  posKey: string
+  label: string
+  onDone: (message: string) => void
+}) {
+  const [asking, setAsking] = useState(false)
+  const gone = tree.status === 'dead' || tree.status === 'removed'
+  const inRow = posKey.includes(':')
+
+  if (gone) {
+    return (
+      <span className="flex items-center gap-2">
+        <Pill tone={STATUS_TONE[tree.status]}>gone</Pill>
+        <button
+          type="button"
+          className="text-xs underline decoration-dotted text-stone-500 dark:text-stone-400"
+          onClick={() => {
+            updateTree(tree.id, { status: 'alive' })
+            onDone('Back to standing.')
+          }}
+        >
+          still there after all
+        </button>
+      </span>
+    )
+  }
+
+  if (!asking) {
+    return (
+      <span className="flex items-center gap-2">
+        <Pill tone={STATUS_TONE[tree.status]}>{tree.status}</Pill>
+        <button
+          type="button"
+          className="text-xs underline decoration-dotted text-stone-500 dark:text-stone-400"
+          onClick={() => setAsking(true)}
+        >
+          dead or gone
+        </button>
+      </span>
+    )
+  }
+
+  return (
+    <div className="w-full max-w-sm rounded-md border border-stone-200 p-2 text-sm dark:border-stone-700">
+      <p>
+        {label} is gone. Why it went can go in a note. Does the spot stay in the row for a
+        replacement?
+      </p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        <Button
+          onClick={() => {
+            addTreeEvent(tree.id, 'removed')
+            setAsking(false)
+            onDone('Recorded as gone. The spot is still in the row.')
+          }}
+        >
+          Keep the spot
+        </Button>
+        {inRow && (
+          <Button
+            onClick={() => {
+              const r = removePosition(posKey)
+              setAsking(false)
+              onDone(
+                r.ok
+                  ? 'Recorded as gone, and the spot is out of the row. The trees after it have moved up a number.'
+                  : r.reason,
+              )
+            }}
+          >
+            Close the gap
+          </Button>
+        )}
+        <Button variant="ghost" onClick={() => setAsking(false)}>
+          Cancel
+        </Button>
+      </div>
+    </div>
+  )
 }
 
 export default function TreePage() {
@@ -131,7 +226,12 @@ export default function TreePage() {
                 )}
               </dl>
             </div>
-            <Pill tone={STATUS_TONE[current.status]}>{current.status}</Pill>
+            <GoneControl
+              tree={current}
+              posKey={position.posKey}
+              label={position.label}
+              onDone={setMessage}
+            />
           </div>
         ) : (
           <p className="text-sm">
@@ -141,7 +241,7 @@ export default function TreePage() {
         )}
         {current && (
           <label className="mt-3 block text-sm">
-            <span className="text-stone-600 dark:text-stone-400">Notes about this tree</span>
+            <span className="text-stone-600 dark:text-stone-400">About this tree</span>
             <textarea
               className={`${inputClass} mt-1 min-h-16 w-full`}
               defaultValue={current.notes ?? ''}

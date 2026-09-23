@@ -1,25 +1,12 @@
 import { useState } from 'react'
-import type { Tree, TreeStatus } from '@/model/types'
-import { addTreeEvent, plantTree, removePosition, replaceTree, today } from '@/state/actions'
+import type { Tree } from '@/model/types'
+import { addTreeEvent, plantTree, today } from '@/state/actions'
 import { addPhoto } from '@/state/photos'
 import { useFarmStore } from '@/state/store'
 import { Button, Field, inputClass } from '@/ui/components'
 import { VarietyPicker } from './VarietyPicker'
 
-type Action =
-  | 'note'
-  | 'photo'
-  | 'grafted'
-  | 'scionwood'
-  | 'fruited'
-  | 'died'
-  | 'removed'
-  | 'status'
-  | 'replace'
-  | 'plant'
-  | 'takeout'
-
-const STATUSES: TreeStatus[] = ['alive', 'struggling', 'dead', 'removed']
+type Action = 'note' | 'photo' | 'grafted' | 'plant'
 
 /**
  * The one-tap actions on a tree page. Each opens a short form with today's date filled in;
@@ -37,12 +24,12 @@ export function ActionSheet({
   onDone?: (message: string) => void
 }) {
   const farmId = useFarmStore((s) => s.farmId)
-  const inRow = posKey.includes(':')
+  // A tree recorded as gone leaves the spot open for a new one.
+  const gone = tree?.status === 'dead' || tree?.status === 'removed'
   const [action, setAction] = useState<Action | null>(null)
   const [date, setDate] = useState(today())
   const [note, setNote] = useState('')
   const [varietyId, setVarietyId] = useState<string | null>(tree?.varietyId ?? null)
-  const [status, setStatus] = useState<TreeStatus>(tree?.status ?? 'alive')
   const [how, setHow] = useState<'planted' | 'grafted'>('planted')
   const [busy, setBusy] = useState(false)
 
@@ -50,9 +37,7 @@ export function ActionSheet({
     setAction(a)
     setDate(today())
     setNote('')
-    setVarietyId(
-      a === 'grafted' || a === 'replace' || a === 'plant' ? null : (tree?.varietyId ?? null),
-    )
+    setVarietyId(a === 'grafted' || a === 'plant' ? null : (tree?.varietyId ?? null))
   }
   const close = (message?: string) => {
     setAction(null)
@@ -65,18 +50,6 @@ export function ActionSheet({
       close('Tree recorded.')
       return
     }
-    if (action === 'replace') {
-      replaceTree(posKey, { varietyId: varietyId ?? undefined, date, how })
-      close('New tree recorded; the old one is kept in the history.')
-      return
-    }
-    if (action === 'takeout') {
-      const r = removePosition(posKey, date)
-      close(
-        r.ok ? 'Spot taken out of the row. The trees after it have moved up a number.' : r.reason,
-      )
-      return
-    }
     if (!tree) return
     if (action === 'grafted') {
       addTreeEvent(tree.id, 'grafted', {
@@ -85,9 +58,6 @@ export function ActionSheet({
         note: note || undefined,
       })
       close('Graft recorded.')
-    } else if (action === 'status') {
-      addTreeEvent(tree.id, 'status', { date, status, note: note || undefined })
-      close('Status recorded.')
     } else if (action === 'note') {
       if (!note.trim()) return
       addTreeEvent(tree.id, 'note', { date, note: note.trim() })
@@ -126,22 +96,23 @@ export function ActionSheet({
 
   return (
     <div>
+      {/*
+        Three things, because three is what anyone does at a tree: write something down, take
+        a picture, or record a graft. Everything else that used to live here either drove
+        nothing in the records, or happens once in a tree's life and belongs somewhere
+        quieter. What is gone: first fruit (the harvest log already has it), scionwood
+        collected (it changed nothing), struggling (it counted as alive everywhere), and
+        replacing a tree (mark it gone, then plant, which is the order it happens in anyway).
+      */}
       <div className="flex flex-wrap gap-1.5">
-        {tree ? (
+        {!tree ? (
+          btn('plant', 'Plant a tree here…')
+        ) : (
           <>
             {btn('note', 'Note')}
             {btn('photo', 'Photo')}
-            {btn('grafted', 'Grafted to…')}
-            {btn('scionwood', 'Scionwood collected')}
-            {btn('fruited', 'First fruit')}
-            {btn('status', 'Status…')}
-            {btn('died', 'Died')}
-            {btn('removed', 'Removed')}
-            {btn('replace', 'Replace tree…')}
-            {inRow && btn('takeout', 'Take the spot out of the row…')}
+            {gone ? btn('plant', 'Plant a tree here…') : btn('grafted', 'Grafted over to…')}
           </>
-        ) : (
-          btn('plant', 'Plant a tree here…')
         )}
       </div>
 
@@ -164,7 +135,7 @@ export function ActionSheet({
               />
             </Field>
           )}
-          {(action === 'grafted' || action === 'replace' || action === 'plant') && (
+          {(action === 'grafted' || action === 'plant') && (
             <Field label={action === 'grafted' ? 'Grafted to' : 'Variety'}>
               <VarietyPicker
                 value={varietyId}
@@ -174,7 +145,7 @@ export function ActionSheet({
               />
             </Field>
           )}
-          {(action === 'replace' || action === 'plant') && (
+          {action === 'plant' && (
             <Field label="How">
               <select
                 className={inputClass}
@@ -183,28 +154,6 @@ export function ActionSheet({
               >
                 <option value="planted">planted a whole tree</option>
                 <option value="grafted">grafted onto rootstock here</option>
-              </select>
-            </Field>
-          )}
-          {action === 'takeout' && (
-            <p className="text-xs text-stone-600 dark:text-stone-400">
-              The tree is recorded as removed and this spot stops counting, so the trees after it in
-              the row each move up a number. Nothing already recorded here is lost, and putting the
-              spot back later returns it to its own place with its old number.
-            </p>
-          )}
-          {action === 'status' && (
-            <Field label="Status">
-              <select
-                className={inputClass}
-                value={status}
-                onChange={(e) => setStatus(e.target.value as TreeStatus)}
-              >
-                {STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
               </select>
             </Field>
           )}
@@ -230,13 +179,7 @@ export function ActionSheet({
                 value={note}
                 autoFocus={action === 'note'}
                 onChange={(e) => setNote(e.target.value)}
-                placeholder={
-                  action === 'scionwood'
-                    ? 'How much, and for whom'
-                    : action === 'note'
-                      ? 'Very hardy, late to leaf out, upright form…'
-                      : ''
-                }
+                placeholder={action === 'note' ? 'Very hardy, late to leaf out, upright form…' : ''}
               />
             </Field>
           )}

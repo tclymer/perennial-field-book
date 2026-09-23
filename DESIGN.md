@@ -301,6 +301,35 @@ tree page shows its derived share by year.
 Name, active flag. Every device has a current user. Logs default to that person and can be
 switched with one tap, which covers the owner who will not carry the phone.
 
+**What a tree page offers** (2026-09-22). Three things, because three is what anyone does
+standing at a tree: write a note, take a photo, or record a graft. It had ten, and a farm
+manager seeing it for the first time could not tell which to press.
+
+Taken out, and why each was safe to take out:
+
+- **First fruit** set a year that nothing read but its own line on the page. The harvest log
+  already carries it, with a date.
+- **Scionwood collected** had no effect in the reducer at all; it was a dated line. A note is
+  the same thing. The real need behind it is a pick list for scionwood orders.
+- **Struggling** counted as alive in every calculation, including the yield split. Its only
+  effect anywhere was a colour on the status map. The value stays in the model so old records
+  still render.
+- **Replace tree** only bought a planted date, and the planner takes the earliest date in a
+  whole block, so one replacement moved nothing. Marking a tree gone now reveals "Plant a
+  tree here", which is the order it happens in anyway.
+- **Status**, which could set dead or removed and so duplicated two other buttons.
+
+**Dead or gone stayed**, because the status is load-bearing and a note is not. A harvest
+recorded by variety and place is split across the living trees of that variety (`alive()` in
+`engine/harvest.ts`), so a tree that is gone and never marked keeps drawing a share and every
+survivor reads low: ten trees with three unmarked dead makes each survivor about thirty per
+cent short. It sits beside the status on the detail card rather than among the actions,
+because it happens once in a tree's life, and it asks the one question that matters: does the
+spot stay in the row, or does the gap close. Dead and removed are one state in the UI now;
+why it went goes in a note.
+
+The standing description is **About this tree**, so it stops competing with dated notes.
+
 ### 3.8 Taking a spot out of a row (2026-09-20)
 
 Rows generate their slots from a count or a spacing. A row also carries `skips`, the slots
