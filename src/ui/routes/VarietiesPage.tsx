@@ -5,6 +5,17 @@ import { defaultSpeciesColor, speciesColors, varietyColorsBySpecies } from '@/st
 import { useFarmStore } from '@/state/store'
 import { positionCountByVariety, treeCountByVariety, varietiesByName } from '@/state/derived'
 import { createVariety, deleteVariety, updateVariety } from '@/state/actions'
+import { downloadText, fileSlug } from '@/events/bundle'
+import {
+  normalizeTrait,
+  sameTrait,
+  splitTrait,
+  traitSuggestions,
+  traitsInUse,
+  traitsOf,
+  varietySheet,
+  varietySheetToCsv,
+} from '@/engine/traits'
 import { Button, Card, Field, PageHeader, Pill, inputClass } from '@/ui/components'
 import type { Variety } from '@/model/types'
 import { ColorPicker } from '@/ui/ColorPicker'
@@ -53,7 +64,24 @@ export default function VarietiesPage() {
   const groups = useMemo(() => groupBySpecies(varieties, counts), [varieties, counts])
   const [adding, setAdding] = useState<string | null>(null)
   const [only, setOnly] = useState<string | null>(null)
-  const shown = only ? groups.filter((g) => g.species.toLowerCase() === only) : groups
+  const [trait, setTrait] = useState<string | null>(null)
+  const traitsUsed = useMemo(() => traitsInUse(state), [state])
+  const byTrait = useMemo(() => {
+    if (!trait) return groups
+    return groups
+      .map((g) => ({
+        ...g,
+        types: g.types
+          .map((t) => ({
+            ...t,
+            varieties: t.varieties.filter((v) => traitsOf(v).some((x) => sameTrait(x, trait))),
+          }))
+          .filter((t) => t.varieties.length > 0),
+        varieties: g.varieties.filter((v) => traitsOf(v).some((x) => sameTrait(x, trait))),
+      }))
+      .filter((g) => g.varieties.length > 0)
+  }, [groups, trait])
+  const shown = only ? byTrait.filter((g) => g.species.toLowerCase() === only) : byTrait
   const speciesNames = groups.map((g) => g.species)
   const typeNames = [...new Set(varieties.map((v) => v.group?.trim()).filter(Boolean))] as string[]
 
@@ -63,6 +91,18 @@ export default function VarietiesPage() {
         title="Varieties"
         subtitle={`${varieties.length} in this farm, ${groups.length} ${groups.length === 1 ? 'species' : 'species'}`}
       >
+        <Button
+          onClick={() =>
+            downloadText(
+              `${fileSlug(state.farm?.name ?? 'farm')}-varieties.csv`,
+              varietySheetToCsv(varietySheet(state)),
+              'text/csv',
+            )
+          }
+          title="Every variety with its traits, source, and how many stand here"
+        >
+          Variety sheet
+        </Button>
         <Button variant="primary" onClick={() => setAdding(only ?? '')}>
           New variety
         </Button>
@@ -85,6 +125,26 @@ export default function VarietiesPage() {
           ))}
         </div>
       )}
+      {traitsUsed.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs text-stone-500 dark:text-stone-400">Traits</span>
+          {traitsUsed.slice(0, 16).map((u) => (
+            <Chip
+              key={u.trait}
+              active={trait !== null && sameTrait(trait, u.trait)}
+              onClick={() => setTrait(trait && sameTrait(trait, u.trait) ? null : u.trait)}
+            >
+              {u.trait} <span className="opacity-60">{u.count}</span>
+            </Chip>
+          ))}
+          {trait && (
+            <Button variant="ghost" onClick={() => setTrait(null)}>
+              Clear
+            </Button>
+          )}
+        </div>
+      )}
+
       {adding !== null && (
         <NewVariety
           species={adding}
@@ -298,6 +358,85 @@ function SpeciesColor({ species }: { species: string }) {
   )
 }
 
+/**
+ * The traits on one variety: chips you can take off, a box to type a new one, and the ones
+ * this species already uses offered underneath. The suggestions come from what the farm has
+ * written before, so the vocabulary settles itself and there is nothing to set up first.
+ */
+function TraitEditor({ variety }: { variety: Variety }) {
+  const state = useFarmStore((s) => s.state)
+  const [text, setText] = useState('')
+  const current = traitsOf(variety)
+  const suggestions = traitSuggestions(state, variety.species, current)
+
+  const set = (list: string[]) => updateVariety(variety.id, { traits: list.length ? list : null })
+  const add = (raw: string) => {
+    const clean = normalizeTrait(raw)
+    if (!clean || current.some((t) => sameTrait(t, clean))) return
+    set([...current, clean])
+    setText('')
+  }
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center gap-1.5">
+        {current.map((t) => {
+          const { key, value } = splitTrait(t)
+          return (
+            <span
+              key={t}
+              className="group/trait inline-flex items-center gap-1 rounded-full border border-stone-300 px-2 py-0.5 text-xs dark:border-stone-600"
+            >
+              {key && <span className="text-stone-500 dark:text-stone-400">{key}</span>}
+              <span>{value}</span>
+              <button
+                type="button"
+                aria-label={`Remove ${t}`}
+                className="text-stone-400 hover:text-rose-600"
+                onClick={() => set(current.filter((x) => !sameTrait(x, t)))}
+              >
+                ×
+              </button>
+            </span>
+          )
+        })}
+      </div>
+      <input
+        className={`${inputClass} mt-1.5`}
+        value={text}
+        placeholder="precocious, or vigor: high"
+        aria-label={`Add a trait to ${variety.name}`}
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault()
+            add(text)
+          }
+        }}
+        onBlur={() => add(text)}
+      />
+      {suggestions.length > 0 && (
+        <div className="mt-1.5 flex flex-wrap items-center gap-1">
+          <span className="text-xs text-stone-500 dark:text-stone-400">Already used:</span>
+          {suggestions.map((t) => (
+            <button
+              key={t}
+              type="button"
+              className="rounded-full border border-dashed border-stone-300 px-2 py-0.5 text-xs text-stone-600 hover:border-lime-700 hover:text-lime-700 dark:border-stone-600 dark:text-stone-400"
+              onClick={() => add(t)}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+      )}
+      <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
+        A colon makes a heading, as in "vigor: high". Nothing needs one.
+      </p>
+    </div>
+  )
+}
+
 function VarietyCard({
   variety,
   count,
@@ -396,6 +535,9 @@ function VarietyCard({
                 if (v !== (variety.source ?? '')) updateVariety(variety.id, { source: v || null })
               }}
             />
+          </Field>
+          <Field label="What it is like" className="sm:col-span-2">
+            <TraitEditor variety={variety} />
           </Field>
           <Field label="Color on the map" className="sm:col-span-2">
             <ColorPicker

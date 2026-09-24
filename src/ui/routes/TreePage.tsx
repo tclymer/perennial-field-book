@@ -6,6 +6,7 @@ import { live } from '@/events/reduce'
 import { describeNumbering } from '@/engine/layout'
 import { parseTreeLabel } from '@/model/ids'
 import { formatTagId, tagsFor } from '@/engine/tags'
+import { traitsOf } from '@/engine/traits'
 import type { Tree } from '@/model/types'
 import { Button, Card, PageHeader, Pill, inputClass, type Tone } from '@/ui/components'
 import { ActionSheet } from '@/ui/tree/ActionSheet'
@@ -199,6 +200,18 @@ export default function TreePage() {
                   </span>
                 )}
               </div>
+              {variety && traitsOf(variety).length > 0 && (
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {traitsOf(variety).map((t) => (
+                    <span
+                      key={t}
+                      className="rounded-full border border-stone-300 px-2 py-0.5 text-xs text-stone-600 dark:border-stone-600 dark:text-stone-400"
+                    >
+                      {t}
+                    </span>
+                  ))}
+                </div>
+              )}
               <dl className="mt-1 grid grid-cols-2 gap-x-4 gap-y-0.5 text-sm sm:grid-cols-3">
                 {current.plantedDate && (
                   <>

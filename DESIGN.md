@@ -169,7 +169,29 @@ allocation rule.
 
 ### 3.2 Trees, varieties, and the graft plan
 
-- **Variety.** Species, name, aliases, scion source (where it was ordered from), notes.
+- **Variety.** Species, name, aliases, scion source (where it was ordered from), traits, notes.
+
+**Traits** (2026-09-22). What a cultivar is like, in the farm's own words: "precocious",
+"upright", "vigor: high". A colon makes the part before it a heading, so a trait can carry a
+value when comparison matters; nothing requires one.
+
+Deliberately not fixed columns. Persimmons are the variable ones and would want eight fields;
+a fig wants none, and every other species would carry the empty boxes forever. A list is
+simply empty when there is nothing to say.
+
+Also deliberately **one namespace for the whole farm**, not a vocabulary per species. If
+"precocious" on a persimmon were a different record from "precocious" on a pawpaw, filtering
+for it would find one species, and the vocabulary would have to be built before it could be
+used. Instead the suggestions are ordered: what this species already uses first, then the
+rest of the farm. The species-appropriate list is a consequence of working, not a
+configuration.
+
+The payoff is the **variety sheet**: species, variety, type, traits, source, trees standing,
+first planted, notes, as a CSV from the Varieties page. Traits nobody can get back out of the
+app would only be tidier notes.
+
+Search covers traits, and variety and tree notes, which it did not before. Only task notes
+were searchable, so anything written about a cultivar was findable only by opening it.
 - **Tree.** Occupies one position. Fields: variety, status (alive, struggling, dead, removed),
   planted date, grafted date, first fruit year, rootstock (optional; Threefold ignores it,
   pome and stone fruit farms will not), notes.

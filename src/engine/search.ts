@@ -3,6 +3,7 @@ import type { FarmState } from '@/model/types'
 import { live } from '@/events/reduce'
 import { parseTreeLabel } from '@/model/ids'
 import { currentTreeByPos, positions, varietyAt } from '@/state/derived'
+import { traitMatches, traitsOf } from '@/engine/traits'
 
 export interface SearchHit {
   kind: 'tree' | 'row' | 'block' | 'variety' | 'feature' | 'task'
@@ -53,8 +54,24 @@ export function search(state: FarmState, query: string): SearchResult {
   }
   for (const v of live.varieties(state)) {
     const names = [v.name, ...(v.aliases ?? [])].map(norm)
-    if (names.some((n) => n.includes(q)) || norm(v.species).includes(q)) {
-      hits.push({ kind: 'variety', title: v.name, detail: v.species, to: `/?highlight=${v.id}` })
+    // Traits and notes too: a trait nobody can search for is just a tidier note, and a note
+    // nobody can search for is a thing you have to remember you wrote.
+    const byTrait = traitMatches(v, q)
+    const byNote = Boolean(v.notes && norm(v.notes).includes(q))
+    if (names.some((n) => n.includes(q)) || norm(v.species).includes(q) || byTrait || byNote) {
+      const why = byTrait
+        ? traitsOf(v)
+            .filter((t) => t.toLowerCase().includes(q))
+            .join(', ')
+        : byNote
+          ? 'in the notes'
+          : undefined
+      hits.push({
+        kind: 'variety',
+        title: v.name,
+        detail: [v.species, why].filter(Boolean).join(' · '),
+        to: `/?highlight=${v.id}`,
+      })
     }
   }
   for (const f of live.features(state)) {
@@ -103,7 +120,8 @@ export function search(state: FarmState, query: string): SearchResult {
     const v = varietyAt(state, p)
     const matchLabel = p.label.toLowerCase().startsWith(q)
     const matchVariety = v ? norm(v.name).includes(q) : false
-    if (!matchLabel && !matchVariety) continue
+    const matchNote = Boolean(tree?.notes && norm(tree.notes).includes(q))
+    if (!matchLabel && !matchVariety && !matchNote) continue
     if (exact && exact.title === p.label) continue
     const block = state.blocks[p.blockId]
     hits.push({

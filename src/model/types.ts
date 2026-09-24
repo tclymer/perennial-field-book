@@ -122,6 +122,14 @@ export interface Variety extends Stamped {
   /** A type within the species, e.g. Asian, American, or Hybrid for persimmons. */
   group?: string
   aliases: string[]
+  /**
+   * What this cultivar is like: "precocious", "upright", "vigor: high". Free text, one
+   * namespace across the farm, so the same word on a persimmon and a pawpaw is the same
+   * trait and can be filtered together. A colon makes the part before it a heading; nothing
+   * requires one. Deliberately not a fixed set of columns: persimmons want eight of these
+   * and kiwis want none, and empty boxes on every other species would be the price.
+   */
+  traits?: string[]
   /** Where the scionwood or the trees came from. */
   source?: string
   notes?: string

@@ -151,12 +151,15 @@ export const featurePatch = z.object({
   notes: text.nullable().optional(),
 })
 
+const traits = z.array(short.min(1)).max(40)
+
 export const varietyCreate = z.object({
   id,
   species: short.min(1),
   name: short.min(1),
   group: short.optional(),
   aliases: z.array(short).max(20).optional(),
+  traits: traits.optional(),
   source: short.optional(),
   notes: text.optional(),
   color: short.optional(),
@@ -167,6 +170,7 @@ export const varietyPatch = z.object({
   name: short.min(1).optional(),
   group: short.nullable().optional(),
   aliases: z.array(short).max(20).optional(),
+  traits: traits.nullable().optional(),
   source: short.nullable().optional(),
   notes: text.nullable().optional(),
   color: short.nullable().optional(),
