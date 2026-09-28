@@ -147,6 +147,14 @@ Farm
   inert: the shapes were loaded and the hint told you to drag a vertex, but there were no
   vertices to see until you happened to click one. "Reshape rows and outline" now opens on the
   block's outline, and the hint says a row can be clicked to work on that instead.
+
+  **Side lengths on the map** (2026-09-28). A block that is not on the imagery yet, or not
+  planted yet, is drawn to dimensions you already know, so every side is labelled in feet as
+  it is drawn, live to the cursor. Outlines and areas include the side back to the first
+  corner; a row with a bend also shows its whole length "in all" at the far end. The labels
+  follow a shape being dragged in Reshape, appear on a row or outline when it is clicked, and
+  stay on the outline while rows are being tuned. They live in their own `measure` source, set
+  from `useEditor().measure`, so a mouse move redraws one small layer rather than the map.
 - **Area.** Each block has an area, taken from the planner planting when linked, otherwise
   computed from rows (length × row spacing) or a drawn outline. Used to split farm-wide labor.
 

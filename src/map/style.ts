@@ -21,6 +21,7 @@ export const OVERLAY_SOURCES = [
   'plan',
   'labels',
   'preview',
+  'measure',
 ] as const
 export type OverlaySource = (typeof OVERLAY_SOURCES)[number]
 
@@ -239,6 +240,31 @@ export function overlayLayers(): LayerSpecification[] {
         'text-color': '#fafaf9',
         'text-halo-color': '#1c1917',
         'text-halo-width': 1.5,
+      },
+    },
+    {
+      // Side lengths while a shape is drawn or dragged. On top of everything and allowed to
+      // overlap, because a length that hides itself behind a tree label is no use.
+      id: 'measure-label',
+      type: 'symbol',
+      source: 'measure',
+      layout: {
+        'text-field': ['get', 'label'],
+        'text-font': ['Open Sans Regular'],
+        'text-size': ['case', ['==', ['get', 'kind'], 'total'], 13, 12],
+        'text-offset': [
+          'case',
+          ['==', ['get', 'kind'], 'total'],
+          ['literal', [0, -1.4]],
+          ['literal', [0, 0]],
+        ],
+        'text-allow-overlap': true,
+        'text-ignore-placement': true,
+      },
+      paint: {
+        'text-color': '#ffffff',
+        'text-halo-color': '#1c1917',
+        'text-halo-width': 1.6,
       },
     },
   ]

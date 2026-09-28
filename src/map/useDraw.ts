@@ -15,7 +15,13 @@ import {
   updateRowPolyline,
 } from '@/state/actions'
 import { firstEdgeHeading } from '@/engine/fill'
-import { createDraw, type DrawController, type DrawShape, type EditableFeature } from './draw'
+import {
+  createDraw,
+  type DrawController,
+  type DrawnGeometry,
+  type DrawShape,
+  type EditableFeature,
+} from './draw'
 import { useEditor, type Tool } from '@/ui/map/editorStore'
 import { NOTHING_HIDDEN, type HiddenShapes } from './useMapLayers'
 
@@ -54,6 +60,12 @@ function normalizeRing(ring: LngLat[], anchor: { corner: LngLat; headingDeg: num
   return dReverse < dForward ? reversed : rotated
 }
 
+/** The side lengths to show for a shape, or none for a point. */
+function measureOf(g: DrawnGeometry | null): { coords: LngLat[]; closed: boolean } | null {
+  if (!g || g.shape === 'point') return null
+  return { coords: g.coordinates, closed: g.shape === 'polygon' }
+}
+
 /** Which shapes the map should hide because the editor is showing them instead. */
 export function useHiddenShapes(state: FarmState): HiddenShapes {
   const editMode = useEditor((s) => s.editMode)
@@ -86,6 +98,8 @@ export function useDraw(map: MlMap | null, state: FarmState, enabled: boolean): 
   const blockId = useEditor((s) => s.selectedBlockId)
   const editingFeatureId = useEditor((s) => s.editingFeatureId)
   const latest = useRef({ state, tool, blockId })
+  /** Which loaded shape the length labels belong to, so a stray deselect does not clear them. */
+  const measured = useRef<string | null>(null)
   latest.current = { state, tool, blockId }
 
   useEffect(() => {
@@ -154,6 +168,9 @@ export function useDraw(map: MlMap | null, state: FarmState, enabled: boolean): 
       },
       onProvisional: (g, committed) => {
         const editor = useEditor.getState()
+        // Lengths first, for anything being drawn: an outline, a row, an area.
+        measured.current = null
+        editor.setMeasure(measureOf(g))
         const fill = editor.fill
         if (!fill?.drawing) return
         if (!g || g.shape !== 'polygon' || g.coordinates.length < 2) {
@@ -179,12 +196,17 @@ export function useDraw(map: MlMap | null, state: FarmState, enabled: boolean): 
       onEditing: (id, g) => {
         // A corner of the outline mid-drag: let the fill preview follow it.
         const editor = useEditor.getState()
+        measured.current = id
+        editor.setMeasure(measureOf(g))
         if (id.startsWith(OUTLINE_PREFIX) && g.shape === 'polygon' && editor.fill) {
           editor.updateFill({ previewOutline: g.coordinates })
         }
       },
       onEdited: (id, g) => {
         const editor = useEditor.getState()
+        // Leave the final lengths up: they are what you were dragging towards.
+        measured.current = id
+        editor.setMeasure(measureOf(g))
         const s = latest.current.state
         if (id.startsWith(OUTLINE_PREFIX) && g.shape === 'polygon') {
           setBlockOutline(id.slice(OUTLINE_PREFIX.length), g.coordinates)
@@ -205,6 +227,16 @@ export function useDraw(map: MlMap | null, state: FarmState, enabled: boolean): 
           nudgePosition(id, g.coordinates)
         }
       },
+      onSelected: (id, g) => {
+        measured.current = id
+        useEditor.getState().setMeasure(measureOf(g))
+      },
+      onDeselected: (id) => {
+        // Only the shape being shown; selecting another may deselect the old one second.
+        if (measured.current !== id) return
+        measured.current = null
+        useEditor.getState().setMeasure(null)
+      },
       onRejected: (count, reason) => {
         useEditor
           .getState()
@@ -224,6 +256,8 @@ export function useDraw(map: MlMap | null, state: FarmState, enabled: boolean): 
   useEffect(() => {
     const c = controller.current
     if (!c || editMode !== 'none') return
+    measured.current = null
+    useEditor.getState().setMeasure(null)
     c.setShape(SHAPE_OF[tool])
   }, [tool, editMode])
 
@@ -254,6 +288,8 @@ export function useDraw(map: MlMap | null, state: FarmState, enabled: boolean): 
   useEffect(() => {
     const c = controller.current
     if (!c) return
+    measured.current = null
+    useEditor.getState().setMeasure(null)
     const s = latest.current.state
     if (editMode === 'feature') {
       const f = editingFeatureId ? s.features[editingFeatureId] : undefined

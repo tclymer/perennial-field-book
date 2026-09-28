@@ -52,6 +52,12 @@ interface EditorState {
   selectedBlockId: string | null
   /** The building or area being reshaped, while `editMode` is 'feature'. */
   editingFeatureId: string | null
+  /**
+   * The shape whose side lengths the map is showing: whatever is being drawn, dragged, or was
+   * last selected. Kept apart from the farm state so it can change on every mouse move without
+   * the whole map being rebuilt.
+   */
+  measure: { coords: LngLat[]; closed: boolean } | null
   tool: Tool
   editMode: EditMode
   fill: FillDraft | null
@@ -69,6 +75,7 @@ interface EditorState {
   setEditMode: (mode: EditMode) => void
   /** Start or stop reshaping one building or area. */
   editFeature: (id: string | null) => void
+  setMeasure: (m: { coords: LngLat[]; closed: boolean } | null) => void
   /** Open the fill form; with `draw` the outline tool is active so the preview follows the cursor. */
   openFill: (draft: FillDraft, draw?: boolean) => void
   updateFill: (patch: Partial<FillDraft>) => void
@@ -97,6 +104,7 @@ export const useEditor = create<EditorState>()((set) => ({
   planYear: new Date().getFullYear() + 1,
   featureDraft: { name: '', kind: 'building' },
   editingFeatureId: null,
+  measure: null,
   message: null,
   setMap: (map) => set({ map }),
   selectBlock: (id) =>
@@ -124,6 +132,7 @@ export const useEditor = create<EditorState>()((set) => ({
       message: null,
       ...(editMode === 'feature' ? {} : { editingFeatureId: null }),
     }),
+  setMeasure: (measure) => set({ measure }),
   editFeature: (id) =>
     set({
       editingFeatureId: id,

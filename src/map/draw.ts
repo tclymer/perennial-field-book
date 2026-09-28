@@ -41,6 +41,9 @@ export interface DrawHandlers {
   onEditing?: (id: string, g: DrawnGeometry) => void
   /** Shapes the draw library refused to load, so an edit session can say so rather than look broken. */
   onRejected?: (count: number, reason: string) => void
+  /** A loaded shape was selected in an edit session, by a click or by opening on it. */
+  onSelected?: (id: string, g: DrawnGeometry) => void
+  onDeselected?: (id: string) => void
 }
 
 export interface DrawController {
@@ -207,6 +210,16 @@ export function createDraw(map: MlMap, handlers: DrawHandlers): DrawController {
       return
     }
     if (editing && typeof id === 'string' && loaded.includes(id)) handlers.onEdited(id, g)
+  })
+
+  draw.on('select', (id) => {
+    if (!editing || typeof id !== 'string' || !loaded.includes(id)) return
+    const f = draw.getSnapshotFeature(id)
+    const g = f ? fromStore(f) : null
+    if (g) handlers.onSelected?.(id, g)
+  })
+  draw.on('deselect', (id) => {
+    if (editing && typeof id === 'string') handlers.onDeselected?.(id)
   })
 
   draw.on('change', (ids, type) => {

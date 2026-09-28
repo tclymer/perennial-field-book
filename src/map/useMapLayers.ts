@@ -2,7 +2,8 @@
 import { useEffect, useMemo } from 'react'
 import type { GeoJSONSource, Map as MlMap } from 'maplibre-gl'
 import type { Feature, FeatureCollection, LineString, Point } from 'geojson'
-import type { FarmState, Row } from '@/model/types'
+import type { FarmState, LngLat, Row } from '@/model/types'
+import { lengthLabels } from '@/engine/measure'
 import { live } from '@/events/reduce'
 import { fillOutline } from '@/engine/fill'
 import { autoNumberRows, positionsForRow } from '@/engine/layout'
@@ -161,6 +162,30 @@ export function useMapLayers(
     if (!map) return
     for (const [id, fc] of Object.entries(data)) setData(map, id as OverlaySource, fc)
   }, [map, data])
+
+  // Side lengths get their own source and their own effect: they change on every mouse move
+  // while drawing, and rebuilding every tree on the farm that often would make drawing lag.
+  const measure = useEditor((s) => s.measure)
+  const fillOutline = fill ? (fill.previewOutline ?? state.blocks[fill.blockId]?.outline) : null
+  useEffect(() => {
+    if (!map) return
+    // What is being drawn or dragged wins; otherwise, while a block is being laid out, its
+    // outline, so the sides can be read while the rows are tuned.
+    const shape = measure ?? (fillOutline ? { coords: fillOutline, closed: true } : null)
+    setData(map, 'measure', shape ? measureFC(shape.coords, shape.closed) : EMPTY)
+  }, [map, measure, fillOutline])
+}
+
+/** Side lengths as labelled points, for the measure layer. */
+export function measureFC(coords: readonly LngLat[], closed: boolean): FeatureCollection {
+  return {
+    type: 'FeatureCollection',
+    features: lengthLabels(coords, closed).map((l) => ({
+      type: 'Feature' as const,
+      properties: { label: l.text, kind: l.kind },
+      geometry: { type: 'Point' as const, coordinates: [l.at[0], l.at[1]] },
+    })),
+  }
 }
 
 /** The shapes of one block, for loading into the editor. */
