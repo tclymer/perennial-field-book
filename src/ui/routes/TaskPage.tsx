@@ -348,6 +348,8 @@ export default function TaskPage() {
                 }}
                 handle
                 dragProps={t.done ? undefined : drag.rowProps(t)}
+                handleProps={t.done ? undefined : drag.handleProps(t)}
+                lifted={drag.touching === t.id}
                 dropIndicator={drag.indicator(t.id)}
               />
             ))}

@@ -421,7 +421,13 @@ The phone is for capture and for finding things. Five screens, each one job.
    checkboxes. Tapping done opens the two-chip sheet (duration, people) and files the log.
    A recurring task with an estimated duration logs with zero extra taps.
 2. **Quick add.** One text box at the top of every list. Dictation works. The parser fills
-   place and category. Nothing else is asked.
+   place and category. Nothing else is asked. On This week, each section also has a **+**
+   by its title (2026-09-29) that opens a box for that list in place, so a job remembered
+   while looking at Mini Tasks is added there rather than after scrolling back to the top.
+   **Reordering** on a phone is by the ⋮⋮ grip at the left of a row: hold it and slide. Touch
+   screens do not fire HTML drag events, so the grip follows the finger with pointer events
+   and reorders within that list; moving to another list stays on the task page and the
+   weekly review. A mouse still uses native drag, which also carries a task between lists.
 3. **Weekly review.** Runs whenever you open it, typically once a week, no fixed day. It shows:
    what got done, what is still in `now` (keep, push to `soon`, push to `later`), recurring
    items that are stale, `later` items whose season has opened, items flagged for discussion,

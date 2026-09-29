@@ -34,6 +34,8 @@ export function TaskRow({
   dragProps,
   dropIndicator,
   handle,
+  handleProps,
+  lifted,
 }: {
   task: Task
   today: string
@@ -45,8 +47,12 @@ export function TaskRow({
   compact?: boolean
   dragProps?: HTMLAttributes<HTMLLIElement> & { draggable?: boolean }
   dropIndicator?: DropIndicator
-  /** Show a drag handle on a desktop. */
+  /** Show a drag handle: hover to see it with a mouse, always there on a touch screen. */
   handle?: boolean
+  /** Pointer handlers for the handle, so a finger can drag where native drag does not work. */
+  handleProps?: HTMLAttributes<HTMLElement>
+  /** This row is being carried by a finger. */
+  lifted?: boolean
 }) {
   const state = useFarmStore((s) => s.state)
   const logs = live.logs(state)
@@ -80,6 +86,7 @@ export function TaskRow({
         'group/row relative flex items-start gap-2 py-2',
         due === 'out-of-season' && 'opacity-50',
         task.done && 'opacity-60',
+        lifted && 'bg-lime-50 dark:bg-lime-950',
         dropIndicator === 'before' && 'shadow-[inset_0_2px_0_0_theme(colors.lime.600)]',
         dropIndicator === 'after' && 'shadow-[inset_0_-2px_0_0_theme(colors.lime.600)]',
       )}
@@ -87,7 +94,8 @@ export function TaskRow({
       {handle && (
         <span
           aria-hidden
-          className="mt-1 hidden w-3 shrink-0 cursor-grab select-none text-stone-300 group-hover/row:text-stone-500 md:block"
+          {...handleProps}
+          className="-my-1 -ml-1 flex w-7 shrink-0 cursor-grab select-none items-center justify-center self-stretch text-stone-400 md:ml-0 md:w-3 md:text-stone-300 md:group-hover/row:text-stone-500"
           title="Drag to reorder or move"
         >
           ⋮⋮
@@ -197,6 +205,8 @@ function Subtasks({
           compact
           handle
           dragProps={t.done ? undefined : drag.rowProps(t)}
+          handleProps={t.done ? undefined : drag.handleProps(t)}
+          lifted={drag.touching === t.id}
           dropIndicator={drag.indicator(t.id)}
         />
       ))}

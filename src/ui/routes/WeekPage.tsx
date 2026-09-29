@@ -27,10 +27,16 @@ export default function WeekPage() {
   const date = today()
   const week = thisWeek(state, date)
   const [addTo, setAddTo] = useState<Bucket>('now')
+  // Added from a section's own box: shown even past the first few, so the add is visible.
+  const [added, setAdded] = useState<string[]>([])
+  const noteAdded = (id: string) => setAdded((a) => [...a, id])
+  const firstFew = <T,>(list: T[], idOf: (t: T) => string) =>
+    list.filter((t, i) => i < 8 || added.includes(idOf(t)))
   const [sheet, setSheet] = useState<Task | null>(null)
   const [toast, setToast] = useState<{ message: string; undo?: NewEvent[] } | null>(null)
   const closeToast = useCallback(() => setToast(null), [])
   const drag = useTaskDrag(week.now, { bucket: 'now', projectId: null })
+  const dragSoon = useTaskDrag(week.soon, { bucket: 'soon', projectId: null })
   const since = addDays(date, -6)
   const lately = live
     .logs(state)
@@ -104,6 +110,7 @@ export default function WeekPage() {
       <Section
         title={bucketName(state.farm, 'now')}
         empty="Nothing here. Add one above, or enjoy it."
+        add={{ bucket: 'now', onAdded: noteAdded }}
         listProps={drag.containerProps}
       >
         {week.now.map((t) => (
@@ -115,6 +122,8 @@ export default function WeekPage() {
             onDelete={remove}
             handle
             dragProps={drag.rowProps(t)}
+            handleProps={drag.handleProps(t)}
+            lifted={drag.touching === t.id}
             dropIndicator={drag.indicator(t.id)}
           />
         ))}
@@ -125,42 +134,55 @@ export default function WeekPage() {
         hint="Due or getting stale. Tap the box when you have done one."
         empty="All kept up. See the full list under Tasks."
         link={{ to: '/tasks?bucket=recurring', label: 'All' }}
+        add={{ bucket: 'recurring', onAdded: noteAdded }}
       >
         {week.due.map((t) => (
           <TaskRow key={t.id} task={t} today={date} onCheck={check} onDelete={remove} />
         ))}
       </Section>
 
-      {week.soon.length > 0 && (
-        <Section
-          title={bucketName(state.farm, 'soon')}
-          hint="Small jobs for when there is a gap."
-          link={{ to: '/tasks?bucket=soon', label: 'All' }}
-        >
-          {week.soon.slice(0, 8).map((t) => (
-            <TaskRow key={t.id} task={t} today={date} onCheck={check} onDelete={remove} />
-          ))}
-        </Section>
-      )}
+      <Section
+        title={bucketName(state.farm, 'soon')}
+        hint="Small jobs for when there is a gap."
+        empty="None waiting."
+        link={{ to: '/tasks?bucket=soon', label: 'All' }}
+        add={{ bucket: 'soon', onAdded: noteAdded }}
+        listProps={dragSoon.containerProps}
+      >
+        {firstFew(week.soon, (t) => t.id).map((t) => (
+          <TaskRow
+            key={t.id}
+            task={t}
+            today={date}
+            onCheck={check}
+            onDelete={remove}
+            handle
+            dragProps={dragSoon.rowProps(t)}
+            handleProps={dragSoon.handleProps(t)}
+            lifted={dragSoon.touching === t.id}
+            dropIndicator={dragSoon.indicator(t.id)}
+          />
+        ))}
+      </Section>
 
-      {week.projects.length > 0 && (
-        <Section
-          title={bucketName(state.farm, 'project')}
-          hint="Bigger pieces of work. Tap one to add to it."
-          link={{ to: '/tasks?bucket=project', label: 'All' }}
-        >
-          {week.projects.slice(0, 8).map(({ task, open }) => (
-            <li key={task.id} className="flex items-center gap-2 py-1">
-              <Link to={`/tasks/${task.id}`} className="min-w-0 flex-1 truncate">
-                {task.title}
-              </Link>
-              <span className="shrink-0 text-xs text-stone-500 dark:text-stone-400">
-                {open === 0 ? 'no steps yet' : `${open} open`}
-              </span>
-            </li>
-          ))}
-        </Section>
-      )}
+      <Section
+        title={bucketName(state.farm, 'project')}
+        hint="Bigger pieces of work. Tap one to add to it."
+        empty="No projects open."
+        link={{ to: '/tasks?bucket=project', label: 'All' }}
+        add={{ bucket: 'project', onAdded: noteAdded }}
+      >
+        {firstFew(week.projects, (p) => p.task.id).map(({ task, open }) => (
+          <li key={task.id} className="flex items-center gap-2 py-1">
+            <Link to={`/tasks/${task.id}`} className="min-w-0 flex-1 truncate">
+              {task.title}
+            </Link>
+            <span className="shrink-0 text-xs text-stone-500 dark:text-stone-400">
+              {open === 0 ? 'no steps yet' : `${open} open`}
+            </span>
+          </li>
+        ))}
+      </Section>
 
       {week.opened.length > 0 && (
         <Section title="The season has opened" hint="Items waiting for this time of year.">
@@ -241,6 +263,7 @@ function Section({
   hint,
   empty,
   link,
+  add,
   listProps,
   children,
 }: {
@@ -248,21 +271,47 @@ function Section({
   hint?: string
   empty?: string
   link?: { to: string; label: string }
+  /** A + beside the title that opens an add box for this list, right where you are looking. */
+  add?: { bucket: Bucket; onAdded: (id: string) => void }
   listProps?: React.HTMLAttributes<HTMLElement>
   children: React.ReactNode
 }) {
   const items = Array.isArray(children) ? children.filter(Boolean) : children ? [children] : []
+  const [adding, setAdding] = useState(false)
   return (
     <Card>
-      <div className="flex items-baseline justify-between gap-2">
+      <div className="flex items-center justify-between gap-2">
         <h2 className="font-semibold">{title}</h2>
-        {link && (
-          <Link to={link.to} className="text-xs underline decoration-dotted">
-            {link.label}
-          </Link>
-        )}
+        <div className="flex items-center gap-3">
+          {link && (
+            <Link to={link.to} className="text-xs underline decoration-dotted">
+              {link.label}
+            </Link>
+          )}
+          {add && (
+            <button
+              type="button"
+              onClick={() => setAdding((a) => !a)}
+              aria-expanded={adding}
+              aria-label={adding ? `Stop adding to ${title}` : `Add to ${title}`}
+              className="-my-1 flex h-8 w-8 items-center justify-center rounded-full border border-stone-300 text-lg leading-none text-stone-700 hover:bg-stone-100 dark:border-stone-600 dark:text-stone-300 dark:hover:bg-stone-800"
+            >
+              {adding ? '×' : '+'}
+            </button>
+          )}
+        </div>
       </div>
       {hint && <p className="text-xs text-stone-500 dark:text-stone-400">{hint}</p>}
+      {add && adding && (
+        <div className="mt-2">
+          <QuickAdd
+            bucket={add.bucket}
+            placeholder={`Add to ${title.toLowerCase()}…`}
+            autoFocus
+            onAdded={add.onAdded}
+          />
+        </div>
+      )}
       {items.length === 0 ? (
         <p className="mt-2 text-sm text-stone-500 dark:text-stone-400">{empty}</p>
       ) : (

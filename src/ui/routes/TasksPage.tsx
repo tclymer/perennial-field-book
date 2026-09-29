@@ -212,6 +212,8 @@ function Column({
                     onDelete={onDelete}
                     handle
                     dragProps={drag.rowProps(t)}
+                    handleProps={drag.handleProps(t)}
+                    lifted={drag.touching === t.id}
                     dropIndicator={drag.indicator(t.id)}
                   />
                 </ul>

@@ -106,12 +106,103 @@ describe('adding from the orchard', () => {
     expect(screen.getByText(/replace the deer fence/i)).toBeTruthy()
   })
 
-  it('does not clutter the page with lists that are empty', async () => {
-    quickAdd('mow around the pawpaws', 'now')
+  it('keeps a place to add even when a list is empty', async () => {
     await openWeek()
-    await screen.findByText(/mow around the pawpaws/i)
-    // The chip to add to it is there; a section full of nothing is not.
-    expect(screen.getAllByText('Mini Tasks/Projects')).toHaveLength(1)
-    expect(screen.getAllByText('Monkeys').length).toBeGreaterThan(1)
+    expect(await screen.findByRole('button', { name: 'Add to Mini Tasks/Projects' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Add to Projects' })).toBeTruthy()
+  })
+})
+
+describe('adding from a section itself', () => {
+  async function addIn(section: string, text: string) {
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: `Add to ${section}` }))
+    })
+    const box = screen.getByPlaceholderText(`Add to ${section.toLowerCase()}…`)
+    await act(async () => {
+      fireEvent.change(box, { target: { value: text } })
+      fireEvent.keyDown(box, { key: 'Enter' })
+    })
+    return box
+  }
+
+  it('adds to that section, whatever the list at the top is set to', async () => {
+    await openWeek()
+    await addIn('Mini Tasks/Projects', 'fix the gate latch')
+    expect(live.tasks(s()).find((t) => /fix the gate latch/i.test(t.title))?.bucket).toBe('soon')
+    expect(screen.getByText(/fix the gate latch/i)).toBeTruthy()
+  })
+
+  it('stays open for another, and closes with the same button', async () => {
+    await openWeek()
+    const box = await addIn('Projects', 'replace the deer fence')
+    expect((box as HTMLInputElement).value).toBe('')
+    expect(screen.getByPlaceholderText('Add to projects…')).toBeTruthy()
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Stop adding to Projects' }))
+    })
+    expect(screen.queryByPlaceholderText('Add to projects…')).toBeNull()
+  })
+
+  it('adds a plate to keep spinning, which then shows as due', async () => {
+    await openWeek()
+    await addIn('Spinning Plates', 'check the deer fence')
+    expect(live.tasks(s()).find((t) => /check the deer fence/i.test(t.title))?.bucket).toBe(
+      'recurring',
+    )
+    expect(screen.getByText(/check the deer fence/i)).toBeTruthy()
+  })
+
+  it('shows what was just added even past the first eight', async () => {
+    for (let i = 1; i <= 9; i++) quickAdd(`small job ${i}`, 'soon')
+    await openWeek()
+    expect(screen.queryByText(/small job 9/i)).toBeNull()
+    await addIn('Mini Tasks/Projects', 'oil the loppers')
+    expect(screen.getByText(/oil the loppers/i)).toBeTruthy()
+  })
+})
+
+describe('reordering with a finger', () => {
+  it('carries a task down the list by its grip', async () => {
+    quickAdd('first job', 'now')
+    quickAdd('second job', 'now')
+    quickAdd('third job', 'now')
+    await openWeek()
+    await screen.findByText(/third job/i)
+    const rowOf = (text: RegExp) => screen.getByText(text).closest('li')!
+    const grip = rowOf(/first job/i).querySelector<HTMLElement>(
+      '[title="Drag to reorder or move"]',
+    )!
+    // jsdom does no layout, so say which row is under the finger, and put the finger on its
+    // lower half so the task lands after it.
+    const third = rowOf(/third job/i)
+    document.elementFromPoint = () => third
+    third.getBoundingClientRect = () => ({ top: 100, height: 40 }) as DOMRect
+    await act(async () => {
+      fireEvent.pointerDown(grip, { pointerType: 'touch', pointerId: 1 })
+    })
+    await act(async () => {
+      fireEvent.pointerMove(grip, { pointerType: 'touch', pointerId: 1, clientX: 10, clientY: 130 })
+    })
+    await act(async () => {
+      fireEvent.pointerUp(grip, { pointerType: 'touch', pointerId: 1 })
+    })
+    const order = thisWeek(s(), today()).now.map((t) => t.title.toLowerCase())
+    expect(order).toEqual(['second job', 'third job', 'first job'])
+  })
+
+  it('leaves a mouse to the ordinary drag, which can also move between lists', async () => {
+    quickAdd('first job', 'now')
+    quickAdd('second job', 'now')
+    await openWeek()
+    const grip = (await screen.findByText(/first job/i))
+      .closest('li')!
+      .querySelector<HTMLElement>('[title="Drag to reorder or move"]')!
+    await act(async () => {
+      fireEvent.pointerDown(grip, { pointerType: 'mouse', pointerId: 1 })
+      fireEvent.pointerUp(grip, { pointerType: 'mouse', pointerId: 1 })
+    })
+    const order = thisWeek(s(), today()).now.map((t) => t.title.toLowerCase())
+    expect(order).toEqual(['first job', 'second job'])
   })
 })

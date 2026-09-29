@@ -1,7 +1,7 @@
 {
   "name": "perennial-field-book",
   "private": true,
-  "version": "0.8.6",
+  "version": "0.8.7",
   "type": "module",
   "description": "Map your orchard, find every tree, keep its history. Your data stays in your browser.",
   "scripts": {
@@ -17,7 +17,8 @@
     "deploy": "wrangler pages deploy --project-name=perennial-field-book --branch=main --commit-dirty=true",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"tests/**/*.{ts,tsx}\" \"server/**/*.ts\" \"functions/**/*.ts\" \"scripts/**/*.mjs\" \"*.{ts,json,md}\"",
     "lint": "prettier --check .",
-    "icons": "node scripts/icons.mjs"
+    "icons": "node scripts/icons.mjs",
+    "release:tag": "node scripts/tag-releases.mjs"
   },
   "dependencies": {
     "clsx": "^2.1.1",
