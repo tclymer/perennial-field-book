@@ -22,10 +22,10 @@ for (const part of changelog.split(/^## /m).slice(1)) {
 
 /** The first commit at which package.json carried each version. */
 const firstCommit = new Map()
-const log = git('log', '--reverse', '--format=@%H', '-p', '--', 'package.json')
+const log = git('log', '--reverse', '--format=commit:%H', '-p', '--', 'package.json')
 let commit = ''
 for (const line of log.split('\n')) {
-  if (line.startsWith('@')) commit = line.slice(1)
+  if (line.startsWith('commit:')) commit = line.slice(7)
   const v = line.match(/^\+\s*"version":\s*"([^"]+)"/)?.[1]
   if (v && !firstCommit.has(v)) firstCommit.set(v, commit)
 }
