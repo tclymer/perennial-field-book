@@ -163,6 +163,19 @@ export function placeTask(id: string, dest: Placement): void {
   if (events.length) commit(events)
 }
 
+/** Done for the season: out of season until `until`. Returns the events that undo it. */
+export function restTask(id: string, until: string): NewEvent[] {
+  const t = state().tasks[id]
+  if (!t) return []
+  commit([{ type: 'task.patch', payload: { id, restUntil: until } }])
+  return [{ type: 'task.patch', payload: { id, restUntil: t.restUntil ?? null } }]
+}
+
+/** Bring a resting task back before its month. */
+export function wakeTask(id: string): void {
+  commit([{ type: 'task.patch', payload: { id, restUntil: null } }])
+}
+
 export function deleteTask(id: string): void {
   commit([{ type: 'task.delete', payload: { id } }])
 }

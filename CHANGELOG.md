@@ -4,6 +4,14 @@ One entry per release of Perennial Field Book, newest first. The version is show
 under Settings. Each release is also a tag on GitHub (`v0.8.7` and so on), so the code as it
 stood at any release can be looked at or compared with another.
 
+## 0.8.8 (2026-09-30)
+
+- Spinning Plates: a **Done for the season** button on each plate puts it away until its
+  season comes round again (kiwi pruning set to May to September, finished in August, comes
+  back next May). A plate with no months set asks which month to bring it back. The plate's
+  own page says when it returns and has "Bring it back now". Undo is on the message that
+  appears.
+
 ## 0.8.7 (2026-09-29)
 
 - This week (phone): every section has a **+** beside its title (Monkeys, Spinning Plates,

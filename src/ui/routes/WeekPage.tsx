@@ -137,7 +137,14 @@ export default function WeekPage() {
         add={{ bucket: 'recurring', onAdded: noteAdded }}
       >
         {week.due.map((t) => (
-          <TaskRow key={t.id} task={t} today={date} onCheck={check} onDelete={remove} />
+          <TaskRow
+            key={t.id}
+            task={t}
+            today={date}
+            onCheck={check}
+            onDelete={remove}
+            onRest={(message, undo) => setToast({ message, undo })}
+          />
         ))}
       </Section>
 

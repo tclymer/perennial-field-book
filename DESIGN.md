@@ -222,7 +222,7 @@ were searchable, so anything written about a cultivar was findable only by openi
 | bucket | `now` (Monkeys), `soon` (Mini Tasks/Projects), `later` (Long Term), `recurring` (Spinning Plates), or a project. A farm can rename buckets; the defaults are Threefold's. |
 | project | Optional parent. A project is a task with subtasks and its own page ("Solar punch list", "Greenhouse changes before fall"). Buckets can hold projects. |
 | season | Optional tag: a month range or a phrase ("late fall", "before cold weather", "as trees go dormant"). Surfaces in the weekly review when the window opens. |
-| recurring | Optional `{ intervalDays?, seasonMonths? }`. See below. |
+| recurring | Optional `{ intervalDays?, seasonMonths?, restUntil? }`. See below. |
 | targets | Zero or more places (block, row, tree, feature), or `farm` (whole orchard). |
 | category | See §3.5. Inferred from the title when possible. |
 | owner | Optional person. Parsed from "(Tim)", "(mostly Tim)", or a trailing "- Tim". |
@@ -237,6 +237,16 @@ off logs an occurrence and leaves it on the list, showing "last done 3 days ago"
 sorts by staleness. An optional interval adds a "due" hint and moves the item into This Week.
 An optional season greys the item outside it. Nothing nags, and a taper in fall needs no
 configuration: you just do it less often.
+
+**Done for the season** (2026-09-30). The last kiwi prune of the year is only known to be the
+last one afterwards, and until the season's months run out the plate sits on the week looking
+stale, which teaches people to skip the list. Each plate in season has a "Done for the
+season" button that sets `restUntil` to the first day of the month its season next starts
+(the start of the next run of its months, so May to September finished in August comes back
+next May). A plate with no season, or all twelve months, asks for the month instead. Until
+that date it counts as out of season everywhere: off This week and the review, greyed and
+sorted last on the board. It comes back on its own, and its page says when, with "Bring it
+back now". Nothing is logged: it is a decision about the list, not a record of work.
 
 **Title parsing** is rule-based, no model call. It recognizes block, row, tree, feature, and
 variety names; row ranges ("rows 1-4"); category keywords; season phrases; owners; and

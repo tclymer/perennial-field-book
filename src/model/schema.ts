@@ -353,6 +353,7 @@ export const taskPatch = z.object({
   season: short.nullable().optional(),
   seasonMonths: months.nullable().optional(),
   intervalDays: z.number().int().min(1).max(3660).nullable().optional(),
+  restUntil: isoDate.nullable().optional(),
   estimatedMinutes: minutes.nullable().optional(),
   notes: text.nullable().optional(),
   done: z.boolean().nullable().optional(),

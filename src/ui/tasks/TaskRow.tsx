@@ -4,9 +4,11 @@ import clsx from 'clsx'
 import { useFarmStore } from '@/state/store'
 import { live } from '@/events/reduce'
 import { targetLabel } from '@/engine/logs'
-import { daysBetween, dueState, lastDone } from '@/engine/tasks'
+import { daysBetween, dueState, isResting, lastDone } from '@/engine/tasks'
+import type { NewEvent } from '@/events/types'
 import { categoryLabel } from '@/model/categories'
 import type { Task } from '@/model/types'
+import { SeasonDone, monthName } from './SeasonDone'
 import { useTaskDrag, type DropIndicator } from './useTaskDrag'
 
 /** "last done 3 days ago", "never done", for a recurring task. */
@@ -36,6 +38,7 @@ export function TaskRow({
   handle,
   handleProps,
   lifted,
+  onRest,
 }: {
   task: Task
   today: string
@@ -53,6 +56,8 @@ export function TaskRow({
   handleProps?: HTMLAttributes<HTMLElement>
   /** This row is being carried by a finger. */
   lifted?: boolean
+  /** Offer "Done for the season" on a recurring task in season; reports it for an Undo. */
+  onRest?: (message: string, undo: NewEvent[]) => void
 }) {
   const state = useFarmStore((s) => s.state)
   const logs = live.logs(state)
@@ -66,7 +71,13 @@ export function TaskRow({
   const openChildren = children.filter((t) => !t.done)
 
   const chips: { text: string; tone?: 'warn' | 'muted' }[] = []
-  if (recurring) {
+  const resting = recurring && isResting(task, today)
+  if (resting) {
+    chips.push({
+      text: `done for the season, back in ${monthName(task.restUntil!)}`,
+      tone: 'muted',
+    })
+  } else if (recurring) {
     chips.push({
       text: lastDoneText(task, logs, today),
       tone: due === 'due' || due === 'stale' ? 'warn' : 'muted',
@@ -135,6 +146,9 @@ export function TaskRow({
                 {c.text}
               </span>
             ))}
+            {onRest && recurring && due !== 'out-of-season' && (
+              <SeasonDone task={task} today={today} onRested={onRest} />
+            )}
           </p>
         )}
         {children.length > 0 && (

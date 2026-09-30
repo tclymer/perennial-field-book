@@ -8,12 +8,14 @@ import {
   completeTask,
   deleteTask,
   moveTask,
+  wakeTask,
   reopenTask,
   undoCompletion,
   undoEvents,
   updateTask,
 } from '@/state/taskActions'
-import { bucketName, parseSeason } from '@/engine/tasks'
+import { bucketName, isInSeason, isResting, monthOf, parseSeason } from '@/engine/tasks'
+import { SeasonDone, monthName } from '@/ui/tasks/SeasonDone'
 import { hoursOf } from '@/engine/logs'
 import { allCategories } from '@/model/categories'
 import type { NewEvent } from '@/events/types'
@@ -146,6 +148,25 @@ export default function TaskPage() {
               {lastDoneText(task, live.logs(state), date)}
             </span>
           )}
+          {task.bucket === 'recurring' &&
+            (isResting(task, date) ? (
+              <span className="flex items-center gap-2 text-sm text-stone-500 dark:text-stone-400">
+                Done for the season, back in {monthName(task.restUntil!)}.
+                <Button variant="ghost" onClick={() => wakeTask(task.id)}>
+                  Bring it back now
+                </Button>
+              </span>
+            ) : (
+              isInSeason(task, monthOf(date)) && (
+                <span className="text-sm">
+                  <SeasonDone
+                    task={task}
+                    today={date}
+                    onRested={(message, undo) => setToast({ message, undo })}
+                  />
+                </span>
+              )
+            ))}
         </Card>
       )}
 

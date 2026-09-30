@@ -231,6 +231,11 @@ export interface Task extends Stamped {
   seasonMonths?: number[]
   /** Recurring: an optional interval that only adds a "due" hint. */
   intervalDays?: number
+  /**
+   * Recurring: done for the season, so treated as out of season until this date, the first
+   * day of the month it comes back.
+   */
+  restUntil?: string
   /** Default log duration; a recurring task with one logs on a single tap. */
   estimatedMinutes?: number
   notes?: string

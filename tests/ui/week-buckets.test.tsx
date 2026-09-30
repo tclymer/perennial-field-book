@@ -206,3 +206,66 @@ describe('reordering with a finger', () => {
     expect(order).toEqual(['first job', 'second job'])
   })
 })
+
+describe('done for the season', () => {
+  const thisMonth = () => Number(today().slice(5, 7))
+  const nextYear = () => Number(today().slice(0, 4)) + 1
+  const pad = (m: number) => String(m).padStart(2, '0')
+  const plateNamed = (re: RegExp) => live.tasks(s()).find((t) => re.test(t.title))!
+
+  it('takes a plate off the week until its season comes round again', async () => {
+    const id = quickAdd('prune the kiwis', 'recurring')!
+    useFarmStore
+      .getState()
+      .commit([{ type: 'task.patch', payload: { id, seasonMonths: [thisMonth()] } }])
+    await openWeek()
+    expect(await screen.findByText(/prune the kiwis/i)).toBeTruthy()
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Done for the season' }))
+    })
+    expect(plateNamed(/prune the kiwis/i).restUntil).toBe(`${nextYear()}-${pad(thisMonth())}-01`)
+    expect(screen.queryByRole('link', { name: /prune the kiwis/i })).toBeNull()
+    // No work was logged: this is a decision about the list, not a record of pruning.
+    expect(live.logs(s())).toHaveLength(0)
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
+    })
+    expect(plateNamed(/prune the kiwis/i).restUntil).toBeUndefined()
+  })
+
+  it('asks for a month when the plate has no season set', async () => {
+    quickAdd('check the deer fence', 'recurring')
+    await openWeek()
+    await screen.findByText(/check the deer fence/i)
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Done for the season' }))
+    })
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Mar' }))
+    })
+    expect(plateNamed(/check the deer fence/i).restUntil).toMatch(/^\d{4}-03-01$/)
+    expect(screen.queryByRole('link', { name: /check the deer fence/i })).toBeNull()
+  })
+})
+
+describe('a resting plate on its own page', () => {
+  it('says when it comes back, and can be brought back early', async () => {
+    const id = quickAdd('prune the kiwis', 'recurring')!
+    useFarmStore
+      .getState()
+      .commit([{ type: 'task.patch', payload: { id, restUntil: '2099-05-01' } }])
+    cleanup()
+    window.location.hash = `#/tasks/${id}`
+    render(
+      <HashRouter>
+        <App />
+      </HashRouter>,
+    )
+    expect(await screen.findByText(/Done for the season, back in/)).toBeTruthy()
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Bring it back now' }))
+    })
+    expect(live.tasks(s()).find((t) => t.id === id)!.restUntil).toBeUndefined()
+    expect(screen.getByRole('button', { name: 'Done for the season' })).toBeTruthy()
+  })
+})

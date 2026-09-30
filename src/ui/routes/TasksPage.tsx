@@ -65,6 +65,8 @@ function TasksBoard() {
     })
   }
 
+  const rest = (message: string, undo: NewEvent[]) => setToast({ message, undo })
+
   const columns = BUCKETS.filter((b) => b === picked)
 
   return (
@@ -109,6 +111,7 @@ function TasksBoard() {
                 today={date}
                 onCheck={setSheet}
                 onDelete={remove}
+                onRest={rest}
               />
             ))}
           </div>
@@ -120,13 +123,21 @@ function TasksBoard() {
                 today={date}
                 onCheck={setSheet}
                 onDelete={remove}
+                onRest={rest}
               />
             ))}
           </div>
         </div>
       ) : (
         columns.map((bucket) => (
-          <Column key={bucket} bucket={bucket} today={date} onCheck={setSheet} onDelete={remove} />
+          <Column
+            key={bucket}
+            bucket={bucket}
+            today={date}
+            onCheck={setSheet}
+            onDelete={remove}
+            onRest={rest}
+          />
         ))
       )}
 
@@ -160,11 +171,13 @@ function Column({
   today,
   onCheck,
   onDelete,
+  onRest,
 }: {
   bucket: Bucket
   today: string
   onCheck: (task: Task) => void
   onDelete: (task: Task) => void
+  onRest: (message: string, undo: NewEvent[]) => void
 }) {
   const state = useFarmStore((s) => s.state)
   const [showDone, setShowDone] = useState(false)
@@ -211,6 +224,7 @@ function Column({
                     onCheck={onCheck}
                     onDelete={onDelete}
                     handle
+                    onRest={onRest}
                     dragProps={drag.rowProps(t)}
                     handleProps={drag.handleProps(t)}
                     lifted={drag.touching === t.id}

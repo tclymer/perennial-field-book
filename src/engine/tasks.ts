@@ -399,6 +399,37 @@ export function lastDone(task: Task, logs: readonly WorkLog[]): string | undefin
   return best
 }
 
+/** Put away with "Done for the season" and not back yet. */
+export function isResting(task: Task, today: string): boolean {
+  return !!task.restUntil && today < task.restUntil
+}
+
+const firstOf = (year: number, month: number) => `${year}-${String(month).padStart(2, '0')}-01`
+
+/**
+ * When "Done for the season" brings a task back: the first day of the month its season next
+ * starts, after the run of months it is in now. Null when it has no season to wait for (none
+ * set, or all twelve months), and the month has to be asked.
+ */
+export function nextSeasonStart(task: Task, today: string): string | null {
+  const months = new Set(task.seasonMonths ?? [])
+  if (months.size === 0 || months.size === 12) return null
+  const now = monthOf(today)
+  const year = Number(today.slice(0, 4))
+  for (let k = 1; k <= 12; k++) {
+    const m = ((now - 1 + k) % 12) + 1
+    const prev = ((m + 10) % 12) + 1
+    if (months.has(m) && !months.has(prev)) return firstOf(now - 1 + k >= 12 ? year + 1 : year, m)
+  }
+  return null
+}
+
+/** The next first of `month` after this month: this month itself means a year from now. */
+export function nextFirstOf(month: number, today: string): string {
+  const year = Number(today.slice(0, 4))
+  return firstOf(month > monthOf(today) ? year : year + 1, month)
+}
+
 export function isInSeason(task: Task, month: number): boolean {
   return !task.seasonMonths || task.seasonMonths.length === 0 || task.seasonMonths.includes(month)
 }
@@ -406,7 +437,7 @@ export function isInSeason(task: Task, month: number): boolean {
 export type DueState = 'due' | 'stale' | 'ok' | 'out-of-season'
 
 export function dueState(task: Task, logs: readonly WorkLog[], today: string): DueState {
-  if (!isInSeason(task, monthOf(today))) return 'out-of-season'
+  if (!isInSeason(task, monthOf(today)) || isResting(task, today)) return 'out-of-season'
   const last = lastDone(task, logs)
   const since = last ? daysBetween(last, today) : Infinity
   if (task.intervalDays) return since >= task.intervalDays ? 'due' : 'ok'
@@ -416,13 +447,14 @@ export function dueState(task: Task, logs: readonly WorkLog[], today: string): D
 /** Recurring items: in season first, then the longest untouched first. */
 export function sortRecurring(tasks: Task[], logs: readonly WorkLog[], today: string): Task[] {
   const month = monthOf(today)
+  const away = (t: Task) => !isInSeason(t, month) || isResting(t, today)
   const since = (t: Task) => {
     const last = lastDone(t, logs)
     return last ? daysBetween(last, today) : Infinity
   }
   return [...tasks].sort((a, b) => {
-    const ia = isInSeason(a, month) ? 0 : 1
-    const ib = isInSeason(b, month) ? 0 : 1
+    const ia = away(a) ? 1 : 0
+    const ib = away(b) ? 1 : 0
     if (ia !== ib) return ia - ib
     return since(b) - since(a) || a.order - b.order
   })
