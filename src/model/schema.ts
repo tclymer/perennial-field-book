@@ -253,6 +253,7 @@ export const farmPatch = z.object({
   speciesColors: z.record(short.min(1), short.min(1)).optional(),
   coverage: z.record(short.min(1), z.enum(['complete', 'partial', 'untracked'])).optional(),
   costItemMap: z.record(id, z.record(short.min(1), short)).optional(),
+  workDays: z.array(z.number().int().min(1).max(7)).max(7).optional(),
 })
 
 /**
@@ -335,6 +336,8 @@ export const taskCreate = z.object({
   season: short.optional(),
   seasonMonths: months.optional(),
   intervalDays: z.number().int().min(1).max(3660).optional(),
+  plannedFor: isoDate.optional(),
+  addedBy: id.optional(),
   estimatedMinutes: minutes.optional(),
   notes: text.optional(),
   done: z.boolean().optional(),
@@ -354,6 +357,7 @@ export const taskPatch = z.object({
   seasonMonths: months.nullable().optional(),
   intervalDays: z.number().int().min(1).max(3660).nullable().optional(),
   restUntil: isoDate.nullable().optional(),
+  plannedFor: isoDate.nullable().optional(),
   estimatedMinutes: minutes.nullable().optional(),
   notes: text.nullable().optional(),
   done: z.boolean().nullable().optional(),

@@ -39,6 +39,7 @@ export function TaskRow({
   handleProps,
   lifted,
   onRest,
+  extra,
 }: {
   task: Task
   today: string
@@ -58,6 +59,8 @@ export function TaskRow({
   lifted?: boolean
   /** Offer "Done for the season" on a recurring task in season; reports it for an Undo. */
   onRest?: (message: string, undo: NewEvent[]) => void
+  /** More on the chips line, such as the planner's Plan chip. */
+  extra?: React.ReactNode
 }) {
   const state = useFarmStore((s) => s.state)
   const logs = live.logs(state)
@@ -129,7 +132,7 @@ export function TaskRow({
         >
           {task.title}
         </Link>
-        {!compact && chips.length > 0 && (
+        {!compact && (chips.length > 0 || extra) && (
           <p className="mt-0.5 flex flex-wrap gap-1 text-xs">
             {chips.map((c, i) => (
               <span
@@ -146,6 +149,7 @@ export function TaskRow({
                 {c.text}
               </span>
             ))}
+            {extra}
             {onRest && recurring && due !== 'out-of-season' && (
               <SeasonDone task={task} today={today} onRested={onRest} />
             )}

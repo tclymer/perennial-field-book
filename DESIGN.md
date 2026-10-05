@@ -76,6 +76,8 @@ useful it might be to a farm.
 | 2026-09-20 | The phone tabs become Week, Harvest, Map, Search, Settings. Blocks keeps its desktop nav place, search, and a link from the map. | Harvest must be one tap away in season; the block grid is rarely the phone's entry point. |
 | 2026-09-19 | Task buckets ship with Threefold's Keep names as the default labels (Monkeys, Mini Tasks/Projects, Long Term, Spinning Plates, Projects), renameable per farm in Settings. | Zero relearning for the pilot farm; other farms rename them. |
 | 2026-09-19 | The person a device logs as comes from the Google sign-in: matched to a person by email or name the first time a log is filed, created if new, remembered per device, switchable with one tap on every done sheet. | No separate "who are you" step; the owner who rarely carries the phone is still one tap away. |
+| 2026-10-05 | A week planner: tasks are put on working days, not times; unfinished ones roll to the next working day by computation, not by written events; the phone's home becomes Today. Anyone can plan; no roles. See §3.10. | Threefold wants "what is on my plate today" in front of everyone, with two or three tasks a day across a small crew. Computed rollover means no overnight job and no two phones disagreeing. |
+| 2026-10-05 | A task that has rolled three working days stops riding along and asks "Still on?"; tasks with no owner say "Anyone" with "I'll take it"; nothing shows who was late. | Rollover piles and unclaimed work are what make shared lists get ignored; visible blame is what makes them resented. |
 | 2026-09-17 | Sign-in is a server-side OAuth code flow. The session comes back to the app as a one-time code in the return URL and is kept as a bearer token, never a cookie. | Popups do not work inside an installed iPhone app and Google's browser-only tokens expire hourly; a code in the URL works whichever browsing context ran Google's page. |
 
 ---
@@ -421,14 +423,122 @@ Hardware note for the orchard: an ordinary NFC sticker will not read through the
 tags, because the metal detunes the antenna. Either buy tags sold as on-metal, which carry a
 ferrite layer, or hang a separate plastic tag on the same wire.
 
+### 3.10 The week planner (built 2026-10-05)
+
+A day is a bucket, not a calendar: "what is on my plate today", with no times. Anyone signed
+in to the farm can plan, add, or move anything; there are no roles. Threefold expects two or
+three tasks a day across a small crew, so the design favours a list everyone trusts over
+anything that manages volume. Done or not done is what matters; hours stay optional.
+
+**Days are a view of the same tasks, not a new list.** A task gains one optional field,
+`plannedFor`, a date in the current working week. It keeps its bucket: a Monkey planned for
+Wednesday is still a Monkey, a project step is still under its project, a plate is still a
+plate. Taking a task off a day clears the field and it is back where it always was. There is
+no second list to keep in step with the first.
+
+**Rollover is computed, never written.** A task that is not done shows on
+`max(plannedFor, today)`: planned for Tuesday and still open on Thursday, it shows on
+Thursday. Nothing runs overnight and no device writes "moved to tomorrow" events, so two
+phones can never disagree about where a task rolled, and a phone that was off all week is
+right the moment it opens. Non-working days are skipped: Friday's leftovers show on Monday.
+
+**The roll count is visible, and it is capped.** A rolled task shows ↻ and how many working
+days it has slid (Sunsama does the same). At three it stops riding along on today and waits
+at the top of Today under **Still on?**, with *Keep for today* (re-plans it for today, so the
+count starts again) and *Back to the list* (clears the day; it is a Monkey again). This is the
+guard against the failure that sinks these tools: a day's list that grows by rollover until
+nobody believes it. It is the same lesson as Done for the season.
+
+**Who does it.** Each task on a day shows its owner's name, or **Anyone** when it has none,
+with **I'll take it** to claim it in one tap. A task added to a day takes an owner named in
+its title ("(Tim)", the existing parser), otherwise none: the person who types a task is
+often not the person who will do it, and "Anyone" is honest where a wrong name is not.
+Tapping the name reassigns it from the people chips. The task records who added it
+(`addedBy`, the device's current person), shown small on its page, so "why is this on my
+list" has an answer. Nothing shows who checked what off when, or marks anyone's tasks late
+in red. The list is a shared whiteboard, not a timesheet.
+
+**Checking off is one tap.** On Today and the week board, the box marks it done and files a
+log with the current person and the task's estimate if it has one; the toast offers *Undo*
+and *Add time*. The full done sheet is still on the task page. A **project** on a day means
+"work on it today", so its box reads *Worked on it*: it logs and clears the day, and the
+project stays open. A **plate** on a day logs an occurrence and clears the day, and stays a
+plate.
+
+**Rain day.** One button on Today: *Push today to tomorrow*, which re-plans every open task
+showing today to the next working day, with Undo. Weather moves whole days, not single tasks.
+
+**Done stays visible.** Tasks done today stay on Today, crossed out, until the day ends.
+Seeing the day's progress is one of the more motivating things a list can do, and an empty
+list at two in the afternoon reads as nothing happened.
+
+**Load, not limits.** Each day shows its count and, when tasks carry estimates, a total
+("3 · ~4 h"). No warnings and no cap: at two or three tasks a day there is nothing to warn
+about, and a larger farm can read the number itself.
+
+**Which week.** The working days of the current week, Monday to Friday by default, with
+Saturday and Sunday as a farm setting (`workDays`) for harvest season. Once the last working
+day is over (Saturday and Sunday for most farms) the board shows next week, so Sunday evening
+planning lands on Monday. Nothing further ahead: work that is weeks away belongs in the
+lists, and is planned onto a day in the week it happens.
+
+**Where it lives.**
+
+- *Phone home (This week becomes Today).* Today first: **Still on?** if anything is
+  waiting, then your tasks, then everyone else's grouped by person, then Anyone, then done
+  ones crossed out, with a + to add straight onto today. Below that, **Keep up with** (due
+  plates, as now), then the rest of the week as a compact strip (a day's name, its count, its
+  first titles; tap to open the day). Below that, the existing sections (Monkeys not on a
+  day, Mini Tasks/Projects, Projects), each row with a **Plan** chip that offers the week's
+  days, because dragging between days on a phone is clumsy and two taps is not.
+- *Desktop Tasks.* A **Week** view beside the existing Lists board: a column per working
+  day, today highlighted, each with its count and a +, and an **Unplanned** tray down the
+  side holding the lists, so anything can be dragged onto a day, between days, or back off.
+  Drag uses the same native drag as the board; the phone's finger grip reorders within a day.
+- *Task page.* A **Day** row of chips for the week, and "added by".
+- *Weekly review.* Opens with "Plan the week", linking to the Week view, and lists what
+  rolled most last week, since a task that slid all week is worth a decision.
+
+**Model.** `Task.plannedFor?: string` (ISO date), `Task.addedBy?: string` (person id), and
+`FarmMeta.workDays?: number[]` (ISO weekdays, default `[1,2,3,4,5]`), through the existing
+`task.create`, `task.patch`, and `farm.patch` events. The engine gets `workingWeek(today,
+workDays)`, `showsOn(task, today)` (the rollover rule), `rolls(task, today)` (working days
+slid), and `dayPlan(state, today)` (tasks per day, grouped by person, with the Still-on list).
+An older build sets these patches aside rather than misreading them, so both phones need the
+update before the planner is used.
+
+**As built** (2026-10-05). The engine is `engine/plan.ts` (`weekPlan` places every planned
+task; `settledOn` decides when a plate or project on a day was dealt with, from a log on or
+after its day, so "Worked on it" needs no new field either) and the writes are
+`state/planActions.ts`. Differences from the design above:
+
+- The plates section on the phone kept its farm name (Spinning Plates) rather than becoming
+  "Keep up with", because that is what Threefold calls it. A plate on a day leaves that
+  section and lives on the day.
+- A phone opens on Today once per launch: a bare start at the map on a touch screen
+  (`pointer: coarse`) goes to Today, and the Map tab works as before afterwards. The routes
+  did not move, because many links point at the map.
+- Tasks pushed past the end of the week (a rain day on Friday) show as **Next week** below
+  the week rather than disappearing until the weekend.
+- The desktop Tasks page opens on the Week view; a link to one list (`?bucket=`) opens Lists.
+- One-tap check-off on a project logs without closing it; doing a plate or project ahead of
+  its day moves its day to today, so the log counts for it.
+- The task page's Day chips are not a `Field`: that renders a `<label>`, and a tap anywhere
+  in it would press the first day.
+
+**Not doing, and why.** Times of day (that is a calendar, and the farm does not run on one).
+Notifications (decided 2026-09-16: no daily nudge). Planning beyond this week. Per-person
+working days and days off (later, if a crew needs it). Plates placed on days automatically
+(they already surface when due, under Keep up with).
+
 ---
 
 ## 4. Phone experience
 
 The phone is for capture and for finding things. Five screens, each one job.
 
-1. **This week.** The `now` bucket, recurring items that are due, and overdue items. Big
-   checkboxes. Tapping done opens the two-chip sheet (duration, people) and files the log.
+1. **Today** (was This week until the week planner, §3.10). Today's plan by who does it,
+   the recurring items that are due, the rest of the week, then the lists. Big checkboxes. Tapping done opens the two-chip sheet (duration, people) and files the log.
    A recurring task with an estimated duration logs with zero extra taps.
 2. **Quick add.** One text box at the top of every list. Dictation works. The parser fills
    place and category. Nothing else is asked. On This week, each section also has a **+**
@@ -881,7 +991,13 @@ Each iteration is usable on its own.
    summary sheet. It also names the gaps up front: varieties with no source recorded, and
    trees with no planted date.
    *Done when:* a certifier's request is answered without opening a spreadsheet.
-7. **Later candidates.** NFC tag kit and printing, weather snapshot on spray logs, voice
+7. **Week planner.** §3.10: working days as buckets, computed rollover with a visible count
+   and a Still-on cap, owners and Anyone, one-tap check-off, rain day, Today as the phone's
+   home, a Week view on the desktop, Plan chips on a phone, and the weekly review opening
+   with planning.
+   Built 2026-10-05 (0.9.0); see "As built" in §3.10.
+   *Done when:* the crew opens the app in the morning to see the day.
+8. **Later candidates.** NFC tag kit and printing, weather snapshot on spray logs, voice
    entry parsed to a log, Bluetooth scale, box labels with QR for harvest entry, a donation
    link on the About page, a bring-your-own-Google-key option per farm if the shared quota
    gets tight, import of a farm's own drone orthomosaic as a permanent offline basemap.

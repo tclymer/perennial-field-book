@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { Navigate, NavLink, Outlet, useLocation } from 'react-router-dom'
+import { Navigate, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import clsx from 'clsx'
 import { APP_NAME, APP_VERSION } from '@/version'
 import { useFarmStore } from '@/state/store'
@@ -39,18 +39,35 @@ const DESKTOP_NAV: [string, string][] = [
 ]
 
 const PHONE_TABS: [string, string, string][] = [
-  ['/tasks', 'Week', '☑'],
+  ['/tasks', 'Today', '☑'],
   ['/harvest', 'Harvest', '⚖'],
   ['/', 'Map', '◎'],
   ['/settings', 'Settings', '⚙'],
 ]
+
+/**
+ * A phone opens on Today, the day's plan (DESIGN.md §3.10), once per launch. Only a bare
+ * start: a link into the map, or a tap on the Map tab later, still goes to the map.
+ */
+let launched = false
+function opensOnToday(pathname: string, search: string): boolean {
+  if (launched) return false
+  launched = true
+  return (
+    (pathname === '/' || pathname === '') &&
+    !search &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(pointer: coarse)').matches
+  )
+}
 
 /** Pages that work before a farm exists. */
 const NO_FARM_OK = ['/start', '/about', '/auth', '/join']
 
 export default function Layout() {
   const [theme, setTheme] = useTheme()
-  const { pathname } = useLocation()
+  const { pathname, search } = useLocation()
+  const navigate = useNavigate()
   const mainRef = useRef<HTMLElement>(null)
   const hydrated = useFarmStore((s) => s.hydrated)
   const farmId = useFarmStore((s) => s.farmId)
@@ -62,6 +79,12 @@ export default function Layout() {
   useEffect(() => {
     void hydrate()
   }, [hydrate])
+
+  useEffect(() => {
+    if (opensOnToday(pathname, search)) navigate('/tasks', { replace: true })
+    // Only the first render of a launch decides.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Blocks made before "planted by default" get their tree records the first time they open.
   useEffect(() => {
@@ -181,7 +204,7 @@ export default function Layout() {
 function pageTitle(pathname: string): string {
   if (pathname === '/' || pathname === '') return 'Map'
   if (pathname.startsWith('/start')) return 'Set up your farm'
-  if (pathname.startsWith('/week')) return 'This week'
+  if (pathname.startsWith('/week')) return 'Today'
   if (pathname.startsWith('/records')) return 'Records'
   if (pathname.startsWith('/tasks/')) return 'Task'
   if (pathname.startsWith('/tasks')) return 'Tasks'

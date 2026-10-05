@@ -12,6 +12,8 @@ import { Button, Card, PageHeader } from '@/ui/components'
 import { DoneSheet, type DoneSheetResult } from '@/ui/tasks/DoneSheet'
 import { TaskRow } from '@/ui/tasks/TaskRow'
 import { Toast } from '@/ui/tasks/Toast'
+import { weekPlan } from '@/engine/plan'
+import { Rolled } from '@/ui/plan/PlanParts'
 
 /** The weekly review (DESIGN.md §4): run whenever it is opened, no fixed day. */
 export default function ReviewPage() {
@@ -42,9 +44,11 @@ export default function ReviewPage() {
     <div className="space-y-4">
       <PageHeader title="Weekly review" subtitle={`${review.from} to ${review.to}`}>
         <Link to="/week" className="text-sm underline decoration-dotted">
-          This week
+          Today
         </Link>
       </PageHeader>
+
+      <PlanTheWeek today={date} />
 
       <Card>
         <h2 className="font-semibold">
@@ -198,5 +202,51 @@ export default function ReviewPage() {
         />
       )}
     </div>
+  )
+}
+
+/**
+ * The review is where the week gets planned (DESIGN.md §3.10), so it opens with that, and
+ * with whatever slid furthest: a task that rolled all week is worth a decision.
+ */
+function PlanTheWeek({ today }: { today: string }) {
+  const state = useFarmStore((s) => s.state)
+  const plan = weekPlan(state, today)
+  const planned = plan.days.reduce((n, d) => n + d.open.length, 0)
+  const slid = [...plan.stillOn, ...plan.days.flatMap((d) => d.open)]
+    .filter((i) => i.rolled >= 2)
+    .sort((a, b) => b.rolled - a.rolled)
+  return (
+    <Card>
+      <div className="flex items-baseline justify-between gap-2">
+        <h2 className="font-semibold">Plan the week</h2>
+        <Link to="/tasks?view=week" className="text-sm underline decoration-dotted">
+          Open the week
+        </Link>
+      </div>
+      <p className="text-sm text-stone-500 dark:text-stone-400">
+        {planned === 0
+          ? 'Nothing is on a day yet. Put the jobs for this week onto days so everyone sees them.'
+          : `${planned} ${planned === 1 ? 'task is' : 'tasks are'} on a day this week.`}
+      </p>
+      {slid.length > 0 && (
+        <>
+          <h3 className="mt-2 text-sm font-medium">Slid the furthest</h3>
+          <ul className="mt-1 divide-y divide-stone-100 text-sm dark:divide-stone-800">
+            {slid.map(({ task, rolled }) => (
+              <li key={task.id} className="flex items-baseline gap-2 py-1">
+                <Link
+                  to={`/tasks/${task.id}`}
+                  className="min-w-0 flex-1 underline decoration-dotted"
+                >
+                  {task.title}
+                </Link>
+                <Rolled n={rolled} />
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </Card>
   )
 }

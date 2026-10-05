@@ -4,6 +4,31 @@ One entry per release of Perennial Field Book, newest first. The version is show
 under Settings. Each release is also a tag on GitHub (`v0.8.7` and so on), so the code as it
 stood at any release can be looked at or compared with another.
 
+## 0.9.0 (2026-10-05)
+
+The week planner: what is on everyone's plate today, without a calendar.
+
+- **Today** is the phone's home now. It shows today's tasks grouped by who does them (yours
+  first, then each person, then Anyone), the Spinning Plates that are due, and a glance at
+  the rest of the week. The app opens on it.
+- **Put a task on a day** with the Plan chip on any task in the lists, the Day row on a
+  task's page, or by dragging on the desktop's new **Week** view (a column per working day,
+  with the lists down the side). The + on a day adds straight onto it.
+- **Unfinished tasks roll to the next working day** on their own, with a small ↻ showing
+  how far they slid. After three days one stops rolling and asks **Still on?**: keep it for
+  today, or put it back in its list.
+- **Anyone** marks a task nobody owns, with **I'll take it** to claim it. Tap a name to
+  change who it is for. A task's page says who added it.
+- **One tap checks off** a task on a day, logged as you, with Undo and **Add time** on the
+  message. A project on a day is _Worked on it_: logged, and still open.
+- **Rain day** pushes everything still open today to the next working day.
+- Done tasks stay on their day, crossed out.
+- The weekly review opens with **Plan the week**, and what slid the furthest.
+- Settings: **Working days**, Monday to Friday unless you add the weekend.
+
+Both phones need this version before planning: an older one would set the day changes
+aside.
+
 ## 0.8.8 (2026-09-30)
 
 - Spinning Plates: a **Done for the season** button on each plate puts it away until its

@@ -1,9 +1,12 @@
+import clsx from 'clsx'
 import { useState } from 'react'
 import { useFarmStore } from '@/state/store'
 import { live } from '@/events/reduce'
 import { useDevice } from '@/state/device'
 import { createPerson, setCurrentPerson, updatePerson } from '@/state/people'
 import { addCategory, setBucketName } from '@/state/taskActions'
+import { setWorkDays } from '@/state/planActions'
+import { workDaysOf } from '@/engine/plan'
 import { bucketName } from '@/engine/tasks'
 import { CATEGORIES } from '@/model/categories'
 import { BUCKETS, DEFAULT_BUCKET_NAMES } from '@/model/types'
@@ -104,6 +107,7 @@ export function TaskSettingsCard() {
           </Field>
         ))}
       </div>
+      <WorkDays />
       <p className="mt-3 text-xs text-stone-500 dark:text-stone-400">
         Categories: {CATEGORIES.map((c) => c.label).join(', ')}
         {farm.categories?.length ? `, ${farm.categories.join(', ')}` : ''}.
@@ -127,5 +131,44 @@ export function TaskSettingsCard() {
         </Button>
       </div>
     </Card>
+  )
+}
+
+const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
+/** The days the week planner offers, and that rollover counts (DESIGN.md §3.10). */
+function WorkDays() {
+  const farm = useFarmStore((s) => s.state.farm)
+  const days = workDaysOf(farm)
+  return (
+    <div className="mt-3">
+      <p className="text-sm font-medium">Working days</p>
+      <p className="text-xs text-stone-500 dark:text-stone-400">
+        The days the week planner shows. Unfinished tasks roll to the next of these.
+      </p>
+      <div className="mt-1 flex flex-wrap gap-1.5">
+        {WEEKDAYS.map((label, i) => {
+          const d = i + 1
+          const on = days.includes(d)
+          return (
+            <button
+              key={label}
+              type="button"
+              aria-pressed={on}
+              disabled={on && days.length === 1}
+              onClick={() => setWorkDays(on ? days.filter((x) => x !== d) : [...days, d])}
+              className={clsx(
+                'rounded-full border px-3 py-1 text-sm disabled:opacity-60',
+                on
+                  ? 'border-lime-700 bg-lime-700 text-white'
+                  : 'border-stone-300 dark:border-stone-600',
+              )}
+            >
+              {label}
+            </button>
+          )
+        })}
+      </div>
+    </div>
   )
 }

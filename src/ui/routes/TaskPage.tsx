@@ -16,6 +16,9 @@ import {
 } from '@/state/taskActions'
 import { bucketName, isInSeason, isResting, monthOf, parseSeason } from '@/engine/tasks'
 import { SeasonDone, monthName } from '@/ui/tasks/SeasonDone'
+import { dayLong, planDay, workDaysOf } from '@/engine/plan'
+import { planTask } from '@/state/planActions'
+import { plannableDays } from '@/ui/plan/PlanParts'
 import { hoursOf } from '@/engine/logs'
 import { allCategories } from '@/model/categories'
 import type { NewEvent } from '@/events/types'
@@ -244,6 +247,40 @@ export default function TaskPage() {
             </select>
           </Field>
         </div>
+        {!task.done && (
+          // Not a Field: that is a <label>, and a tap anywhere in it would press the first day.
+          <div className="flex flex-col gap-1 text-sm" role="group" aria-label="Day">
+            <span className="text-stone-600 dark:text-stone-400">Day</span>
+            <div className="flex flex-wrap gap-1.5">
+              {plannableDays(state, date).map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  aria-pressed={task.plannedFor === d}
+                  onClick={() => planTask(task.id, task.plannedFor === d ? null : d)}
+                  className={clsx(
+                    'rounded-full border px-3 py-1 text-sm',
+                    task.plannedFor === d
+                      ? 'border-lime-700 bg-lime-700 text-white'
+                      : 'border-stone-300 dark:border-stone-600',
+                  )}
+                >
+                  {dayLong(d, planDay(date, workDaysOf(state.farm)))}
+                </button>
+              ))}
+            </div>
+            <span className="text-xs text-stone-400 dark:text-stone-500">
+              {task.plannedFor && task.plannedFor < planDay(date, workDaysOf(state.farm))
+                ? 'Not done on its day, so it shows on today.'
+                : 'A day this week. Tap it again to take it off.'}
+            </span>
+          </div>
+        )}
+        {task.addedBy && state.people[task.addedBy] && (
+          <p className="text-xs text-stone-500 dark:text-stone-400">
+            Added by {state.people[task.addedBy]!.name}
+          </p>
+        )}
         <Field label="Where">
           <TargetPicker
             targets={task.targets}

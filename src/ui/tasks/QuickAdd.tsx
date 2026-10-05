@@ -15,12 +15,15 @@ import { inputClass } from '@/ui/components'
 export function QuickAdd({
   bucket = 'now',
   projectId,
+  plannedFor,
   placeholder = 'Add a task… e.g. "prune PP1 rows 1-4"',
   autoFocus,
   onAdded,
 }: {
   bucket?: Bucket
   projectId?: string
+  /** Put what is added straight onto this day of the week planner. */
+  plannedFor?: string
   placeholder?: string
   autoFocus?: boolean
   onAdded?: (id: string) => void
@@ -39,7 +42,7 @@ export function QuickAdd({
   }, [text])
 
   const add = () => {
-    const id = quickAdd(text, bucket, projectId)
+    const id = quickAdd(text, bucket, projectId, plannedFor)
     if (!id) return
     setText('')
     setPreview(null)

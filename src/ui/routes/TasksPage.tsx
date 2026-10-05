@@ -24,6 +24,7 @@ import { QuickAdd } from '@/ui/tasks/QuickAdd'
 import { TaskRow } from '@/ui/tasks/TaskRow'
 import { Toast } from '@/ui/tasks/Toast'
 import { useTaskDrag } from '@/ui/tasks/useTaskDrag'
+import { WeekBoard } from '@/ui/plan/WeekBoard'
 import WeekPage from './WeekPage'
 
 /** The lists that carry the week go across the top; the slower two sit below them. */
@@ -43,6 +44,8 @@ function TasksBoard() {
   const isDesktop = useIsDesktop()
   const [params, setParams] = useSearchParams()
   const picked = (params.get('bucket') as Bucket | null) ?? 'now'
+  // The week is what a desktop opens on; a link to one list opens the lists.
+  const view = params.get('view') ?? (params.get('bucket') ? 'lists' : 'week')
   const date = today()
   const [sheet, setSheet] = useState<Task | null>(null)
   const [toast, setToast] = useState<{ message: string; undo?: NewEvent[] } | null>(null)
@@ -80,68 +83,100 @@ function TasksBoard() {
         </Link>
       </PageHeader>
 
-      {!isDesktop && (
-        <div className="flex flex-wrap gap-1.5">
-          {BUCKETS.map((b) => (
+      {isDesktop && (
+        <div className="flex gap-1.5" role="group" aria-label="View">
+          {(
+            [
+              ['week', 'Week'],
+              ['lists', 'Lists'],
+            ] as const
+          ).map(([v, label]) => (
             <button
-              key={b}
+              key={v}
               type="button"
-              onClick={() => setParams({ bucket: b })}
-              aria-pressed={picked === b}
+              onClick={() => setParams({ view: v })}
+              aria-pressed={view === v}
               className={clsx(
                 'rounded-full border px-3 py-1 text-sm',
-                picked === b
+                view === v
                   ? 'border-stone-900 bg-stone-900 text-white dark:border-stone-100 dark:bg-stone-100 dark:text-stone-900'
                   : 'border-stone-300 dark:border-stone-600 text-stone-700 dark:text-stone-300',
               )}
             >
-              {bucketName(state.farm, b)}
+              {label}
             </button>
           ))}
         </div>
       )}
 
-      {isDesktop ? (
-        <div className="space-y-3">
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-            {TOP_ROW.map((bucket) => (
-              <Column
-                key={bucket}
-                bucket={bucket}
-                today={date}
-                onCheck={setSheet}
-                onDelete={remove}
-                onRest={rest}
-              />
-            ))}
-          </div>
-          <div className="grid gap-3 md:grid-cols-2">
-            {SECOND_ROW.map((bucket) => (
-              <Column
-                key={bucket}
-                bucket={bucket}
-                today={date}
-                onCheck={setSheet}
-                onDelete={remove}
-                onRest={rest}
-              />
-            ))}
-          </div>
-        </div>
+      {isDesktop && view === 'week' ? (
+        <WeekBoard today={date} />
       ) : (
-        columns.map((bucket) => (
-          <Column
-            key={bucket}
-            bucket={bucket}
-            today={date}
-            onCheck={setSheet}
-            onDelete={remove}
-            onRest={rest}
-          />
-        ))
-      )}
+        <>
+          {!isDesktop && (
+            <div className="flex flex-wrap gap-1.5">
+              {BUCKETS.map((b) => (
+                <button
+                  key={b}
+                  type="button"
+                  onClick={() => setParams({ bucket: b })}
+                  aria-pressed={picked === b}
+                  className={clsx(
+                    'rounded-full border px-3 py-1 text-sm',
+                    picked === b
+                      ? 'border-stone-900 bg-stone-900 text-white dark:border-stone-100 dark:bg-stone-100 dark:text-stone-900'
+                      : 'border-stone-300 dark:border-stone-600 text-stone-700 dark:text-stone-300',
+                  )}
+                >
+                  {bucketName(state.farm, b)}
+                </button>
+              ))}
+            </div>
+          )}
 
-      <SeasonAndDone today={date} onCheck={setSheet} />
+          {isDesktop ? (
+            <div className="space-y-3">
+              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                {TOP_ROW.map((bucket) => (
+                  <Column
+                    key={bucket}
+                    bucket={bucket}
+                    today={date}
+                    onCheck={setSheet}
+                    onDelete={remove}
+                    onRest={rest}
+                  />
+                ))}
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                {SECOND_ROW.map((bucket) => (
+                  <Column
+                    key={bucket}
+                    bucket={bucket}
+                    today={date}
+                    onCheck={setSheet}
+                    onDelete={remove}
+                    onRest={rest}
+                  />
+                ))}
+              </div>
+            </div>
+          ) : (
+            columns.map((bucket) => (
+              <Column
+                key={bucket}
+                bucket={bucket}
+                today={date}
+                onCheck={setSheet}
+                onDelete={remove}
+                onRest={rest}
+              />
+            ))
+          )}
+
+          <SeasonAndDone today={date} onCheck={setSheet} />
+        </>
+      )}
 
       {sheet && (
         <DoneSheet

@@ -14,7 +14,8 @@ import {
 import type { Bucket, Task } from '@/model/types'
 import { placeTask } from '@/state/taskActions'
 
-const TYPE = 'text/x-fieldbook-task'
+export const TASK_DRAG_TYPE = 'text/x-fieldbook-task'
+const TYPE = TASK_DRAG_TYPE
 
 export interface DragDest {
   bucket: Bucket

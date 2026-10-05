@@ -1,31 +1,43 @@
-import { useCallback, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useFarmStore } from '@/state/store'
 import { today } from '@/state/actions'
 import { ensureCurrentPerson } from '@/state/people'
-import { completeTask, deleteTask, moveTask, undoEvents, undoLog } from '@/state/taskActions'
+import { completeTask, deleteTask, moveTask, undoLog } from '@/state/taskActions'
 import { live } from '@/events/reduce'
 import { addDays } from '@/engine/tasks'
 import { hoursOf } from '@/engine/logs'
 import { bucketName, thisWeek } from '@/engine/tasks'
-import type { NewEvent } from '@/events/types'
 import type { Bucket, Task } from '@/model/types'
 import { Button, Card, PageHeader } from '@/ui/components'
 import { Chip } from '@/ui/harvest/Chips'
 import { DoneSheet, type DoneSheetResult } from '@/ui/tasks/DoneSheet'
 import { QuickAdd } from '@/ui/tasks/QuickAdd'
 import { TaskRow } from '@/ui/tasks/TaskRow'
-import { Toast } from '@/ui/tasks/Toast'
+import { PlanChip, usePlanNotices } from '@/ui/plan/PlanParts'
+import { TodayPlan } from '@/ui/plan/TodayPlan'
 import { useTaskDrag } from '@/ui/tasks/useTaskDrag'
 
 /** The lists a task can be added to from the orchard, in the order they are worked. */
 const ADD_TO: Bucket[] = ['now', 'soon', 'later', 'project']
 
-/** The phone's home: what to do now, what to keep up with, and what the season opened. */
+/**
+ * The phone's home: today's plan first (DESIGN.md §3.10), then what to keep up with, the rest
+ * of the week, and the lists that feed the days.
+ */
 export default function WeekPage() {
   const state = useFarmStore((s) => s.state)
   const date = today()
-  const week = thisWeek(state, date)
+  const all = thisWeek(state, date)
+  // A task on a day lives on that day here; the lists below show what is not planned yet.
+  const unplanned = <T extends { plannedFor?: string }>(t: T) => !t.plannedFor
+  const week = {
+    ...all,
+    now: all.now.filter(unplanned),
+    soon: all.soon.filter(unplanned),
+    due: all.due.filter(unplanned),
+    projects: all.projects.filter((p) => !p.task.plannedFor),
+  }
   const [addTo, setAddTo] = useState<Bucket>('now')
   // Added from a section's own box: shown even past the first few, so the add is visible.
   const [added, setAdded] = useState<string[]>([])
@@ -33,8 +45,8 @@ export default function WeekPage() {
   const firstFew = <T,>(list: T[], idOf: (t: T) => string) =>
     list.filter((t, i) => i < 8 || added.includes(idOf(t)))
   const [sheet, setSheet] = useState<Task | null>(null)
-  const [toast, setToast] = useState<{ message: string; undo?: NewEvent[] } | null>(null)
-  const closeToast = useCallback(() => setToast(null), [])
+  const { done, notify: setToast, overlays } = usePlanNotices(date)
+  const plan = (t: Task) => <PlanChip task={t} today={date} notify={setToast} />
   const drag = useTaskDrag(week.now, { bucket: 'now', projectId: null })
   const dragSoon = useTaskDrag(week.soon, { bucket: 'soon', projectId: null })
   const since = addDays(date, -6)
@@ -78,17 +90,41 @@ export default function WeekPage() {
   return (
     <div className="space-y-4">
       <PageHeader
-        title="This week"
-        subtitle={new Date().toLocaleDateString(undefined, {
-          weekday: 'long',
-          month: 'long',
-          day: 'numeric',
-        })}
+        // The card below is headed Today; the page says which day that is.
+        title={new Date().toLocaleDateString(undefined, { weekday: 'long' })}
+        subtitle={new Date().toLocaleDateString(undefined, { month: 'long', day: 'numeric' })}
       >
         <Link to="/review" className="text-sm underline decoration-dotted">
           Weekly review
         </Link>
       </PageHeader>
+
+      <TodayPlan
+        today={date}
+        onDone={done}
+        notify={setToast}
+        between={
+          <Section
+            title={bucketName(state.farm, 'recurring')}
+            hint="Due or getting stale. Tap the box when you have done one."
+            empty="All kept up. See the full list under Tasks."
+            link={{ to: '/tasks?bucket=recurring', label: 'All' }}
+            add={{ bucket: 'recurring', onAdded: noteAdded }}
+          >
+            {week.due.map((t) => (
+              <TaskRow
+                key={t.id}
+                task={t}
+                today={date}
+                onCheck={check}
+                onDelete={remove}
+                onRest={(message, undo) => setToast({ message, undo })}
+                extra={plan(t)}
+              />
+            ))}
+          </Section>
+        }
+      />
 
       {/*
         A mini task or a project comes to mind in the orchard as often as this week's work
@@ -109,6 +145,7 @@ export default function WeekPage() {
 
       <Section
         title={bucketName(state.farm, 'now')}
+        hint="Not on a day yet. Plan puts one on a day of this week."
         empty="Nothing here. Add one above, or enjoy it."
         add={{ bucket: 'now', onAdded: noteAdded }}
         listProps={drag.containerProps}
@@ -121,29 +158,11 @@ export default function WeekPage() {
             onCheck={check}
             onDelete={remove}
             handle
+            extra={plan(t)}
             dragProps={drag.rowProps(t)}
             handleProps={drag.handleProps(t)}
             lifted={drag.touching === t.id}
             dropIndicator={drag.indicator(t.id)}
-          />
-        ))}
-      </Section>
-
-      <Section
-        title={bucketName(state.farm, 'recurring')}
-        hint="Due or getting stale. Tap the box when you have done one."
-        empty="All kept up. See the full list under Tasks."
-        link={{ to: '/tasks?bucket=recurring', label: 'All' }}
-        add={{ bucket: 'recurring', onAdded: noteAdded }}
-      >
-        {week.due.map((t) => (
-          <TaskRow
-            key={t.id}
-            task={t}
-            today={date}
-            onCheck={check}
-            onDelete={remove}
-            onRest={(message, undo) => setToast({ message, undo })}
           />
         ))}
       </Section>
@@ -164,6 +183,7 @@ export default function WeekPage() {
             onCheck={check}
             onDelete={remove}
             handle
+            extra={plan(t)}
             dragProps={dragSoon.rowProps(t)}
             handleProps={dragSoon.handleProps(t)}
             lifted={dragSoon.touching === t.id}
@@ -187,6 +207,7 @@ export default function WeekPage() {
             <span className="shrink-0 text-xs text-stone-500 dark:text-stone-400">
               {open === 0 ? 'no steps yet' : `${open} open`}
             </span>
+            <span className="shrink-0 text-xs">{plan(task)}</span>
           </li>
         ))}
       </Section>
@@ -254,13 +275,7 @@ export default function WeekPage() {
           onClose={() => setSheet(null)}
         />
       )}
-      {toast && (
-        <Toast
-          message={toast.message}
-          onUndo={toast.undo ? () => undoEvents(toast.undo!) : undefined}
-          onClose={closeToast}
-        />
-      )}
+      {overlays}
     </div>
   )
 }

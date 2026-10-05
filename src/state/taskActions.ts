@@ -10,6 +10,7 @@ import type { NewEvent } from '@/events/types'
 import { contextFrom, parseTitle, type ParsedTitle } from '@/engine/tasks'
 import { positions } from './derived'
 import { today } from './actions'
+import { currentPerson } from './people'
 import { useFarmStore } from './store'
 
 function state() {
@@ -64,17 +65,28 @@ export function createTask(fields: TaskFields): string {
   if (fitted.notes && fitted.notes.length > NOTES_MAX)
     fitted.notes = fitted.notes.slice(0, NOTES_MAX)
   if (fitted.season && fitted.season.length > 120) fitted.season = fitted.season.slice(0, 120)
+  const by = fitted.addedBy ?? currentPerson()?.id
   commit([
     {
       type: 'task.create',
-      payload: { id, ...fitted, order: nextOrder(fields.bucket, fields.projectId) },
+      payload: {
+        id,
+        ...fitted,
+        ...(by ? { addedBy: by } : {}),
+        order: nextOrder(fields.bucket, fields.projectId),
+      },
     },
   ])
   return id
 }
 
 /** One typed line becomes a task with places, category, owner, and season filled in. */
-export function quickAdd(text: string, bucket: Bucket = 'now', projectId?: string): string | null {
+export function quickAdd(
+  text: string,
+  bucket: Bucket = 'now',
+  projectId?: string,
+  plannedFor?: string,
+): string | null {
   const parsed = parseLine(text)
   if (!parsed.title) return null
   const { done, ...fields } = parsed
@@ -82,6 +94,7 @@ export function quickAdd(text: string, bucket: Bucket = 'now', projectId?: strin
     ...fields,
     bucket,
     ...(projectId ? { projectId } : {}),
+    ...(plannedFor ? { plannedFor } : {}),
     ...(done ? { done: true, doneAt: today() } : {}),
   })
 }

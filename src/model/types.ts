@@ -236,6 +236,10 @@ export interface Task extends Stamped {
    * day of the month it comes back.
    */
   restUntil?: string
+  /** The working day it is planned for (DESIGN.md §3.10). Unfinished, it shows on today. */
+  plannedFor?: string
+  /** The person who added it, so "why is this on my list" has an answer. */
+  addedBy?: string
   /** Default log duration; a recurring task with one logs on a single tap. */
   estimatedMinutes?: number
   notes?: string
@@ -311,6 +315,8 @@ export interface FarmMeta {
   coverage?: Record<string, 'complete' | 'partial' | 'untracked'>
   /** Which category feeds which planner cost item: plantingId → costItemId → category. */
   costItemMap?: Record<string, Record<string, string>>
+  /** ISO weekdays the farm plans work on, Monday 1 to Sunday 7. Absent: Monday to Friday. */
+  workDays?: number[]
 }
 
 /**

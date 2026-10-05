@@ -5,11 +5,14 @@ import { Button } from '@/ui/components'
 export function Toast({
   message,
   onUndo,
+  action,
   onClose,
   ms = 6000,
 }: {
   message: string
   onUndo?: () => void
+  /** A second button, such as "Add time" after a one-tap check-off. */
+  action?: { label: string; run: () => void }
   onClose: () => void
   ms?: number
 }) {
@@ -33,6 +36,18 @@ export function Toast({
           }}
         >
           Undo
+        </Button>
+      )}
+      {action && (
+        <Button
+          variant="ghost"
+          className="text-lime-300 dark:text-lime-700"
+          onClick={() => {
+            action.run()
+            onClose()
+          }}
+        >
+          {action.label}
         </Button>
       )}
     </div>
