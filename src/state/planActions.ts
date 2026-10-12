@@ -6,10 +6,10 @@ import type { NewEvent } from '@/events/types'
 import { live } from '@/events/reduce'
 import { newId } from '@/model/ids'
 import { nextWorkDay, planDay, weekPlan, workDaysOf } from '@/engine/plan'
-import { isProject } from '@/engine/tasks'
+import { isHolder, isProject } from '@/engine/tasks'
 import { ensureCurrentPerson } from './people'
 import { useFarmStore } from './store'
-import { closingLog, completeTask } from './taskActions'
+import { closingLog, completeTask, parentReopening } from './taskActions'
 
 function state() {
   return useFarmStore.getState().state
@@ -23,6 +23,8 @@ function commit(events: NewEvent[]) {
 export function planTask(id: string, day: string | null): NewEvent[] {
   const t = state().tasks[id]
   if (!t) return []
+  // A holder's steps go on days, never the holder itself.
+  if (day && isHolder(state(), t)) return []
   commit([{ type: 'task.patch', payload: { id, plannedFor: day } }])
   return [{ type: 'task.patch', payload: { id, plannedFor: t.plannedFor ?? null } }]
 }
@@ -153,6 +155,11 @@ export function uncheck(id: string): NewEvent[] {
       type: 'task.patch',
       payload: { id, done: true, ...(t.doneAt ? { doneAt: t.doneAt } : {}) },
     })
+    if (t.projectId) {
+      const reopening = parentReopening(id)
+      events.push(...reopening.events)
+      undo.push(...reopening.undo)
+    }
   } else {
     const from = t.plannedFor
     if (!from) return []

@@ -526,6 +526,30 @@ after its day, so "Worked on it" needs no new field either) and the writes are
 - The task page's Day chips are not a `Field`: that renders a `<label>`, and a tap anywhere
   in it would press the first day.
 
+**A task with steps is a holder** (2026-10-12, 0.9.2). Steps are the real work, so a task with
+open steps (`isHolder`) is never on a day itself; its steps are. Planning a task that only
+said "work on the fence" logged hours against nothing anyone could read back. So:
+
+- The Plan chip on a holder reads *Plan a step* and opens its open steps, each with day chips.
+  The desktop tray shows a holder as a heading over its steps, and only the steps drag; a
+  holder dropped on a day is refused with a message. The task page says its steps go on days,
+  and each step in its list has a Plan chip.
+- A step on a day shows its task's name before its own ("Deer fence · Order posts").
+- Checking off the last open step closes the task, projects included (Tim's call): a status
+  only, with no log of its own, since the steps carry the logs. Undo, unchecking a step,
+  reopening a step, or adding a new step opens it again. Plates are left alone.
+- A step logged with no place or category of its own borrows its task's, so hours on a step
+  still reach the right block for the planner comparison.
+- The first step added to a task that is on a day takes over that day. A holder that carried
+  a day from before 0.9.2 simply stops showing on it (`weekPlan` skips any task with steps)
+  and shows in its list again.
+- A task with no steps, including a project with none yet, plans as itself as before.
+
+The same release fixed dragging a step under a project, which copied the project's bucket onto
+the step and hid its checkbox (`placeTask` now leaves a step's bucket alone, and `isProject`
+means a top-level task in the project list), and made a check-off on a day reversible at any
+time by tapping its box again (`uncheck`).
+
 **Not doing, and why.** Times of day (that is a calendar, and the farm does not run on one).
 Notifications (decided 2026-09-16: no daily nudge). Planning beyond this week. Per-person
 working days and days off (later, if a crew needs it). Plates placed on days automatically

@@ -7,11 +7,12 @@ import App from '@/App'
 import { db } from '@/events/db'
 import { live } from '@/events/reduce'
 import { resetStoreForTests, useFarmStore } from '@/state/store'
-import { placeTask, quickAdd } from '@/state/taskActions'
+import { completeTask, placeTask, quickAdd, reopenTask, undoEvents } from '@/state/taskActions'
 import { createPerson, setCurrentPerson } from '@/state/people'
 import { today } from '@/state/actions'
 import { addDays } from '@/engine/tasks'
-import { DEFAULT_WORK_DAYS, isWorkDay, nextWorkDay, planDay } from '@/engine/plan'
+import { DEFAULT_WORK_DAYS, isWorkDay, nextWorkDay, planDay, weekPlan } from '@/engine/plan'
+import { planTask } from '@/state/planActions'
 import { WeekBoard } from '@/ui/plan/WeekBoard'
 import { TASK_DRAG_TYPE } from '@/ui/tasks/useTaskDrag'
 import { installBrowserStubs } from './fixtures'
@@ -147,7 +148,7 @@ describe('today on the phone', () => {
       fireEvent.click(await screen.findByRole('button', { name: /Plan clean the cooler/i }))
     })
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Today' }))
+      fireEvent.click(screen.getByRole('button', { name: /clean the cooler: (today|monday)/i }))
     })
     expect(taskNamed(/clean the cooler/i).plannedFor).toBe(day())
     expect(within(todayCard()).getByText(/clean the cooler/i)).toBeTruthy()
@@ -290,5 +291,133 @@ describe('reordering the steps of a project', () => {
     patch(step, { bucket: 'project' })
     await open(`#/tasks/${project}`)
     expect(await screen.findByRole('button', { name: /^Done: order posts/i })).toBeTruthy()
+  })
+})
+
+describe('a task with steps is a holder', () => {
+  const fence = () => {
+    const project = quickAdd('replace the deer fence', 'project')!
+    const posts = quickAdd('order posts', 'soon', project)!
+    const line = quickAdd('clear the line', 'soon', project)!
+    return { project, posts, line }
+  }
+  const me = () => ({ personIds: [tim] })
+
+  it('closes when its last step is checked off, and Undo opens both again', () => {
+    const { project, posts, line } = fence()
+    completeTask(posts, me())
+    expect(s().tasks[project]!.done).toBeFalsy()
+    const undo = completeTask(line, me())
+    expect(s().tasks[project]!.done).toBe(true)
+    // The steps carry the logs; the task itself files none.
+    expect(live.logs(s()).filter((l) => l.taskId === project)).toHaveLength(0)
+    undoEvents(undo)
+    expect(s().tasks[line]!.done).toBeFalsy()
+    expect(s().tasks[project]!.done).toBeFalsy()
+  })
+
+  it('closes an ordinary task with steps the same way', () => {
+    const task = quickAdd('fix the cooler', 'now')!
+    const step = quickAdd('buy a thermostat', 'soon', task)!
+    completeTask(step, me())
+    expect(s().tasks[task]!.done).toBe(true)
+  })
+
+  it('opens again when a step is reopened, or a new step is added', () => {
+    const { project, posts, line } = fence()
+    completeTask(posts, me())
+    completeTask(line, me())
+    reopenTask(line)
+    expect(s().tasks[project]!.done).toBeFalsy()
+    completeTask(line, me())
+    quickAdd('string the wire', 'soon', project)
+    expect(s().tasks[project]!.done).toBeFalsy()
+  })
+
+  it('gives its day to its first step, so nothing drops out of the week', () => {
+    const task = quickAdd('fix the cooler', 'now', undefined, day())!
+    const step = quickAdd('buy a thermostat', 'soon', task)!
+    expect(s().tasks[step]!.plannedFor).toBe(day())
+    expect(s().tasks[task]!.plannedFor).toBeUndefined()
+  })
+
+  it('never goes on a day itself, even with a day from before', () => {
+    const { project, posts } = fence()
+    patch(project, { plannedFor: day() })
+    expect(planTask(project, day())).toEqual([])
+    const today_ = weekPlan(s(), today()).days.find((d) => d.isToday)!
+    expect(today_.open.map((i) => i.task.id)).toEqual([])
+    planTask(posts, day())
+    const again = weekPlan(s(), today()).days.find((d) => d.isToday)!
+    expect(again.open.map((i) => i.task.id)).toEqual([posts])
+    expect(again.open[0]!.parent?.id).toBe(project)
+  })
+
+  it('lends its place and category to a step logged without its own', () => {
+    const task = quickAdd('fix the cooler', 'now')!
+    patch(task, { targets: [{ kind: 'farm' }], category: 'maintenance' })
+    const step = quickAdd('buy a thermostat', 'soon', task)!
+    completeTask(step, me())
+    const log = live.logs(s()).find((l) => l.taskId === step)!
+    expect(log.targets).toEqual([{ kind: 'farm' }])
+    expect(log.category).toBe('maintenance')
+  })
+
+  it('offers its steps from the Plan chip, and a step on today names its task', async () => {
+    const { posts } = fence()
+    await open()
+    await act(async () => {
+      fireEvent.click(
+        await screen.findByRole('button', { name: /Plan a step of replace the deer fence/i }),
+      )
+    })
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /order posts: (today|monday)/i }))
+    })
+    expect(s().tasks[posts]!.plannedFor).toBe(day())
+    expect(within(todayCard()).getByText(/replace the deer fence ·/i)).toBeTruthy()
+  })
+
+  it('checks the last step off on today and closes the project with it', async () => {
+    const { project, posts, line } = fence()
+    completeTask(posts, me())
+    planTask(line, day())
+    await open()
+    await act(async () => {
+      fireEvent.click(await screen.findByRole('button', { name: /^Done: clear the line/i }))
+    })
+    expect(s().tasks[project]!.done).toBe(true)
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /^Not done: clear the line/i }))
+    })
+    expect(s().tasks[project]!.done).toBeFalsy()
+  })
+
+  it('shows a holder in the desktop tray as a heading over its steps', async () => {
+    const { project, posts } = fence()
+    cleanup()
+    render(
+      <HashRouter>
+        <WeekBoard today={today()} />
+      </HashRouter>,
+    )
+    const tray = screen.getByText('Not on a day').closest('div.rounded-lg') as HTMLElement
+    const heading = within(tray).getByText(/replace the deer fence/i)
+    expect(heading.closest('li')!.getAttribute('draggable')).toBeNull()
+    expect(
+      within(tray)
+        .getByText(/order posts/i)
+        .closest('li')!
+        .getAttribute('draggable'),
+    ).toBe('true')
+    // Dropping the holder itself on a day is refused.
+    const data = new Map<string, string>([[TASK_DRAG_TYPE, project]])
+    const dataTransfer = { types: [TASK_DRAG_TYPE], getData: (k: string) => data.get(k) ?? '' }
+    const column = screen.getAllByRole('textbox')[0]!.closest('div.rounded-lg')!
+    await act(async () => {
+      fireEvent.drop(column, { dataTransfer })
+    })
+    expect(s().tasks[project]!.plannedFor).toBeUndefined()
+    expect(s().tasks[posts]!.plannedFor).toBeUndefined()
   })
 })

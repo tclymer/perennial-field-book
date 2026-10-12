@@ -366,6 +366,25 @@ export function isProject(task: Task): boolean {
   return task.bucket === 'project' && !task.projectId
 }
 
+/** A task's steps that are still open. */
+export function openSteps(state: FarmState, taskId: string): Task[] {
+  return live.tasks(state).filter((t) => t.projectId === taskId && !t.done)
+}
+
+/**
+ * A holder: a task whose open steps are the real work (DESIGN.md §3.10). It is never on a day
+ * itself; its steps are, and it closes when the last of them is done. A plate keeps its own
+ * behaviour, steps or not.
+ */
+export function isHolder(state: FarmState, task: Task): boolean {
+  return task.bucket !== 'recurring' && !task.done && openSteps(state, task.id).length > 0
+}
+
+/** On a day of the planner: planned, and not a holder, whose day passes to its steps. */
+export function isOnADay(state: FarmState, task: Task): boolean {
+  return !!task.plannedFor && !isHolder(state, task)
+}
+
 export function bucketName(farm: FarmMeta | null | undefined, bucket: Bucket): string {
   return farm?.bucketNames?.[bucket] ?? DEFAULT_BUCKET_NAMES[bucket]
 }

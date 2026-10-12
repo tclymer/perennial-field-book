@@ -7,7 +7,7 @@ import { completeTask, deleteTask, moveTask, undoLog } from '@/state/taskActions
 import { live } from '@/events/reduce'
 import { addDays } from '@/engine/tasks'
 import { hoursOf } from '@/engine/logs'
-import { bucketName, thisWeek } from '@/engine/tasks'
+import { bucketName, isOnADay, thisWeek } from '@/engine/tasks'
 import type { Bucket, Task } from '@/model/types'
 import { Button, Card, PageHeader } from '@/ui/components'
 import { Chip } from '@/ui/harvest/Chips'
@@ -30,13 +30,14 @@ export default function WeekPage() {
   const date = today()
   const all = thisWeek(state, date)
   // A task on a day lives on that day here; the lists below show what is not planned yet.
-  const unplanned = <T extends { plannedFor?: string }>(t: T) => !t.plannedFor
+  // A holder shows in its list even with an old day on it: its steps are what get planned.
+  const unplanned = (t: Task) => !isOnADay(state, t)
   const week = {
     ...all,
     now: all.now.filter(unplanned),
     soon: all.soon.filter(unplanned),
     due: all.due.filter(unplanned),
-    projects: all.projects.filter((p) => !p.task.plannedFor),
+    projects: all.projects.filter((p) => !isOnADay(state, p.task)),
   }
   const [addTo, setAddTo] = useState<Bucket>('now')
   // Added from a section's own box: shown even past the first few, so the add is visible.

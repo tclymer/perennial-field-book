@@ -105,6 +105,8 @@ export interface PlanItem {
   rolled: number
   /** Dealt with: done, or a plate or project worked on that day. */
   settled: boolean
+  /** For a step: the task it belongs to, named beside it so it reads out of context. */
+  parent?: Task
 }
 
 export interface PlanDay {
@@ -143,16 +145,21 @@ export function weekPlan(state: FarmState, today: string): WeekPlan {
   const stillOn: PlanItem[] = []
   const later: PlanItem[] = []
 
-  for (const task of live.tasks(state)) {
-    if (!task.plannedFor) continue
+  const tasks = live.tasks(state)
+  // A task with steps is a holder: its steps go on days, never the task itself, whatever day
+  // it carried from before holders existed.
+  const holders = new Set(tasks.filter((t) => t.projectId).map((t) => t.projectId!))
+  for (const task of tasks) {
+    if (!task.plannedFor || holders.has(task.id)) continue
+    const parent = task.projectId ? state.tasks[task.projectId] : undefined
     const settled = settledOn(task, logs)
     if (settled) {
-      days.get(settled)?.settled.push({ task, rolled: 0, settled: true })
+      days.get(settled)?.settled.push({ task, rolled: 0, settled: true, parent })
       continue
     }
     if (task.done) continue
     const rolled = rolls(task, today, workDays)
-    const item = { task, rolled, settled: false }
+    const item = { task, rolled, settled: false, parent }
     if (rolled >= ROLL_LIMIT) {
       stillOn.push(item)
       continue

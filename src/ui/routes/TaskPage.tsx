@@ -16,6 +16,7 @@ import {
 } from '@/state/taskActions'
 import {
   bucketName,
+  isHolder,
   isProject as isProjectTask,
   isInSeason,
   isResting,
@@ -25,7 +26,7 @@ import {
 import { SeasonDone, monthName } from '@/ui/tasks/SeasonDone'
 import { dayLong, planDay, workDaysOf } from '@/engine/plan'
 import { planTask } from '@/state/planActions'
-import { plannableDays } from '@/ui/plan/PlanParts'
+import { PlanChip, plannableDays } from '@/ui/plan/PlanParts'
 import { hoursOf } from '@/engine/logs'
 import { allCategories } from '@/model/categories'
 import type { NewEvent } from '@/events/types'
@@ -254,7 +255,12 @@ export default function TaskPage() {
             </select>
           </Field>
         </div>
-        {!task.done && (
+        {!task.done && isHolder(state, task) && (
+          <p className="text-sm text-stone-500 dark:text-stone-400">
+            Its steps go on days, not the task itself. It is done when the last of them is.
+          </p>
+        )}
+        {!task.done && !isHolder(state, task) && (
           // Not a Field: that is a <label>, and a tap anywhere in it would press the first day.
           <div className="flex flex-col gap-1 text-sm" role="group" aria-label="Day">
             <span className="text-stone-600 dark:text-stone-400">Day</span>
@@ -412,6 +418,11 @@ export default function TaskPage() {
                   })
                 }}
                 handle
+                extra={
+                  t.done ? undefined : (
+                    <PlanChip task={t} today={date} notify={(n) => setToast(n)} />
+                  )
+                }
                 dragProps={t.done ? undefined : drag.rowProps(t)}
                 handleProps={t.done ? undefined : drag.handleProps(t)}
                 lifted={drag.touching === t.id}

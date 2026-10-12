@@ -11,7 +11,7 @@ import { live } from '@/events/reduce'
 import type { NewEvent } from '@/events/types'
 import { dayLong, dayShort, planDay, workDaysOf, workingWeek, type PlanItem } from '@/engine/plan'
 import type { Task } from '@/model/types'
-import { isProject } from '@/engine/tasks'
+import { isHolder, isProject, openSteps } from '@/engine/tasks'
 import { useDevice } from '@/state/device'
 import { currentPerson } from '@/state/people'
 import { assignTask, planTask, quickDone, takeTask, uncheck } from '@/state/planActions'
@@ -39,8 +39,10 @@ export function usePlanNotices(today: string) {
   const done = (task: Task) => {
     const { undo, logId } = quickDone(task.id, today)
     const verb = isProject(task) ? 'Worked on' : task.bucket === 'recurring' ? 'Did' : 'Done'
+    const parent = task.projectId ? useFarmStore.getState().state.tasks[task.projectId] : undefined
+    const finished = parent?.done ? ` That finishes ${parent.title}.` : ''
     setNotice({
-      message: `${verb}: ${task.title}.`,
+      message: `${verb}: ${task.title}.${finished}`,
       undo,
       ...(logId ? { action: { label: 'Add time', run: () => setTiming({ logId, task }) } } : {}),
     })
@@ -158,7 +160,7 @@ export function PlanRow({
   draggable?: boolean
   compact?: boolean
 }) {
-  const { task, rolled, settled } = item
+  const { task, rolled, settled, parent } = item
   const worked = isProject(task)
   const dragProps: HTMLAttributes<HTMLLIElement> = draggable
     ? {
@@ -204,6 +206,7 @@ export function PlanRow({
             settled && 'text-stone-500 line-through dark:text-stone-400',
           )}
         >
+          {parent && <span className="text-stone-500 dark:text-stone-400">{parent.title} · </span>}
           {task.title}
         </Link>
         {!settled && (
@@ -244,11 +247,57 @@ export function PlanChip({
 }) {
   const state = useFarmStore((s) => s.state)
   const [open, setOpen] = useState(false)
+  // A holder is never on a day; what goes on days is its steps (DESIGN.md §3.10).
+  const steps = isHolder(state, task)
+    ? openSteps(state, task.id).sort((a, b) => a.order - b.order || a.createdAt - b.createdAt)
+    : null
+  const shownDay = task.plannedFor && !steps ? dayShort(task.plannedFor) : null
+  return (
+    <span className="inline-flex max-w-full flex-wrap items-center gap-1">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        aria-label={steps ? `Plan a step of ${task.title}` : `Plan ${task.title} for a day`}
+        className="rounded-full px-2 py-0.5 text-stone-500 underline decoration-dotted hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-stone-800"
+      >
+        {steps ? 'Plan a step' : (shownDay ?? 'Plan')}
+      </button>
+      {open && !steps && (
+        <DayChips task={task} today={today} notify={notify} onChosen={() => setOpen(false)} />
+      )}
+      {open && steps && (
+        <span className="block w-full space-y-1 pt-1">
+          {steps.map((step) => (
+            <span key={step.id} className="flex flex-wrap items-center gap-1">
+              <span className="mr-1 text-stone-700 dark:text-stone-300">{step.title}</span>
+              <DayChips task={step} today={today} notify={notify} />
+            </span>
+          ))}
+        </span>
+      )}
+    </span>
+  )
+}
+
+/** The days left this week as chips; the task's own day is marked, and tapping it clears it. */
+export function DayChips({
+  task,
+  today,
+  notify,
+  onChosen,
+}: {
+  task: Task
+  today: string
+  notify: (n: Notice) => void
+  onChosen?: () => void
+}) {
+  const state = useFarmStore((s) => s.state)
   const days = plannableDays(state, today)
   const now = planDay(today, workDaysOf(state.farm))
   const choose = (day: string | null) => {
     const undo = planTask(task.id, day)
-    setOpen(false)
+    onChosen?.()
     notify({
       message: day
         ? `${task.title}: ${dayLong(day, now).toLowerCase()}.`
@@ -257,34 +306,25 @@ export function PlanChip({
     })
   }
   return (
-    <span className="inline-flex flex-wrap items-center gap-1">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-        aria-label={`Plan ${task.title} for a day`}
-        className="rounded-full px-2 py-0.5 text-stone-500 underline decoration-dotted hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-stone-800"
-      >
-        {task.plannedFor ? dayShort(task.plannedFor) : 'Plan'}
-      </button>
-      {open &&
-        days.map((d) => (
-          <button
-            key={d}
-            type="button"
-            onClick={() => choose(task.plannedFor === d ? null : d)}
-            aria-pressed={task.plannedFor === d}
-            className={clsx(
-              'rounded-full border px-2 py-0.5',
-              task.plannedFor === d
-                ? 'border-lime-700 bg-lime-700 text-white'
-                : 'border-stone-300 dark:border-stone-600',
-            )}
-          >
-            {d === now ? 'Today' : dayShort(d)}
-          </button>
-        ))}
-    </span>
+    <>
+      {days.map((d) => (
+        <button
+          key={d}
+          type="button"
+          onClick={() => choose(task.plannedFor === d ? null : d)}
+          aria-pressed={task.plannedFor === d}
+          aria-label={`${task.title}: ${d === now ? 'today' : dayLong(d, now).toLowerCase()}`}
+          className={clsx(
+            'rounded-full border px-2 py-0.5',
+            task.plannedFor === d
+              ? 'border-lime-700 bg-lime-700 text-white'
+              : 'border-stone-300 dark:border-stone-600',
+          )}
+        >
+          {d === now ? 'Today' : dayShort(d)}
+        </button>
+      ))}
+    </>
   )
 }
 

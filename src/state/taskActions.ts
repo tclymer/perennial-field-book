@@ -7,7 +7,7 @@ import type { PayloadOf } from '@/model/schema'
 import { newId } from '@/model/ids'
 import { live } from '@/events/reduce'
 import type { NewEvent } from '@/events/types'
-import { contextFrom, parseTitle, type ParsedTitle } from '@/engine/tasks'
+import { contextFrom, isHolder, openSteps, parseTitle, type ParsedTitle } from '@/engine/tasks'
 import { positions } from './derived'
 import { today } from './actions'
 import { currentPerson } from './people'
@@ -66,18 +66,67 @@ export function createTask(fields: TaskFields): string {
     fitted.notes = fitted.notes.slice(0, NOTES_MAX)
   if (fitted.season && fitted.season.length > 120) fitted.season = fitted.season.slice(0, 120)
   const by = fitted.addedBy ?? currentPerson()?.id
+  const parent = fields.projectId ? state().tasks[fields.projectId] : undefined
+  const events: NewEvent[] = []
+  // The first step of a task that is on a day takes over its day: the task becomes a holder,
+  // which is never on a day itself, and nothing should drop out of the week.
+  let plannedFor = fitted.plannedFor
+  if (parent && parent.plannedFor && !parent.done && !isHolder(state(), parent)) {
+    plannedFor ??= parent.plannedFor
+    events.push({ type: 'task.patch', payload: { id: parent.id, plannedFor: null } })
+  }
+  // A new step means the task is not finished after all.
+  if (parent?.done) events.push(...parentReopening(parent.id).events)
   commit([
     {
       type: 'task.create',
       payload: {
         id,
         ...fitted,
+        ...(plannedFor ? { plannedFor } : {}),
         ...(by ? { addedBy: by } : {}),
         order: nextOrder(fields.bucket, fields.projectId),
       },
     },
+    ...events,
   ])
   return id
+}
+
+/**
+ * Checking off the last open step closes the task it belongs to (DESIGN.md §3.10). Only a
+ * status: the steps carry the logs. A plate is left alone.
+ */
+export function parentClosing(
+  stepId: string,
+  date: string,
+): { events: NewEvent[]; undo: NewEvent[] } {
+  const step = state().tasks[stepId]
+  const parent = step?.projectId ? state().tasks[step.projectId] : undefined
+  if (!parent || parent.deleted || parent.done || parent.bucket === 'recurring') {
+    return { events: [], undo: [] }
+  }
+  if (openSteps(state(), parent.id).some((t) => t.id !== stepId)) return { events: [], undo: [] }
+  return {
+    events: [{ type: 'task.patch', payload: { id: parent.id, done: true, doneAt: date } }],
+    undo: [{ type: 'task.patch', payload: { id: parent.id, done: null, doneAt: null } }],
+  }
+}
+
+/** A step reopened, or a new one added: the task it belongs to is open again. */
+export function parentReopening(stepOrParentId: string): { events: NewEvent[]; undo: NewEvent[] } {
+  const t = state().tasks[stepOrParentId]
+  const parent = t?.projectId ? state().tasks[t.projectId] : t
+  if (!parent?.done) return { events: [], undo: [] }
+  return {
+    events: [{ type: 'task.patch', payload: { id: parent.id, done: null, doneAt: null } }],
+    undo: [
+      {
+        type: 'task.patch',
+        payload: { id: parent.id, done: true, ...(parent.doneAt ? { doneAt: parent.doneAt } : {}) },
+      },
+    ],
+  }
 }
 
 /** One typed line becomes a task with places, category, owner, and season filled in. */
@@ -201,7 +250,11 @@ export function restoreTask(id: string): void {
 
 /** The task needs doing again: reopen it and keep the record of the work that was done. */
 export function reopenTask(id: string): void {
-  commit([{ type: 'task.patch', payload: { id, done: null, doneAt: null } }])
+  const t = state().tasks[id]
+  commit([
+    { type: 'task.patch', payload: { id, done: null, doneAt: null } },
+    ...(t?.projectId ? parentReopening(id).events : []),
+  ])
 }
 
 /** The log that closed a task, if it is still there: the latest one on its done date. */
@@ -249,7 +302,7 @@ export function completeTask(id: string, sheet: DoneSheet): NewEvent[] {
         personIds: sheet.personIds,
         ...(sheet.durationMinutes !== undefined ? { durationMinutes: sheet.durationMinutes } : {}),
         ...(categoryFor(t, sheet) ? { category: categoryFor(t, sheet) } : {}),
-        targets: sheet.targets ?? t.targets,
+        targets: targetsFor(t, sheet),
         taskId: id,
         ...(sheet.materials?.length ? { materials: sheet.materials } : {}),
         ...(sheet.notes ? { notes: sheet.notes } : {}),
@@ -260,14 +313,33 @@ export function completeTask(id: string, sheet: DoneSheet): NewEvent[] {
   if (t.bucket !== 'recurring') {
     events.push({ type: 'task.patch', payload: { id, done: true, doneAt: sheet.date ?? today() } })
     inverse.push({ type: 'task.patch', payload: { id, done: null, doneAt: null } })
+    const closing = parentClosing(id, sheet.date ?? today())
+    events.push(...closing.events)
+    inverse.push(...closing.undo)
   }
   commit(events)
   return inverse
 }
 
+/** The task a step belongs to, whose place and category a bare step borrows when logged. */
+function parentOf(t: Task): Task | undefined {
+  const p = t.projectId ? state().tasks[t.projectId] : undefined
+  return p && !p.deleted ? p : undefined
+}
+
 function categoryFor(t: Task, sheet: DoneSheet): string | undefined {
   if (sheet.category === null) return undefined
-  return sheet.category ?? t.category
+  return sheet.category ?? t.category ?? parentOf(t)?.category
+}
+
+/**
+ * Where the work was: the sheet's places, else the task's, else its parent's, so that hours on
+ * "Order posts" still land on the block the fence project is for.
+ */
+function targetsFor(t: Task, sheet: DoneSheet): Target[] {
+  if (sheet.targets?.length) return sheet.targets
+  if (t.targets.length) return t.targets
+  return parentOf(t)?.targets ?? sheet.targets ?? []
 }
 
 /** Take back a check-off: remove its log and, if the task was closed by it, reopen it. */
@@ -278,6 +350,7 @@ export function undoLog(logId: string): void {
   const task = log.taskId ? state().tasks[log.taskId] : undefined
   if (task && task.done && task.bucket !== 'recurring') {
     events.push({ type: 'task.patch', payload: { id: task.id, done: null, doneAt: null } })
+    if (task.projectId) events.push(...parentReopening(task.id).events)
   }
   commit(events)
 }

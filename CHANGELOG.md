@@ -4,6 +4,18 @@ One entry per release of Perennial Field Book, newest first. The version is show
 under Settings. Each release is also a tag on GitHub (`v0.8.7` and so on), so the code as it
 stood at any release can be looked at or compared with another.
 
+## 0.9.2 (2026-10-12)
+
+- **A task with subtasks is planned through its subtasks.** Its Plan chip reads "Plan a step"
+  and offers each open subtask with its own days; on the desktop's Week view the task is a
+  heading in the side list and its subtasks are what you drag. A subtask on a day shows its
+  task's name in front, like "Deer fence · Order posts".
+- **Checking off the last subtask finishes the task**, projects included. Undoing it,
+  unchecking a subtask, or adding a new one opens the task again.
+- A subtask with no place or category of its own logs under its task's, so the hours still
+  count against the right block.
+- The first subtask added to a task that was on a day takes over that day.
+
 ## 0.9.1 (2026-10-12)
 
 - Fixed: dragging a subtask to reorder it under a project took away its checkbox. Subtasks

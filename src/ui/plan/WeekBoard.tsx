@@ -3,7 +3,7 @@ import clsx from 'clsx'
 import { useFarmStore } from '@/state/store'
 import { live } from '@/events/reduce'
 import { dayLong, dayShort, loadLabel, weekPlan, type PlanDay } from '@/engine/plan'
-import { bucketName } from '@/engine/tasks'
+import { bucketName, isHolder, isOnADay, openSteps } from '@/engine/tasks'
 import type { Bucket, Task } from '@/model/types'
 import { backToList, keepForToday, planTask } from '@/state/planActions'
 import { Button, Card } from '@/ui/components'
@@ -33,6 +33,10 @@ export function WeekBoard({ today }: { today: string }) {
     e.preventDefault()
     const task = state.tasks[id]
     if (!task || (task.plannedFor ?? null) === day) return
+    if (day && isHolder(state, task)) {
+      notify({ message: `${task.title} has steps: drag one of those onto the day.` })
+      return
+    }
     const undo = planTask(id, day)
     notify({
       message: day
@@ -195,14 +199,31 @@ function DayColumn({
   )
 }
 
+function TrayItem({ task }: { task: Task }) {
+  return (
+    <li
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.setData(TASK_DRAG_TYPE, task.id)
+        e.dataTransfer.effectAllowed = 'move'
+      }}
+      className="cursor-grab truncate rounded border border-stone-200 px-2 py-1 text-sm hover:border-lime-600 dark:border-stone-700"
+      title={task.title}
+    >
+      {task.title}
+    </li>
+  )
+}
+
 /** One list in the tray: its open tasks with no day, each draggable onto one. */
 function TrayList({ bucket }: { bucket: Bucket }) {
   const state = useFarmStore((s) => s.state)
   const [all, setAll] = useState(false)
+  const byOrder = (a: Task, b: Task) => a.order - b.order || a.createdAt - b.createdAt
   const tasks = live
     .tasks(state)
-    .filter((t) => t.bucket === bucket && !t.projectId && !t.done && !t.plannedFor)
-    .sort((a, b) => a.order - b.order || a.createdAt - b.createdAt)
+    .filter((t) => t.bucket === bucket && !t.projectId && !t.done && !isOnADay(state, t))
+    .sort(byOrder)
   if (tasks.length === 0) return null
   const shown = all ? tasks : tasks.slice(0, 8)
   return (
@@ -211,20 +232,26 @@ function TrayList({ bucket }: { bucket: Bucket }) {
         {bucketName(state.farm, bucket)}
       </h3>
       <ul className="mt-1 space-y-1">
-        {shown.map((t) => (
-          <li
-            key={t.id}
-            draggable
-            onDragStart={(e) => {
-              e.dataTransfer.setData(TASK_DRAG_TYPE, t.id)
-              e.dataTransfer.effectAllowed = 'move'
-            }}
-            className="cursor-grab truncate rounded border border-stone-200 px-2 py-1 text-sm hover:border-lime-600 dark:border-stone-700"
-            title={t.title}
-          >
-            {t.title}
-          </li>
-        ))}
+        {shown.map((t) =>
+          isHolder(state, t) ? (
+            // A holder is a heading; its steps not yet on a day are what drag.
+            <li key={t.id} className="pt-1">
+              <p className="truncate text-sm text-stone-600 dark:text-stone-300" title={t.title}>
+                {t.title}
+              </p>
+              <ul className="mt-1 space-y-1 border-l-2 border-stone-200 pl-2 dark:border-stone-700">
+                {openSteps(state, t.id)
+                  .filter((step) => !step.plannedFor)
+                  .sort(byOrder)
+                  .map((step) => (
+                    <TrayItem key={step.id} task={step} />
+                  ))}
+              </ul>
+            </li>
+          ) : (
+            <TrayItem key={t.id} task={t} />
+          ),
+        )}
       </ul>
       {tasks.length > 8 && (
         <button
