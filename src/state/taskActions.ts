@@ -168,7 +168,9 @@ export function placeTask(id: string, dest: Placement): void {
     const patch: PayloadOf<'task.patch'> = { id: x.id }
     if (x.order !== i + 1) patch.order = i + 1
     if (x.id === id) {
-      if (t.bucket !== dest.bucket) patch.bucket = dest.bucket
+      // A step keeps its own bucket: the parent's is ignored for it, and copying a
+      // project's bucket onto a step is what made it lose its checkbox.
+      if (!dest.projectId && t.bucket !== dest.bucket) patch.bucket = dest.bucket
       if ((t.projectId ?? null) !== dest.projectId) patch.projectId = dest.projectId
     }
     if (Object.keys(patch).length > 1) events.push({ type: 'task.patch', payload: patch })

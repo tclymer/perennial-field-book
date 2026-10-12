@@ -4,6 +4,14 @@ One entry per release of Perennial Field Book, newest first. The version is show
 under Settings. Each release is also a tag on GitHub (`v0.8.7` and so on), so the code as it
 stood at any release can be looked at or compared with another.
 
+## 0.9.1 (2026-10-12)
+
+- Fixed: dragging a subtask to reorder it under a project took away its checkbox. Subtasks
+  that lost theirs this way have it back.
+- A task checked off on a day can be taken back at any time, not only from the message
+  that appears: tap its green box again. That removes the log it filed and reopens it, and
+  the message that follows has its own Undo.
+
 ## 0.9.0 (2026-10-05)
 
 The week planner: what is on everyone's plate today, without a calendar.

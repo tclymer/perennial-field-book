@@ -6,9 +6,10 @@ import type { NewEvent } from '@/events/types'
 import { live } from '@/events/reduce'
 import { newId } from '@/model/ids'
 import { nextWorkDay, planDay, weekPlan, workDaysOf } from '@/engine/plan'
+import { isProject } from '@/engine/tasks'
 import { ensureCurrentPerson } from './people'
 import { useFarmStore } from './store'
-import { completeTask } from './taskActions'
+import { closingLog, completeTask } from './taskActions'
 
 function state() {
   return useFarmStore.getState().state
@@ -85,14 +86,10 @@ export function quickDone(id: string, today: string): { undo: NewEvent[]; logId?
     ...(t.estimatedMinutes ? { durationMinutes: t.estimatedMinutes } : {}),
   }
   const undo: NewEvent[] = []
-  if (
-    (t.bucket === 'recurring' || t.bucket === 'project') &&
-    t.plannedFor &&
-    t.plannedFor > today
-  ) {
+  if ((t.bucket === 'recurring' || isProject(t)) && t.plannedFor && t.plannedFor > today) {
     undo.push(...planTask(id, today))
   }
-  if (t.bucket === 'project') {
+  if (isProject(t)) {
     const logId = logOnly(id, today, sheet)
     return { undo: [{ type: 'log.delete', payload: { id: logId } }, ...undo], logId }
   }
@@ -132,4 +129,39 @@ function logOnly(
 export function setWorkDays(days: number[]): void {
   const sorted = [...new Set(days)].filter((d) => d >= 1 && d <= 7).sort()
   commit([{ type: 'farm.patch', payload: { workDays: sorted } }])
+}
+
+/**
+ * Checked by mistake, from a day: take back what the tap filed. A one-off task loses the log
+ * that closed it and reopens. A plate or project on a day loses the logs that settled it,
+ * those on or after its day; it was never closed. Returns the events that put it all back.
+ */
+export function uncheck(id: string): NewEvent[] {
+  const t = state().tasks[id]
+  if (!t) return []
+  const events: NewEvent[] = []
+  const undo: NewEvent[] = []
+  if (t.bucket !== 'recurring' && !isProject(t)) {
+    if (!t.done) return []
+    const log = closingLog(id)
+    if (log) {
+      events.push({ type: 'log.delete', payload: { id: log.id } })
+      undo.push({ type: 'log.restore', payload: { id: log.id } })
+    }
+    events.push({ type: 'task.patch', payload: { id, done: null, doneAt: null } })
+    undo.push({
+      type: 'task.patch',
+      payload: { id, done: true, ...(t.doneAt ? { doneAt: t.doneAt } : {}) },
+    })
+  } else {
+    const from = t.plannedFor
+    if (!from) return []
+    for (const l of live.logs(state())) {
+      if (l.taskId !== id || l.date < from) continue
+      events.push({ type: 'log.delete', payload: { id: l.id } })
+      undo.push({ type: 'log.restore', payload: { id: l.id } })
+    }
+  }
+  if (events.length) commit(events)
+  return undo
 }

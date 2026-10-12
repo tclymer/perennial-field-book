@@ -4,7 +4,7 @@ import clsx from 'clsx'
 import { useFarmStore } from '@/state/store'
 import { live } from '@/events/reduce'
 import { targetLabel } from '@/engine/logs'
-import { daysBetween, dueState, isResting, lastDone } from '@/engine/tasks'
+import { daysBetween, dueState, isProject, isResting, lastDone } from '@/engine/tasks'
 import type { NewEvent } from '@/events/types'
 import { categoryLabel } from '@/model/categories'
 import type { Task } from '@/model/types'
@@ -115,7 +115,7 @@ export function TaskRow({
           ⋮⋮
         </span>
       )}
-      {onCheck && !task.done && task.bucket !== 'project' && (
+      {onCheck && !task.done && !isProject(task) && (
         <button
           type="button"
           onClick={() => onCheck(task)}

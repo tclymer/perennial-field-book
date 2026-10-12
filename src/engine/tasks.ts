@@ -357,6 +357,15 @@ export function contextFrom(state: FarmState, labels: Iterable<string>): ParseCo
 
 // --- buckets
 
+/**
+ * A project is a top-level task in the project list. A task under a parent is a step, whatever
+ * bucket it carries: before 0.9.1, dragging a step under a project gave it the bucket
+ * 'project', which hid its checkbox.
+ */
+export function isProject(task: Task): boolean {
+  return task.bucket === 'project' && !task.projectId
+}
+
 export function bucketName(farm: FarmMeta | null | undefined, bucket: Bucket): string {
   return farm?.bucketNames?.[bucket] ?? DEFAULT_BUCKET_NAMES[bucket]
 }

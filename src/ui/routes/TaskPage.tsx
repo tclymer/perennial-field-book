@@ -14,7 +14,14 @@ import {
   undoEvents,
   updateTask,
 } from '@/state/taskActions'
-import { bucketName, isInSeason, isResting, monthOf, parseSeason } from '@/engine/tasks'
+import {
+  bucketName,
+  isProject as isProjectTask,
+  isInSeason,
+  isResting,
+  monthOf,
+  parseSeason,
+} from '@/engine/tasks'
 import { SeasonDone, monthName } from '@/ui/tasks/SeasonDone'
 import { dayLong, planDay, workDaysOf } from '@/engine/plan'
 import { planTask } from '@/state/planActions'
@@ -70,7 +77,7 @@ export default function TaskPage() {
   }
 
   const project = task.projectId ? state.tasks[task.projectId] : undefined
-  const isProject = task.bucket === 'project'
+  const isProject = isProjectTask(task)
   const subtasks = live
     .tasks(state)
     .filter((t) => t.projectId === task.id)
@@ -83,7 +90,7 @@ export default function TaskPage() {
   const openSubtasks = subtasks.filter((t) => !t.done)
   // Hooks must run every render; the early return above has already handled a missing task.
   const drag = useTaskDrag(openSubtasks, { bucket: task.bucket, projectId: task.id })
-  const projects = live.tasks(state).filter((t) => t.bucket === 'project' && t.id !== task.id)
+  const projects = live.tasks(state).filter((t) => isProjectTask(t) && t.id !== task.id)
 
   const file = (t: Task, values: DoneSheetResult) => {
     const undo = completeTask(t.id, values)

@@ -11,9 +11,10 @@ import { live } from '@/events/reduce'
 import type { NewEvent } from '@/events/types'
 import { dayLong, dayShort, planDay, workDaysOf, workingWeek, type PlanItem } from '@/engine/plan'
 import type { Task } from '@/model/types'
+import { isProject } from '@/engine/tasks'
 import { useDevice } from '@/state/device'
 import { currentPerson } from '@/state/people'
-import { assignTask, planTask, quickDone, takeTask } from '@/state/planActions'
+import { assignTask, planTask, quickDone, takeTask, uncheck } from '@/state/planActions'
 import { undoEvents, updateLog } from '@/state/taskActions'
 import { inputClass } from '@/ui/components'
 import { DoneSheet } from '@/ui/tasks/DoneSheet'
@@ -37,8 +38,7 @@ export function usePlanNotices(today: string) {
 
   const done = (task: Task) => {
     const { undo, logId } = quickDone(task.id, today)
-    const verb =
-      task.bucket === 'project' ? 'Worked on' : task.bucket === 'recurring' ? 'Did' : 'Done'
+    const verb = isProject(task) ? 'Worked on' : task.bucket === 'recurring' ? 'Did' : 'Done'
     setNotice({
       message: `${verb}: ${task.title}.`,
       undo,
@@ -159,7 +159,7 @@ export function PlanRow({
   compact?: boolean
 }) {
   const { task, rolled, settled } = item
-  const worked = task.bucket === 'project'
+  const worked = isProject(task)
   const dragProps: HTMLAttributes<HTMLLIElement> = draggable
     ? {
         draggable: true,
@@ -172,12 +172,19 @@ export function PlanRow({
   return (
     <li {...dragProps} className={clsx('flex items-start gap-2 py-2', draggable && 'cursor-grab')}>
       {settled ? (
-        <span
-          aria-hidden
-          className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-lime-700 text-white"
+        <button
+          type="button"
+          onClick={() => {
+            // Tapping a done task's box takes the check-off back.
+            const undo = uncheck(task.id)
+            if (undo.length) notify({ message: `Not done: ${task.title}.`, undo })
+          }}
+          aria-label={`Not done: ${task.title}`}
+          title="Checked by mistake? Tap to take it back"
+          className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-lime-700 text-white hover:bg-lime-800"
         >
           ✓
-        </span>
+        </button>
       ) : (
         <button
           type="button"

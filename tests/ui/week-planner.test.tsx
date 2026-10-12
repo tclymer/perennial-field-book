@@ -7,7 +7,7 @@ import App from '@/App'
 import { db } from '@/events/db'
 import { live } from '@/events/reduce'
 import { resetStoreForTests, useFarmStore } from '@/state/store'
-import { quickAdd } from '@/state/taskActions'
+import { placeTask, quickAdd } from '@/state/taskActions'
 import { createPerson, setCurrentPerson } from '@/state/people'
 import { today } from '@/state/actions'
 import { addDays } from '@/engine/tasks'
@@ -233,5 +233,62 @@ describe('the desktop week', () => {
       fireEvent.drop(tray, { dataTransfer })
     })
     expect(s().tasks[id]!.plannedFor).toBeUndefined()
+  })
+})
+
+describe('taking a check-off back', () => {
+  it('reopens a task by tapping its box again, and drops the log it filed', async () => {
+    const id = quickAdd('fix the gate latch', 'now', undefined, day())!
+    await open()
+    await act(async () => {
+      fireEvent.click(await screen.findByRole('button', { name: /^Done: fix the gate latch/i }))
+    })
+    // Long after the message has gone, the box is still there to tap.
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /^Not done: fix the gate latch/i }))
+    })
+    expect(s().tasks[id]!.done).toBeFalsy()
+    expect(live.logs(s()).filter((l) => l.taskId === id)).toHaveLength(0)
+    expect(screen.getByRole('button', { name: /^Done: fix the gate latch/i })).toBeTruthy()
+    // And that can be undone too, from its own message.
+    await act(async () => {
+      fireEvent.click(within(screen.getByRole('status')).getByRole('button', { name: 'Undo' }))
+    })
+    expect(s().tasks[id]!.done).toBe(true)
+    expect(live.logs(s()).filter((l) => l.taskId === id)).toHaveLength(1)
+  })
+
+  it('takes back work logged on a project, which stays open either way', async () => {
+    const id = quickAdd('replace the deer fence', 'project', undefined, day())!
+    await open()
+    await act(async () => {
+      fireEvent.click(
+        await screen.findByRole('button', { name: /^Worked on: replace the deer fence/i }),
+      )
+    })
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /^Not done: replace the deer fence/i }))
+    })
+    expect(live.logs(s()).filter((l) => l.taskId === id)).toHaveLength(0)
+    expect(s().tasks[id]!.done).toBeFalsy()
+  })
+})
+
+describe('reordering the steps of a project', () => {
+  it('leaves a step its own list, so it keeps its checkbox', async () => {
+    const project = quickAdd('replace the deer fence', 'project')!
+    quickAdd('order posts', 'soon', project)
+    const second = quickAdd('clear the line', 'soon', project)!
+    placeTask(second, { bucket: 'project', projectId: project, index: 0 })
+    expect(s().tasks[second]!.bucket).toBe('soon')
+    expect(live.tasks(s()).find((t) => t.id === second)!.order).toBe(1)
+  })
+
+  it('still shows a checkbox on a step an older version turned into a project', async () => {
+    const project = quickAdd('replace the deer fence', 'project')!
+    const step = quickAdd('order posts', 'soon', project)!
+    patch(step, { bucket: 'project' })
+    await open(`#/tasks/${project}`)
+    expect(await screen.findByRole('button', { name: /^Done: order posts/i })).toBeTruthy()
   })
 })

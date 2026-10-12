@@ -5,7 +5,7 @@
  */
 import type { FarmMeta, FarmState, Task, WorkLog } from '@/model/types'
 import { live } from '@/events/reduce'
-import { addDays, daysBetween } from './tasks'
+import { addDays, daysBetween, isProject } from './tasks'
 
 /** ISO weekdays, Monday 1 to Sunday 7. */
 export const DEFAULT_WORK_DAYS: readonly number[] = [1, 2, 3, 4, 5]
@@ -72,7 +72,7 @@ export function workDaysBetween(from: string, to: string, workDays: readonly num
  * it and leaves it what it was: a plate, or an open project.
  */
 export function settledOn(task: Task, logs: readonly WorkLog[]): string | undefined {
-  if (task.bucket !== 'recurring' && task.bucket !== 'project') {
+  if (task.bucket !== 'recurring' && !isProject(task)) {
     return task.done ? (task.doneAt ?? task.plannedFor) : undefined
   }
   if (!task.plannedFor) return undefined
