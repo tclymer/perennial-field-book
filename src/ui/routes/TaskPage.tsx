@@ -24,9 +24,9 @@ import {
   parseSeason,
 } from '@/engine/tasks'
 import { SeasonDone, monthName } from '@/ui/tasks/SeasonDone'
-import { dayLong, planDay, workDaysOf } from '@/engine/plan'
+import { dayLong, dayShort, planDay, workDaysOf } from '@/engine/plan'
 import { planTask } from '@/state/planActions'
-import { PlanChip, plannableDays } from '@/ui/plan/PlanParts'
+import { nextWeekDays, PlanChip, plannableDays } from '@/ui/plan/PlanParts'
 import { hoursOf } from '@/engine/logs'
 import { allCategories } from '@/model/categories'
 import type { NewEvent } from '@/events/types'
@@ -264,28 +264,43 @@ export default function TaskPage() {
           // Not a Field: that is a <label>, and a tap anywhere in it would press the first day.
           <div className="flex flex-col gap-1 text-sm" role="group" aria-label="Day">
             <span className="text-stone-600 dark:text-stone-400">Day</span>
-            <div className="flex flex-wrap gap-1.5">
-              {plannableDays(state, date).map((d) => (
-                <button
-                  key={d}
-                  type="button"
-                  aria-pressed={task.plannedFor === d}
-                  onClick={() => planTask(task.id, task.plannedFor === d ? null : d)}
-                  className={clsx(
-                    'rounded-full border px-3 py-1 text-sm',
-                    task.plannedFor === d
-                      ? 'border-lime-700 bg-lime-700 text-white'
-                      : 'border-stone-300 dark:border-stone-600',
-                  )}
-                >
-                  {dayLong(d, planDay(date, workDaysOf(state.farm)))}
-                </button>
-              ))}
-            </div>
+            {[
+              {
+                days: plannableDays(state, date),
+                label: (d: string) => dayLong(d, planDay(date, workDaysOf(state.farm))),
+              },
+              {
+                days: nextWeekDays(state, date),
+                label: (d: string) => `${dayShort(d)} ${Number(d.slice(8))}`,
+                heading: 'Next week',
+              },
+            ].map(({ days, label, heading }) => (
+              <div key={heading ?? 'this'} className="flex flex-wrap items-center gap-1.5">
+                {heading && (
+                  <span className="mr-1 text-xs text-stone-500 dark:text-stone-400">{heading}</span>
+                )}
+                {days.map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    aria-pressed={task.plannedFor === d}
+                    onClick={() => planTask(task.id, task.plannedFor === d ? null : d)}
+                    className={clsx(
+                      'rounded-full border px-3 py-1 text-sm',
+                      task.plannedFor === d
+                        ? 'border-lime-700 bg-lime-700 text-white'
+                        : 'border-stone-300 dark:border-stone-600',
+                    )}
+                  >
+                    {label(d)}
+                  </button>
+                ))}
+              </div>
+            ))}
             <span className="text-xs text-stone-400 dark:text-stone-500">
               {task.plannedFor && task.plannedFor < planDay(date, workDaysOf(state.farm))
                 ? 'Not done on its day, so it shows on today.'
-                : 'A day this week. Tap it again to take it off.'}
+                : 'A day this week or next. Tap it again to take it off.'}
             </span>
           </div>
         )}

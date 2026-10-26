@@ -2,7 +2,16 @@ import { useState, type DragEvent, type HTMLAttributes } from 'react'
 import clsx from 'clsx'
 import { useFarmStore } from '@/state/store'
 import { live } from '@/events/reduce'
-import { dayLong, dayShort, loadLabel, weekPlan, type PlanDay } from '@/engine/plan'
+import {
+  dayLong,
+  dayShort,
+  loadLabel,
+  weekdayOf,
+  weekPlan,
+  weeksAhead,
+  workDaysOf,
+  type PlanDay,
+} from '@/engine/plan'
 import { bucketName, isHolder, isOnADay, openSteps } from '@/engine/tasks'
 import type { Bucket, Task } from '@/model/types'
 import { backToList, keepForToday, planTask } from '@/state/planActions'
@@ -17,14 +26,17 @@ const TRAY: Bucket[] = ['now', 'soon', 'recurring', 'project']
 const carried = (e: DragEvent) => Array.from(e.dataTransfer.types).includes(TASK_DRAG_TYPE)
 
 /**
- * The desktop's week (DESIGN.md §3.10): a column per working day, and the lists down the side
- * to drag from. Dropping on a day plans a task for it; dropping on the tray takes it off.
+ * The desktop's week (DESIGN.md §3.10): two rows of working days, the days left in this week
+ * over the whole of next week, each day under its weekday like a calendar, and the lists down
+ * the side to drag from. Dropping on a day plans a task for it; dropping on the tray takes it
+ * off.
  */
 export function WeekBoard({ today }: { today: string }) {
   const state = useFarmStore((s) => s.state)
   const plan = weekPlan(state, today)
   const { done, notify, overlays } = usePlanNotices(today)
   const [over, setOver] = useState<string | null>(null)
+  const workDays = [...workDaysOf(state.farm)].sort((a, b) => a - b)
 
   const dropOn = (day: string | null) => (e: DragEvent) => {
     const id = e.dataTransfer.getData(TASK_DRAG_TYPE)
@@ -115,26 +127,38 @@ export function WeekBoard({ today }: { today: string }) {
           ))}
         </Card>
 
-        <div
-          className="grid gap-3"
-          style={{ gridTemplateColumns: `repeat(${plan.days.length}, minmax(0, 1fr))` }}
-        >
-          {plan.days.map((d) => (
-            <DayColumn
-              key={d.date}
-              day={d}
-              planToday={plan.today}
-              highlight={over === d.date}
-              dropProps={target(d.date, d.date)}
-              onDone={done}
-              notify={notify}
-            />
+        <div className="space-y-2">
+          {[plan.days.filter((d) => d.date >= plan.today), plan.next].map((row, i) => (
+            <section key={i} aria-label={weekName(row[0]?.date, today)}>
+              <h2 className="mb-1 text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">
+                {weekName(row[0]?.date, today)}
+              </h2>
+              <div
+                className="grid gap-3"
+                style={{ gridTemplateColumns: `repeat(${workDays.length}, minmax(0, 1fr))` }}
+              >
+                {row.map((d, j) => (
+                  <DayColumn
+                    key={d.date}
+                    day={d}
+                    planToday={plan.today}
+                    ahead={i === 1}
+                    // A short week starts under its own weekday, as a calendar does.
+                    column={j === 0 ? workDays.indexOf(weekdayOf(d.date)) + 1 : undefined}
+                    highlight={over === d.date}
+                    dropProps={target(d.date, d.date)}
+                    onDone={done}
+                    notify={notify}
+                  />
+                ))}
+              </div>
+            </section>
           ))}
         </div>
       </div>
       {plan.later.length > 0 && (
         <p className="text-sm text-stone-500 dark:text-stone-400">
-          Next week: {plan.later.map((i) => i.task.title).join(' · ')}
+          Further out: {plan.later.map((i) => i.task.title).join(' · ')}
         </p>
       )}
       {overlays}
@@ -142,9 +166,17 @@ export function WeekBoard({ today }: { today: string }) {
   )
 }
 
+/** "This week", "Next week": by the real date, so on a weekend the board reads true. */
+function weekName(first: string | undefined, today: string): string {
+  const weeks = first ? weeksAhead(first, today) : 0
+  return weeks <= 0 ? 'This week' : weeks === 1 ? 'Next week' : 'The week after'
+}
+
 function DayColumn({
   day,
   planToday,
+  ahead,
+  column,
   highlight,
   dropProps,
   onDone,
@@ -152,6 +184,9 @@ function DayColumn({
 }: {
   day: PlanDay
   planToday: string
+  /** Next week's row: pencilled in, drawn lighter and shorter. */
+  ahead: boolean
+  column?: number
   highlight: boolean
   dropProps: HTMLAttributes<HTMLDivElement>
   onDone: (task: Task) => void
@@ -161,15 +196,17 @@ function DayColumn({
   return (
     <Card
       className={clsx(
-        'flex min-h-48 min-w-0 flex-col',
+        'flex min-w-0 flex-col',
+        ahead ? 'min-h-32 border-dashed' : 'min-h-48',
         day.isToday && 'border-lime-600 dark:border-lime-500',
         past && 'opacity-70',
         highlight && 'ring-2 ring-lime-600',
       )}
+      style={column ? { gridColumnStart: column } : undefined}
       {...dropProps}
     >
       <div className="flex items-baseline justify-between gap-2">
-        <h2 className="font-semibold">
+        <h2 className={clsx('font-semibold', ahead && 'text-stone-600 dark:text-stone-300')}>
           {day.isToday ? 'Today' : dayShort(day.date)}{' '}
           <span className="text-xs font-normal text-stone-500 dark:text-stone-400">
             {Number(day.date.slice(8))}

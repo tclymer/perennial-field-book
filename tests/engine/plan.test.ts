@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   byPerson,
+  dayLong,
   loadLabel,
+  nextWeek,
   nextWorkDay,
   planDay,
   rolls,
@@ -21,6 +23,9 @@ const THU = '2026-10-08'
 const FRI = '2026-10-09'
 const SAT = '2026-10-10'
 const NEXT_MON = '2026-10-12'
+const NEXT_TUE = '2026-10-13'
+const NEXT_FRI = '2026-10-16'
+const WEEK_AFTER_MON = '2026-10-19'
 const WEEKDAYS = [1, 2, 3, 4, 5]
 
 const ev = (type: string, payload: unknown): NewEvent => ({ type, payload }) as NewEvent
@@ -164,5 +169,44 @@ describe('who it is for', () => {
     const names: Record<string, string> = { per_tim: 'Tim', per_ann: 'Ann' }
     const groups = byPerson(items, 'per_tim', (id) => names[id])
     expect(groups.map((g) => g.label)).toEqual(['Yours', 'Ann', 'Anyone'])
+  })
+})
+
+describe('planning ahead into next week', () => {
+  it('lays out the whole of next week after this one', () => {
+    expect(nextWeek(FRI, WEEKDAYS)).toEqual([
+      NEXT_MON,
+      NEXT_TUE,
+      '2026-10-14',
+      '2026-10-15',
+      NEXT_FRI,
+    ])
+    // On a weekend the plan is already on next week, so "next" is the week after.
+    expect(nextWeek(SAT, WEEKDAYS)[0]).toBe(WEEK_AFTER_MON)
+  })
+
+  it('puts a task planned for next week on its day there, unrolled', () => {
+    const s = state([task('a', { plannedFor: NEXT_TUE }), task('b', { plannedFor: FRI })])
+    const plan = weekPlan(s, THU)
+    expect(plan.next.map((d) => d.date)).toEqual(nextWeek(THU, WEEKDAYS))
+    const tue = plan.next.find((d) => d.date === NEXT_TUE)!
+    expect(tue.open.map((i) => i.task.id)).toEqual(['a'])
+    expect(tue.open[0]!.rolled).toBe(0)
+    expect(plan.days.map((d) => d.date)).toEqual([MON, TUE, WED, THU, FRI])
+    expect(plan.later).toEqual([])
+  })
+
+  it('keeps anything past next week as further out', () => {
+    const s = state([task('a', { plannedFor: WEEK_AFTER_MON })])
+    const plan = weekPlan(s, WED)
+    expect(plan.later.map((i) => i.task.id)).toEqual(['a'])
+    expect(plan.next.every((d) => d.open.length === 0)).toBe(true)
+  })
+
+  it('names a day next week as next week, so two Mondays are never confused', () => {
+    expect(dayLong(NEXT_MON, FRI)).toBe('Next Monday')
+    expect(dayLong(NEXT_TUE, FRI)).toBe('Next Tuesday')
+    expect(dayLong(THU, MON)).toBe('Thursday')
+    expect(dayLong(WEEK_AFTER_MON, FRI)).toBe('Monday 19')
   })
 })

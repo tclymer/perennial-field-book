@@ -59,6 +59,12 @@ export function workingWeek(today: string, workDays: readonly number[]): string[
   return days
 }
 
+/** The worked days of the week after the plan day's: what can be planned ahead. */
+export function nextWeek(today: string, workDays: readonly number[]): string[] {
+  const anchor = planDay(today, workDays)
+  return workingWeek(addDays(anchor, 8 - weekdayOf(anchor)), workDays)
+}
+
 /** Worked days after `from` up to and including `to`: how far a task has slid. */
 export function workDaysBetween(from: string, to: string, workDays: readonly number[]): number {
   let n = 0
@@ -126,7 +132,9 @@ export interface WeekPlan {
   days: PlanDay[]
   /** Slid ROLL_LIMIT days or more: off today's list until someone decides. */
   stillOn: PlanItem[]
-  /** Open and planned past this week, as a rain day on the last day does. */
+  /** The week after, laid out the same way: what has been planned ahead. */
+  next: PlanDay[]
+  /** Open and planned past next week. */
   later: PlanItem[]
 }
 
@@ -139,8 +147,12 @@ export function weekPlan(state: FarmState, today: string): WeekPlan {
   const week = workingWeek(today, workDays)
   const now = planDay(today, workDays)
   const logs = live.logs(state)
+  const ahead = nextWeek(today, workDays)
   const days = new Map<string, PlanDay>(
-    week.map((date) => [date, { date, isToday: date === now, open: [], settled: [], minutes: 0 }]),
+    [...week, ...ahead].map((date) => [
+      date,
+      { date, isToday: date === now, open: [], settled: [], minutes: 0 },
+    ]),
   )
   const stillOn: PlanItem[] = []
   const later: PlanItem[] = []
@@ -167,7 +179,7 @@ export function weekPlan(state: FarmState, today: string): WeekPlan {
     const on = showsOn(task, today, workDays)!
     const day = days.get(on)
     if (!day) {
-      if (on > week[week.length - 1]!) later.push(item)
+      if (on > ahead[ahead.length - 1]!) later.push(item)
       continue
     }
     day.open.push(item)
@@ -179,7 +191,13 @@ export function weekPlan(state: FarmState, today: string): WeekPlan {
   }
   stillOn.sort(byOrder)
   later.sort((a, b) => a.task.plannedFor!.localeCompare(b.task.plannedFor!) || byOrder(a, b))
-  return { today: now, days: [...days.values()], stillOn, later }
+  return {
+    today: now,
+    days: week.map((d) => days.get(d)!),
+    next: ahead.map((d) => days.get(d)!),
+    stillOn,
+    later,
+  }
 }
 
 /** "Mon", "Tue": short enough for a chip. */
@@ -187,13 +205,26 @@ export function dayShort(iso: string): string {
   return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][weekdayOf(iso) - 1]!
 }
 
-/** "Monday", or "Today" and "Tomorrow" where those are what it is. */
+/** Weeks from the week holding `today` to the week holding `iso`, Monday first. */
+export function weeksAhead(iso: string, today: string): number {
+  const monday = (d: string) => addDays(d, 1 - weekdayOf(d))
+  return Math.round(daysBetween(monday(today), monday(iso)) / 7)
+}
+
+/**
+ * "Monday", or "Today" and "Tomorrow" where those are what it is, and "Next Monday" for a day
+ * in the week after, so a Friday's "Monday" and a Monday's "Monday" are never confused.
+ */
 export function dayLong(iso: string, today: string): string {
   if (iso === today) return 'Today'
   if (daysBetween(today, iso) === 1) return 'Tomorrow'
-  return ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][
+  const name = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][
     weekdayOf(iso) - 1
   ]!
+  const weeks = weeksAhead(iso, today)
+  if (weeks === 1) return `Next ${name}`
+  if (weeks > 1) return `${name} ${Number(iso.slice(8))}`
+  return name
 }
 
 /** "3", or "3 · ~4 h" when the open tasks carry estimates. */

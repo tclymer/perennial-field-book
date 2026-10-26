@@ -550,6 +550,26 @@ the step and hid its checkbox (`placeTask` now leaves a step's bucket alone, and
 means a top-level task in the project list), and made a check-off on a day reversible at any
 time by tapping its box again (`uncheck`).
 
+**Planning into next week** (2026-10-26, 0.9.3). The farm manager plans the coming week on a
+Thursday or Friday, so the week planner reaches one week ahead, and no further: past that, the
+lists and a plate's months do the job, and a calendar would bring back the clutter the planner
+avoids.
+
+- `weekPlan` returns `next`, the worked days of the week after the plan day's, laid out like
+  `days`; `later` is now only what lies past next week ("Further out"). A task on a day next
+  week is pencilled in: it does not roll, and its ↻ count starts from its own day.
+- The desktop board has two rows, each day under its weekday like a calendar: the days left in
+  this week on top (on a Friday, only Friday, in the Friday column), and the whole of next
+  week below, drawn with a dashed border. Row names follow the real date, so on a weekend,
+  when the board has already moved on, they read "This week" and "Next week" truthfully.
+- On a phone, the Plan chip's days end in "Next week ›", which opens next week's days; Today's
+  "Next week" row opens into its days, each with its own + like the rest of this week. The task
+  page shows next week's days on a second line.
+- `dayLong` says "Next Monday" for a day in the week after, so a Friday's "Monday" is never
+  read as the Monday just gone.
+- From Thursday the review's planning card turns to next week ("Plan next week"): how many
+  tasks are on its days, which days are still empty, and how many have no one.
+
 **Not doing, and why.** Times of day (that is a calendar, and the farm does not run on one).
 Notifications (decided 2026-09-16: no daily nudge). Planning beyond this week. Per-person
 working days and days off (later, if a crew needs it). Plates placed on days automatically

@@ -12,7 +12,7 @@ import { Button, Card, PageHeader } from '@/ui/components'
 import { DoneSheet, type DoneSheetResult } from '@/ui/tasks/DoneSheet'
 import { TaskRow } from '@/ui/tasks/TaskRow'
 import { Toast } from '@/ui/tasks/Toast'
-import { weekPlan } from '@/engine/plan'
+import { dayShort, weekdayOf, weekPlan } from '@/engine/plan'
 import { Rolled } from '@/ui/plan/PlanParts'
 
 /** The weekly review (DESIGN.md §4): run whenever it is opened, no fixed day. */
@@ -209,25 +209,40 @@ export default function ReviewPage() {
  * The review is where the week gets planned (DESIGN.md §3.10), so it opens with that, and
  * with whatever slid furthest: a task that rolled all week is worth a decision.
  */
-function PlanTheWeek({ today }: { today: string }) {
+/**
+ * Planning opens the review. From Thursday on, a review is mostly about the week to come, so
+ * the card turns to next week: what is on its days, which days are empty, what has no one.
+ */
+export function PlanTheWeek({ today }: { today: string }) {
   const state = useFarmStore((s) => s.state)
   const plan = weekPlan(state, today)
-  const planned = plan.days.reduce((n, d) => n + d.open.length, 0)
+  // On a weekend the plan day is already next Monday, so "this week" is the week to plan.
+  const ahead = plan.today === today && weekdayOf(today) >= 4
+  const days = ahead ? plan.next : plan.days
+  const open = days.flatMap((d) => d.open)
+  const planned = open.length
+  const empty = days.filter((d) => d.open.length === 0 && d.date >= plan.today)
+  const anyone = open.filter((i) => !i.task.ownerId).length
   const slid = [...plan.stillOn, ...plan.days.flatMap((d) => d.open)]
     .filter((i) => i.rolled >= 2)
     .sort((a, b) => b.rolled - a.rolled)
+  const which = ahead ? 'next week' : 'this week'
   return (
     <Card>
       <div className="flex items-baseline justify-between gap-2">
-        <h2 className="font-semibold">Plan the week</h2>
+        <h2 className="font-semibold">{ahead ? 'Plan next week' : 'Plan the week'}</h2>
         <Link to="/tasks?view=week" className="text-sm underline decoration-dotted">
           Open the week
         </Link>
       </div>
       <p className="text-sm text-stone-500 dark:text-stone-400">
         {planned === 0
-          ? 'Nothing is on a day yet. Put the jobs for this week onto days so everyone sees them.'
-          : `${planned} ${planned === 1 ? 'task is' : 'tasks are'} on a day this week.`}
+          ? `Nothing is on a day ${which} yet. Put the jobs onto days so everyone sees them.`
+          : `${planned} ${planned === 1 ? 'task is' : 'tasks are'} on a day ${which}.`}
+        {planned > 0 &&
+          empty.length > 0 &&
+          ` Nothing yet on ${empty.map((d) => dayShort(d.date)).join(', ')}.`}
+        {anyone > 0 && ` ${anyone} ${anyone === 1 ? 'has' : 'have'} no one yet.`}
       </p>
       {slid.length > 0 && (
         <>

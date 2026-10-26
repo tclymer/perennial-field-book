@@ -4,6 +4,7 @@ import { useFarmStore } from '@/state/store'
 import {
   byPerson,
   dayLong,
+  dayShort,
   loadLabel,
   nextWorkDay,
   weekPlan,
@@ -40,10 +41,41 @@ export function TodayPlan({
   const rest = plan.days.filter((d) => d.date > plan.today)
   const [adding, setAdding] = useState(false)
   const [opened, setOpened] = useState<string | null>(null)
+  const [ahead, setAhead] = useState(false)
+  const nextCount = plan.next.reduce((n, d) => n + d.open.length, 0)
   const nameOf = (id: string) => {
     const p = state.people[id]
     return p && !p.deleted ? p.name : undefined
   }
+  const dayRow = (d: PlanDay, label: string) => (
+    <li key={d.date} className="py-1.5">
+      <button
+        type="button"
+        onClick={() => setOpened((o) => (o === d.date ? null : d.date))}
+        aria-expanded={opened === d.date}
+        aria-label={`${dayLong(d.date, plan.today)}: ${d.open.length}`}
+        className="flex w-full items-baseline gap-2 text-left"
+      >
+        <span className="w-20 shrink-0 font-medium">{label}</span>
+        <span className="shrink-0 text-sm tabular-nums text-stone-500 dark:text-stone-400">
+          {loadLabel(d)}
+        </span>
+        <span className="min-w-0 flex-1 truncate text-sm text-stone-600 dark:text-stone-300">
+          {d.open.map((i) => i.task.title).join(' · ')}
+        </span>
+      </button>
+      {opened === d.date && (
+        <div className="pl-2">
+          <QuickAdd
+            bucket="now"
+            plannedFor={d.date}
+            placeholder={`Add to ${dayLong(d.date, plan.today).toLowerCase()}…`}
+          />
+          <DayList day={d} me={me} nameOf={nameOf} onDone={onDone} notify={notify} />
+        </div>
+      )}
+    </li>
+  )
   const title = dayLong(plan.today, today)
   const after = dayLong(nextWorkDay(plan.today, workDaysOf(state.farm)), plan.today).toLowerCase()
 
@@ -148,52 +180,49 @@ export function TodayPlan({
 
       {between}
 
-      {(rest.length > 0 || plan.later.length > 0) && (
-        <Card>
-          <h2 className="font-semibold">The rest of the week</h2>
-          <ul className="mt-1 divide-y divide-stone-100 dark:divide-stone-800">
-            {rest.map((d) => (
-              <li key={d.date} className="py-1.5">
-                <button
-                  type="button"
-                  onClick={() => setOpened((o) => (o === d.date ? null : d.date))}
-                  aria-expanded={opened === d.date}
-                  className="flex w-full items-baseline gap-2 text-left"
-                >
-                  <span className="w-20 shrink-0 font-medium">{dayLong(d.date, plan.today)}</span>
-                  <span className="shrink-0 text-sm tabular-nums text-stone-500 dark:text-stone-400">
-                    {loadLabel(d)}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate text-sm text-stone-600 dark:text-stone-300">
-                    {d.open.map((i) => i.task.title).join(' · ')}
-                  </span>
-                </button>
-                {opened === d.date && (
-                  <div className="pl-2">
-                    <QuickAdd
-                      bucket="now"
-                      plannedFor={d.date}
-                      placeholder={`Add to ${dayLong(d.date, plan.today).toLowerCase()}…`}
-                    />
-                    <DayList day={d} me={me} nameOf={nameOf} onDone={onDone} notify={notify} />
-                  </div>
-                )}
-              </li>
-            ))}
-            {plan.later.length > 0 && (
-              <li className="flex items-baseline gap-2 py-1.5">
-                <span className="w-20 shrink-0 font-medium">Next week</span>
-                <span className="shrink-0 text-sm tabular-nums text-stone-500 dark:text-stone-400">
-                  {plan.later.length}
-                </span>
-                <span className="min-w-0 flex-1 truncate text-sm text-stone-600 dark:text-stone-300">
-                  {plan.later.map((i) => i.task.title).join(' · ')}
-                </span>
-              </li>
+      <Card>
+        <h2 className="font-semibold">{rest.length > 0 ? 'The rest of the week' : 'Coming up'}</h2>
+        <ul className="mt-1 divide-y divide-stone-100 dark:divide-stone-800">
+          {rest.map((d) => dayRow(d, dayLong(d.date, plan.today)))}
+          <li className="py-1.5">
+            <button
+              type="button"
+              onClick={() => setAhead((a) => !a)}
+              aria-expanded={ahead}
+              className="flex w-full items-baseline gap-2 text-left"
+            >
+              <span className="w-20 shrink-0 font-medium">Next week</span>
+              <span className="shrink-0 text-sm tabular-nums text-stone-500 dark:text-stone-400">
+                {nextCount}
+              </span>
+              <span className="min-w-0 flex-1 truncate text-sm text-stone-600 dark:text-stone-300">
+                {nextCount > 0
+                  ? plan.next.flatMap((d) => d.open.map((i) => i.task.title)).join(' · ')
+                  : 'Plan ahead'}
+              </span>
+              <span aria-hidden className="text-stone-400">
+                {ahead ? '‹' : '›'}
+              </span>
+            </button>
+            {ahead && (
+              <ul className="mt-1 divide-y divide-stone-100 border-l-2 border-stone-200 pl-2 dark:divide-stone-800 dark:border-stone-700">
+                {plan.next.map((d) => dayRow(d, `${dayShort(d.date)} ${Number(d.date.slice(8))}`))}
+              </ul>
             )}
-          </ul>
-        </Card>
-      )}
+          </li>
+          {plan.later.length > 0 && (
+            <li className="flex items-baseline gap-2 py-1.5">
+              <span className="w-20 shrink-0 font-medium">Further out</span>
+              <span className="shrink-0 text-sm tabular-nums text-stone-500 dark:text-stone-400">
+                {plan.later.length}
+              </span>
+              <span className="min-w-0 flex-1 truncate text-sm text-stone-600 dark:text-stone-300">
+                {plan.later.map((i) => i.task.title).join(' · ')}
+              </span>
+            </li>
+          )}
+        </ul>
+      </Card>
     </>
   )
 }

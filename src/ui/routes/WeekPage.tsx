@@ -146,7 +146,7 @@ export default function WeekPage() {
 
       <Section
         title={bucketName(state.farm, 'now')}
-        hint="Not on a day yet. Plan puts one on a day of this week."
+        hint="Not on a day yet. Plan puts one on a day this week or next."
         empty="Nothing here. Add one above, or enjoy it."
         add={{ bucket: 'now', onAdded: noteAdded }}
         listProps={drag.containerProps}

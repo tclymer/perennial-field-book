@@ -9,7 +9,15 @@ import clsx from 'clsx'
 import { useFarmStore } from '@/state/store'
 import { live } from '@/events/reduce'
 import type { NewEvent } from '@/events/types'
-import { dayLong, dayShort, planDay, workDaysOf, workingWeek, type PlanItem } from '@/engine/plan'
+import {
+  dayLong,
+  dayShort,
+  nextWeek,
+  planDay,
+  workDaysOf,
+  workingWeek,
+  type PlanItem,
+} from '@/engine/plan'
 import type { Task } from '@/model/types'
 import { isHolder, isProject, openSteps } from '@/engine/tasks'
 import { useDevice } from '@/state/device'
@@ -231,6 +239,14 @@ export function plannableDays(
   return workingWeek(today, workDays).filter((d) => d >= now)
 }
 
+/** The worked days of next week, for planning ahead. */
+export function nextWeekDays(
+  state: ReturnType<typeof useFarmStore.getState>['state'],
+  today: string,
+) {
+  return nextWeek(today, workDaysOf(state.farm))
+}
+
 /**
  * Put a task on a day from a phone, where dragging between days is clumsy and two taps is
  * not: "Plan" opens the week's days; the task's own day is marked, and tapping it again
@@ -251,7 +267,11 @@ export function PlanChip({
   const steps = isHolder(state, task)
     ? openSteps(state, task.id).sort((a, b) => a.order - b.order || a.createdAt - b.createdAt)
     : null
-  const shownDay = task.plannedFor && !steps ? dayShort(task.plannedFor) : null
+  const ahead = nextWeekDays(state, today)
+  const shownDay =
+    task.plannedFor && !steps
+      ? `${task.plannedFor >= ahead[0]! ? 'Next ' : ''}${dayShort(task.plannedFor)}`
+      : null
   return (
     <span className="inline-flex max-w-full flex-wrap items-center gap-1">
       <button
@@ -280,7 +300,10 @@ export function PlanChip({
   )
 }
 
-/** The days left this week as chips; the task's own day is marked, and tapping it clears it. */
+/**
+ * The days left this week as chips, then "Next week ›" opening the week after; the task's own
+ * day is marked, and tapping it clears it.
+ */
 export function DayChips({
   task,
   today,
@@ -294,7 +317,28 @@ export function DayChips({
 }) {
   const state = useFarmStore((s) => s.state)
   const days = plannableDays(state, today)
+  const ahead = nextWeekDays(state, today)
   const now = planDay(today, workDaysOf(state.farm))
+  const [showAhead, setShowAhead] = useState(
+    () => !!task.plannedFor && task.plannedFor >= ahead[0]!,
+  )
+  const chip = (d: string, label: string) => (
+    <button
+      key={d}
+      type="button"
+      onClick={() => choose(task.plannedFor === d ? null : d)}
+      aria-pressed={task.plannedFor === d}
+      aria-label={`${task.title}: ${d === now ? 'today' : dayLong(d, now).toLowerCase()}`}
+      className={clsx(
+        'rounded-full border px-2 py-0.5',
+        task.plannedFor === d
+          ? 'border-lime-700 bg-lime-700 text-white'
+          : 'border-stone-300 dark:border-stone-600',
+      )}
+    >
+      {label}
+    </button>
+  )
   const choose = (day: string | null) => {
     const undo = planTask(task.id, day)
     onChosen?.()
@@ -307,23 +351,20 @@ export function DayChips({
   }
   return (
     <>
-      {days.map((d) => (
-        <button
-          key={d}
-          type="button"
-          onClick={() => choose(task.plannedFor === d ? null : d)}
-          aria-pressed={task.plannedFor === d}
-          aria-label={`${task.title}: ${d === now ? 'today' : dayLong(d, now).toLowerCase()}`}
-          className={clsx(
-            'rounded-full border px-2 py-0.5',
-            task.plannedFor === d
-              ? 'border-lime-700 bg-lime-700 text-white'
-              : 'border-stone-300 dark:border-stone-600',
-          )}
-        >
-          {d === now ? 'Today' : dayShort(d)}
-        </button>
-      ))}
+      {days.map((d) => chip(d, d === now ? 'Today' : dayShort(d)))}
+      <button
+        type="button"
+        onClick={() => setShowAhead((s) => !s)}
+        aria-expanded={showAhead}
+        className="rounded-full px-2 py-0.5 text-stone-500 underline decoration-dotted dark:text-stone-400"
+      >
+        Next week {showAhead ? '‹' : '›'}
+      </button>
+      {showAhead && (
+        <span className="flex basis-full flex-wrap gap-1">
+          {ahead.map((d) => chip(d, `${dayShort(d)} ${Number(d.slice(8))}`))}
+        </span>
+      )}
     </>
   )
 }

@@ -4,6 +4,17 @@ One entry per release of Perennial Field Book, newest first. The version is show
 under Settings. Each release is also a tag on GitHub (`v0.8.7` and so on), so the code as it
 stood at any release can be looked at or compared with another.
 
+## 0.9.3 (2026-10-26)
+
+- **Plan next week ahead of time.** On the computer, the Week view now has two rows: the days
+  left in this week on top, and all of next week underneath, each day under its weekday like
+  a calendar. Drag tasks onto next week's days or add them there directly.
+- On a phone, the Plan button's days end in "Next week ›", which opens next week's days.
+  Today's "Next week" line opens into its days, and each has its own add box.
+- A day in next week reads "Next Monday", so it is never mistaken for this week's.
+- From Thursday on, the weekly review's planning card turns to next week: what is on its days,
+  which days are still empty, and what has no one yet.
+
 ## 0.9.2 (2026-10-12)
 
 - **A task with subtasks is planned through its subtasks.** Its Plan chip reads "Plan a step"

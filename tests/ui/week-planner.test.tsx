@@ -11,9 +11,17 @@ import { completeTask, placeTask, quickAdd, reopenTask, undoEvents } from '@/sta
 import { createPerson, setCurrentPerson } from '@/state/people'
 import { today } from '@/state/actions'
 import { addDays } from '@/engine/tasks'
-import { DEFAULT_WORK_DAYS, isWorkDay, nextWorkDay, planDay, weekPlan } from '@/engine/plan'
+import {
+  DEFAULT_WORK_DAYS,
+  isWorkDay,
+  nextWeek,
+  nextWorkDay,
+  planDay,
+  weekPlan,
+} from '@/engine/plan'
 import { planTask } from '@/state/planActions'
 import { WeekBoard } from '@/ui/plan/WeekBoard'
+import { PlanTheWeek } from '@/ui/routes/ReviewPage'
 import { TASK_DRAG_TYPE } from '@/ui/tasks/useTaskDrag'
 import { installBrowserStubs } from './fixtures'
 
@@ -419,5 +427,104 @@ describe('a task with steps is a holder', () => {
     })
     expect(s().tasks[project]!.plannedFor).toBeUndefined()
     expect(s().tasks[posts]!.plannedFor).toBeUndefined()
+  })
+})
+
+describe('planning ahead', () => {
+  // 2026-10-09 is a Friday; 2026-10-12 the Monday after.
+  const FRI = '2026-10-09'
+  const NEXT_MON = '2026-10-12'
+  const board = (on: string) => {
+    cleanup()
+    render(
+      <HashRouter>
+        <WeekBoard today={on} />
+      </HashRouter>,
+    )
+  }
+
+  it('shows only Friday on top on a Friday, under its weekday, with next week below', () => {
+    const id = quickAdd('mow the alleys', 'now', undefined, NEXT_MON)!
+    board(FRI)
+    const top = screen.getByRole('region', { name: 'This week' })
+    const below = screen.getByRole('region', { name: 'Next week' })
+    const tops = within(top).getAllByRole('heading', { level: 2 }).slice(1)
+    expect(tops.map((h) => h.textContent)).toEqual(['Today 9'])
+    expect((tops[0]!.closest('div.rounded-lg') as HTMLElement).style.gridColumnStart).toBe('5')
+    expect(within(below).getAllByRole('heading', { level: 2 })).toHaveLength(6)
+    expect(within(below).getByText(/mow the alleys/i)).toBeTruthy()
+    expect(s().tasks[id]!.plannedFor).toBe(NEXT_MON)
+  })
+
+  it('plans a tray task onto next week by dropping it there', async () => {
+    const id = quickAdd('mow the alleys', 'soon')!
+    board(FRI)
+    const below = screen.getByRole('region', { name: 'Next week' })
+    const monday = within(below)
+      .getAllByRole('heading', { level: 2 })[1]!
+      .closest('div.rounded-lg')!
+    const data = new Map<string, string>([[TASK_DRAG_TYPE, id]])
+    const dataTransfer = { types: [TASK_DRAG_TYPE], getData: (k: string) => data.get(k) ?? '' }
+    await act(async () => {
+      fireEvent.drop(monday, { dataTransfer })
+    })
+    expect(s().tasks[id]!.plannedFor).toBe(NEXT_MON)
+  })
+
+  it('offers next week from the Plan chip on a phone', async () => {
+    const id = quickAdd('clean the cooler', 'soon')!
+    await open()
+    await act(async () => {
+      fireEvent.click(
+        await screen.findByRole('button', { name: /Plan clean the cooler for a day/i }),
+      )
+    })
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /^Next week ›$/ }))
+    })
+    const ahead = nextWeek(today(), DEFAULT_WORK_DAYS)
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /clean the cooler: next tuesday/i }))
+    })
+    expect(s().tasks[id]!.plannedFor).toBe(ahead[1])
+  })
+
+  it('opens next week on Today into its days, with what is planned there', async () => {
+    const ahead = nextWeek(today(), DEFAULT_WORK_DAYS)
+    quickAdd('mow the alleys', 'now', undefined, ahead[2])
+    await open()
+    const row = await screen.findByRole('button', { name: /^Next week/ })
+    expect(row.textContent).toMatch(/mow the alleys/i)
+    await act(async () => {
+      fireEvent.click(row)
+    })
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /^Next Wednesday: 1$/ }))
+    })
+    expect(screen.getByPlaceholderText(/Add to next wednesday/i)).toBeTruthy()
+  })
+
+  it('turns the review card to next week from Thursday', () => {
+    const THU = '2026-10-08'
+    quickAdd('mow the alleys', 'now', undefined, NEXT_MON)
+    cleanup()
+    render(
+      <HashRouter>
+        <PlanTheWeek today={THU} />
+      </HashRouter>,
+    )
+    expect(screen.getByRole('heading', { name: 'Plan next week' })).toBeTruthy()
+    expect(
+      screen.getByText(
+        /1 task is on a day next week\. Nothing yet on Tue, Wed, Thu, Fri\. 1 has no one yet\./,
+      ),
+    ).toBeTruthy()
+    cleanup()
+    render(
+      <HashRouter>
+        <PlanTheWeek today="2026-10-06" />
+      </HashRouter>,
+    )
+    expect(screen.getByRole('heading', { name: 'Plan the week' })).toBeTruthy()
   })
 })
