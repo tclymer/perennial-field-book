@@ -36,6 +36,7 @@ export function WeekBoard({ today }: { today: string }) {
   const plan = weekPlan(state, today)
   const { done, notify, overlays } = usePlanNotices(today)
   const [over, setOver] = useState<string | null>(null)
+  const planName = dayLong(plan.today, today, plan.today).toLowerCase()
   const workDays = [...workDaysOf(state.farm)].sort((a, b) => a - b)
 
   const dropOn = (day: string | null) => (e: DragEvent) => {
@@ -52,7 +53,7 @@ export function WeekBoard({ today }: { today: string }) {
     const undo = planTask(id, day)
     notify({
       message: day
-        ? `${task.title}: ${dayLong(day, plan.today).toLowerCase()}.`
+        ? `${task.title}: ${dayLong(day, today, plan.today).toLowerCase()}.`
         : `${task.title}: back in its list.`,
       undo,
     })
@@ -75,8 +76,8 @@ export function WeekBoard({ today }: { today: string }) {
         <Card className="border-amber-300 dark:border-amber-700">
           <h2 className="font-semibold">Still on?</h2>
           <p className="text-xs text-stone-500 dark:text-stone-400">
-            Slid three working days or more. Keep one for today, put it back in its list, or drag it
-            onto a day.
+            Slid three working days or more. Keep one for {planName}, put it back in its list, or
+            drag it onto a day.
           </p>
           <ul className="mt-1 flex flex-wrap gap-2">
             {plan.stillOn.map(({ task, rolled }) => (
@@ -91,10 +92,13 @@ export function WeekBoard({ today }: { today: string }) {
                 </span>
                 <Button
                   onClick={() =>
-                    notify({ message: `${task.title}: today.`, undo: keepForToday(task.id, today) })
+                    notify({
+                      message: `${task.title}: ${planName}.`,
+                      undo: keepForToday(task.id, today),
+                    })
                   }
                 >
-                  Keep for today
+                  Keep for {planName}
                 </Button>
                 <Button
                   variant="ghost"
@@ -142,6 +146,7 @@ export function WeekBoard({ today }: { today: string }) {
                     key={d.date}
                     day={d}
                     planToday={plan.today}
+                    today={today}
                     ahead={i === 1}
                     // A short week starts under its own weekday, as a calendar does.
                     column={j === 0 ? workDays.indexOf(weekdayOf(d.date)) + 1 : undefined}
@@ -175,6 +180,7 @@ function weekName(first: string | undefined, today: string): string {
 function DayColumn({
   day,
   planToday,
+  today,
   ahead,
   column,
   highlight,
@@ -184,6 +190,7 @@ function DayColumn({
 }: {
   day: PlanDay
   planToday: string
+  today: string
   /** Next week's row: pencilled in, drawn lighter and shorter. */
   ahead: boolean
   column?: number
@@ -207,7 +214,7 @@ function DayColumn({
     >
       <div className="flex items-baseline justify-between gap-2">
         <h2 className={clsx('font-semibold', ahead && 'text-stone-600 dark:text-stone-300')}>
-          {day.isToday ? 'Today' : dayShort(day.date)}{' '}
+          {day.date === today ? 'Today' : dayShort(day.date)}{' '}
           <span className="text-xs font-normal text-stone-500 dark:text-stone-400">
             {Number(day.date.slice(8))}
           </span>

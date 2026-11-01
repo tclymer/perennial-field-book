@@ -122,6 +122,12 @@ describe('the week plan', () => {
     expect(plan.days.find((d) => d.date === WED)!.open).toEqual([])
   })
 
+  it('keeps a task done on a day off in reach on the next worked day', () => {
+    const s = state([task('a', { plannedFor: NEXT_MON, done: true, doneAt: '2026-10-11' })])
+    const plan = weekPlan(s, '2026-10-11')
+    expect(plan.days.find((d) => d.isToday)!.settled.map((i) => i.task.id)).toEqual(['a'])
+  })
+
   it('settles a project on a day by a log, and leaves the project open', () => {
     const s = state([
       task('p', { bucket: 'project', plannedFor: TUE }),
@@ -208,5 +214,15 @@ describe('planning ahead into next week', () => {
     expect(dayLong(NEXT_TUE, FRI)).toBe('Next Tuesday')
     expect(dayLong(THU, MON)).toBe('Thursday')
     expect(dayLong(WEEK_AFTER_MON, FRI)).toBe('Monday 19')
+  })
+
+  it('never calls the plan day today on a day off', () => {
+    const SUN = '2026-10-11'
+    const planToday = planDay(SUN, WEEKDAYS)
+    expect(planToday).toBe(NEXT_MON)
+    expect(dayLong(NEXT_MON, SUN, planToday)).toBe('Tomorrow')
+    expect(dayLong(NEXT_TUE, SUN, planToday)).toBe('Tuesday')
+    expect(dayLong(NEXT_MON, SAT, planDay(SAT, WEEKDAYS))).toBe('Monday')
+    expect(dayLong(WEEK_AFTER_MON, SUN, planToday)).toBe('Next Monday')
   })
 })

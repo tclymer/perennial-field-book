@@ -117,6 +117,7 @@ export interface PlanItem {
 
 export interface PlanDay {
   date: string
+  /** The plan day, which on a day off is the next worked day: not a label for "Today". */
   isToday: boolean
   /** Not settled, in list order. */
   open: PlanItem[]
@@ -166,7 +167,10 @@ export function weekPlan(state: FarmState, today: string): WeekPlan {
     const parent = task.projectId ? state.tasks[task.projectId] : undefined
     const settled = settledOn(task, logs)
     if (settled) {
-      days.get(settled)?.settled.push({ task, rolled: 0, settled: true, parent })
+      // Done on a day off, it stays in reach on the next worked day, where its box still works.
+      days
+        .get(workDayOnOrAfter(settled, workDays))
+        ?.settled.push({ task, rolled: 0, settled: true, parent })
       continue
     }
     if (task.done) continue
@@ -214,14 +218,16 @@ export function weeksAhead(iso: string, today: string): number {
 /**
  * "Monday", or "Today" and "Tomorrow" where those are what it is, and "Next Monday" for a day
  * in the week after, so a Friday's "Monday" and a Monday's "Monday" are never confused.
+ * `today` is the real date. `planToday` is the plan day, which the weeks count from: on a
+ * weekend the board has moved on, so the coming Tuesday is plain "Tuesday".
  */
-export function dayLong(iso: string, today: string): string {
+export function dayLong(iso: string, today: string, planToday: string = today): string {
   if (iso === today) return 'Today'
   if (daysBetween(today, iso) === 1) return 'Tomorrow'
   const name = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][
     weekdayOf(iso) - 1
   ]!
-  const weeks = weeksAhead(iso, today)
+  const weeks = weeksAhead(iso, planToday)
   if (weeks === 1) return `Next ${name}`
   if (weeks > 1) return `${name} ${Number(iso.slice(8))}`
   return name

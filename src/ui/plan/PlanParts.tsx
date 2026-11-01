@@ -328,7 +328,7 @@ export function DayChips({
       type="button"
       onClick={() => choose(task.plannedFor === d ? null : d)}
       aria-pressed={task.plannedFor === d}
-      aria-label={`${task.title}: ${d === now ? 'today' : dayLong(d, now).toLowerCase()}`}
+      aria-label={`${task.title}: ${dayLong(d, today, now).toLowerCase()}`}
       className={clsx(
         'rounded-full border px-2 py-0.5',
         task.plannedFor === d
@@ -344,14 +344,14 @@ export function DayChips({
     onChosen?.()
     notify({
       message: day
-        ? `${task.title}: ${dayLong(day, now).toLowerCase()}.`
+        ? `${task.title}: ${dayLong(day, today, now).toLowerCase()}.`
         : `${task.title}: no day.`,
       undo,
     })
   }
   return (
     <>
-      {days.map((d) => chip(d, d === now ? 'Today' : dayShort(d)))}
+      {days.map((d) => chip(d, d === today ? 'Today' : dayShort(d)))}
       <button
         type="button"
         onClick={() => setShowAhead((s) => !s)}

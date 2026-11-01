@@ -20,6 +20,7 @@ import {
   weekPlan,
 } from '@/engine/plan'
 import { planTask } from '@/state/planActions'
+import { PlanChip } from '@/ui/plan/PlanParts'
 import { WeekBoard } from '@/ui/plan/WeekBoard'
 import { PlanTheWeek } from '@/ui/routes/ReviewPage'
 import { TASK_DRAG_TYPE } from '@/ui/tasks/useTaskDrag'
@@ -58,7 +59,7 @@ async function open(hash = '#/week') {
   await act(async () => {})
 }
 
-const ADD_TODAY = /^Add to (Today|Monday)$/
+const ADD_TODAY = /^Add to (Today|Tomorrow|Monday)$/
 const todayCard = () =>
   screen.getByRole('button', { name: ADD_TODAY }).closest('div.rounded-lg') as HTMLElement
 
@@ -137,7 +138,7 @@ describe('today on the phone', () => {
     await act(async () => {
       fireEvent.click(await screen.findByRole('button', { name: ADD_TODAY }))
     })
-    const box = screen.getByPlaceholderText(/^Add to (today|monday)…$/)
+    const box = screen.getByPlaceholderText(/^Add to (today|tomorrow|monday)…$/)
     await act(async () => {
       fireEvent.change(box, { target: { value: 'mow the lane' } })
       fireEvent.keyDown(box, { key: 'Enter' })
@@ -156,7 +157,9 @@ describe('today on the phone', () => {
       fireEvent.click(await screen.findByRole('button', { name: /Plan clean the cooler/i }))
     })
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /clean the cooler: (today|monday)/i }))
+      fireEvent.click(
+        screen.getByRole('button', { name: /clean the cooler: (today|tomorrow|monday)/i }),
+      )
     })
     expect(taskNamed(/clean the cooler/i).plannedFor).toBe(day())
     expect(within(todayCard()).getByText(/clean the cooler/i)).toBeTruthy()
@@ -186,7 +189,7 @@ describe('today on the phone', () => {
     expect(await screen.findByText('Still on?')).toBeTruthy()
     expect(screen.getByText('↻3')).toBeTruthy()
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Keep for today' }))
+      fireEvent.click(screen.getByRole('button', { name: /^Keep for (today|tomorrow|monday)$/i }))
     })
     expect(s().tasks[id]!.plannedFor).toBe(day())
     expect(screen.queryByText('Still on?')).toBeNull()
@@ -210,7 +213,7 @@ describe('the task page', () => {
     await open(`#/tasks/${id}`)
     expect(await screen.findByText('Added by Tim')).toBeTruthy()
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /^(Today|Monday)$/ }))
+      fireEvent.click(screen.getByRole('button', { name: /^(Today|Tomorrow|Monday)$/ }))
     })
     expect(s().tasks[id]!.plannedFor).toBe(day())
   })
@@ -380,7 +383,7 @@ describe('a task with steps is a holder', () => {
       )
     })
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /order posts: (today|monday)/i }))
+      fireEvent.click(screen.getByRole('button', { name: /order posts: (today|tomorrow|monday)/i }))
     })
     expect(s().tasks[posts]!.plannedFor).toBe(day())
     expect(within(todayCard()).getByText(/replace the deer fence ·/i)).toBeTruthy()
@@ -502,6 +505,25 @@ describe('planning ahead', () => {
       fireEvent.click(screen.getByRole('button', { name: /^Next Wednesday: 1$/ }))
     })
     expect(screen.getByPlaceholderText(/Add to next wednesday/i)).toBeTruthy()
+  })
+
+  it('offers Monday, not Today, on a Sunday', async () => {
+    const id = quickAdd('clean the cooler', 'soon')!
+    cleanup()
+    render(
+      <HashRouter>
+        <PlanChip task={s().tasks[id]!} today="2026-10-11" notify={() => {}} />
+      </HashRouter>,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Plan clean the cooler/i }))
+    })
+    expect(screen.queryByRole('button', { name: 'Today' })).toBeNull()
+    expect(screen.getByText('Mon')).toBeTruthy()
+    expect(screen.getByRole('button', { name: /clean the cooler: tomorrow/i })).toBeTruthy()
+    board('2026-10-11')
+    const row = screen.getByRole('region', { name: 'Next week' })
+    expect(within(row).getAllByRole('heading', { level: 2 })[1]!.textContent).toBe('Mon 12')
   })
 
   it('turns the review card to next week from Thursday', () => {

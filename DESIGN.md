@@ -550,6 +550,12 @@ the step and hid its checkbox (`placeTask` now leaves a step's bucket alone, and
 means a top-level task in the project list), and made a check-off on a day reversible at any
 time by tapping its box again (`uncheck`).
 
+**The plan day is not today** (2026-11-01, 0.9.4). On a day off, `planDay` is the next worked
+day, so the board has moved on, but a label must still say what the real date makes it:
+`dayLong(iso, today, planToday)` takes both, and on a Sunday the plan day reads "Tomorrow" and
+never "Today". `isToday` on a day means the plan day and is not a label. A task done on a day
+off settles on the next worked day, so it stays on the plan and can still be unchecked.
+
 **Planning into next week** (2026-10-26, 0.9.3). The farm manager plans the coming week on a
 Thursday or Friday, so the week planner reaches one week ahead, and no further: past that, the
 lists and a plate's months do the job, and a calendar would bring back the clutter the planner

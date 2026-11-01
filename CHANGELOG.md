@@ -4,6 +4,14 @@ One entry per release of Perennial Field Book, newest first. The version is show
 under Settings. Each release is also a tag on GitHub (`v0.8.7` and so on), so the code as it
 stood at any release can be looked at or compared with another.
 
+## 0.9.4 (2026-11-01)
+
+- **Today means today.** Planning on a weekend, the first day offered is now called Mon, or
+  Tomorrow where the wording is spelled out, instead of Today. The same goes for the Today page,
+  the Week view, Keep for, and Rain day.
+- A task checked off on a day off no longer drops off the plan. It stays crossed out on the next
+  working day, and can still be unchecked.
+
 ## 0.9.3 (2026-10-26)
 
 - **Plan next week ahead of time.** On the computer, the Week view now has two rows: the days

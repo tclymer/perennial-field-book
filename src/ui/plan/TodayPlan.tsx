@@ -53,7 +53,7 @@ export function TodayPlan({
         type="button"
         onClick={() => setOpened((o) => (o === d.date ? null : d.date))}
         aria-expanded={opened === d.date}
-        aria-label={`${dayLong(d.date, plan.today)}: ${d.open.length}`}
+        aria-label={`${dayLong(d.date, today, plan.today)}: ${d.open.length}`}
         className="flex w-full items-baseline gap-2 text-left"
       >
         <span className="w-20 shrink-0 font-medium">{label}</span>
@@ -69,15 +69,19 @@ export function TodayPlan({
           <QuickAdd
             bucket="now"
             plannedFor={d.date}
-            placeholder={`Add to ${dayLong(d.date, plan.today).toLowerCase()}…`}
+            placeholder={`Add to ${dayLong(d.date, today, plan.today).toLowerCase()}…`}
           />
           <DayList day={d} me={me} nameOf={nameOf} onDone={onDone} notify={notify} />
         </div>
       )}
     </li>
   )
-  const title = dayLong(plan.today, today)
-  const after = dayLong(nextWorkDay(plan.today, workDaysOf(state.farm)), plan.today).toLowerCase()
+  const title = dayLong(plan.today, today, plan.today)
+  const after = dayLong(
+    nextWorkDay(plan.today, workDaysOf(state.farm)),
+    today,
+    plan.today,
+  ).toLowerCase()
 
   return (
     <>
@@ -85,8 +89,8 @@ export function TodayPlan({
         <Card className="border-amber-300 dark:border-amber-700">
           <h2 className="font-semibold">Still on?</h2>
           <p className="text-xs text-stone-500 dark:text-stone-400">
-            These have slid three working days or more. Keep one for today, or put it back in its
-            list for another week.
+            These have slid three working days or more. Keep one for {title.toLowerCase()}, or put
+            it back in its list for another week.
           </p>
           <ul className="mt-1 divide-y divide-stone-100 dark:divide-stone-800">
             {plan.stillOn.map(({ task, rolled }) => (
@@ -97,12 +101,12 @@ export function TodayPlan({
                 <Button
                   onClick={() =>
                     notify({
-                      message: `${task.title}: today.`,
+                      message: `${task.title}: ${title.toLowerCase()}.`,
                       undo: keepForToday(task.id, today),
                     })
                   }
                 >
-                  Keep for today
+                  Keep for {title.toLowerCase()}
                 </Button>
                 <Button
                   variant="ghost"
@@ -167,12 +171,15 @@ export function TodayPlan({
               type="button"
               onClick={() => {
                 const { undo, to } = rainDay(today)
-                notify({ message: `Moved to ${dayLong(to, plan.today).toLowerCase()}.`, undo })
+                notify({
+                  message: `Moved to ${dayLong(to, today, plan.today).toLowerCase()}.`,
+                  undo,
+                })
               }}
               className="text-xs text-stone-500 underline decoration-dotted dark:text-stone-400"
-              title="Weather moves whole days: everything still open today goes to the next working day"
+              title="Weather moves whole days: everything still open on this day goes to the next working day"
             >
-              Rain day: push today to {after}
+              Rain day: push {title.toLowerCase()} to {after}
             </button>
           </div>
         )}
@@ -183,7 +190,7 @@ export function TodayPlan({
       <Card>
         <h2 className="font-semibold">{rest.length > 0 ? 'The rest of the week' : 'Coming up'}</h2>
         <ul className="mt-1 divide-y divide-stone-100 dark:divide-stone-800">
-          {rest.map((d) => dayRow(d, dayLong(d.date, plan.today)))}
+          {rest.map((d) => dayRow(d, dayLong(d.date, today, plan.today)))}
           <li className="py-1.5">
             <button
               type="button"

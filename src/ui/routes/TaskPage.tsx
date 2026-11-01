@@ -47,6 +47,7 @@ export default function TaskPage() {
   const state = useFarmStore((s) => s.state)
   const task = state.tasks[id]
   const date = today()
+  const planToday = planDay(date, workDaysOf(state.farm))
   const [title, setTitle] = useState(task?.title ?? '')
   const [notes, setNotes] = useState(task?.notes ?? '')
   const [season, setSeason] = useState(task?.season ?? '')
@@ -267,7 +268,7 @@ export default function TaskPage() {
             {[
               {
                 days: plannableDays(state, date),
-                label: (d: string) => dayLong(d, planDay(date, workDaysOf(state.farm))),
+                label: (d: string) => dayLong(d, date, planToday),
               },
               {
                 days: nextWeekDays(state, date),
@@ -298,8 +299,8 @@ export default function TaskPage() {
               </div>
             ))}
             <span className="text-xs text-stone-400 dark:text-stone-500">
-              {task.plannedFor && task.plannedFor < planDay(date, workDaysOf(state.farm))
-                ? 'Not done on its day, so it shows on today.'
+              {task.plannedFor && task.plannedFor < planToday
+                ? `Not done on its day, so it shows on ${dayLong(planToday, date, planToday).toLowerCase()}.`
                 : 'A day this week or next. Tap it again to take it off.'}
             </span>
           </div>
