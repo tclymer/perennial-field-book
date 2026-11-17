@@ -13,6 +13,7 @@ import { today } from '@/state/actions'
 import { addDays } from '@/engine/tasks'
 import {
   DEFAULT_WORK_DAYS,
+  dayLong,
   isWorkDay,
   nextWeek,
   nextWorkDay,
@@ -60,6 +61,8 @@ async function open(hash = '#/week') {
 }
 
 const ADD_TODAY = /^Add to (Today|Tomorrow|Monday)$/
+/** What the plan day is called: today on a working day, else tomorrow or Monday. */
+const PLAN_DAY = `(${dayLong(day(), today(), day()).toLowerCase()})`
 const todayCard = () =>
   screen.getByRole('button', { name: ADD_TODAY }).closest('div.rounded-lg') as HTMLElement
 
@@ -158,7 +161,7 @@ describe('today on the phone', () => {
     })
     await act(async () => {
       fireEvent.click(
-        screen.getByRole('button', { name: /clean the cooler: (today|tomorrow|monday)/i }),
+        screen.getByRole('button', { name: new RegExp(`clean the cooler: ${PLAN_DAY}$`, 'i') }),
       )
     })
     expect(taskNamed(/clean the cooler/i).plannedFor).toBe(day())
@@ -213,7 +216,7 @@ describe('the task page', () => {
     await open(`#/tasks/${id}`)
     expect(await screen.findByText('Added by Tim')).toBeTruthy()
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /^(Today|Tomorrow|Monday)$/ }))
+      fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${PLAN_DAY}$`, 'i') }))
     })
     expect(s().tasks[id]!.plannedFor).toBe(day())
   })
@@ -383,7 +386,9 @@ describe('a task with steps is a holder', () => {
       )
     })
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /order posts: (today|tomorrow|monday)/i }))
+      fireEvent.click(
+        screen.getByRole('button', { name: new RegExp(`order posts: ${PLAN_DAY}$`, 'i') }),
+      )
     })
     expect(s().tasks[posts]!.plannedFor).toBe(day())
     expect(within(todayCard()).getByText(/replace the deer fence ·/i)).toBeTruthy()

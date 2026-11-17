@@ -11,6 +11,7 @@ import { targetLabel } from '@/engine/logs'
 import { categoryLabel } from '@/model/categories'
 import { BUCKETS, type Bucket } from '@/model/types'
 import { Button, Card, PageHeader, inputClass } from '@/ui/components'
+import { shortNamer } from '@/engine/people'
 
 interface Choice {
   guess: Guess
@@ -199,7 +200,7 @@ export default function KeepImportPage() {
                     )}
                     {it.parsed.ownerId && (
                       <span className="rounded-full bg-stone-100 dark:bg-stone-800 px-2">
-                        {state.people[it.parsed.ownerId]?.name}
+                        {shortNamer(state)(it.parsed.ownerId)}
                       </span>
                     )}
                     {it.parsed.season && <span>{it.parsed.season}</span>}

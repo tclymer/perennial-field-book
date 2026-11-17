@@ -1,4 +1,5 @@
 /** Work log arithmetic and export (DESIGN.md §3.4, §5). Allocation to plantings is later. */
+import { shortNamer } from './people'
 import type { FarmState, Target, WorkLog } from '@/model/types'
 import { categoryLabel } from '@/model/categories'
 import { blockIdOfPosKey, positionByKey } from '@/state/derived'
@@ -63,6 +64,7 @@ export interface Total {
 /** Hours and log counts grouped one way, largest first. */
 export function totals(state: FarmState, logs: readonly WorkLog[], by: TotalsBy): Total[] {
   const acc = new Map<string, Total>()
+  const nameOf = shortNamer(state)
   const add = (key: string, label: string, hours: number) => {
     const t = acc.get(key) ?? { key, label, hours: 0, count: 0 }
     t.hours += hours
@@ -85,7 +87,7 @@ export function totals(state: FarmState, logs: readonly WorkLog[], by: TotalsBy)
       case 'person':
         if (log.personIds.length === 0) add('', 'Nobody named', hours)
         for (const id of log.personIds) {
-          add(id, state.people[id]?.name ?? 'Someone', hours / log.personIds.length)
+          add(id, nameOf(id) ?? 'Someone', hours / log.personIds.length)
         }
         break
       case 'block': {

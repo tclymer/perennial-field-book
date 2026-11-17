@@ -14,6 +14,7 @@ import { TaskRow } from '@/ui/tasks/TaskRow'
 import { Toast } from '@/ui/tasks/Toast'
 import { dayShort, weekdayOf, weekPlan } from '@/engine/plan'
 import { Rolled } from '@/ui/plan/PlanParts'
+import { shortNamer } from '@/engine/people'
 
 /** The weekly review (DESIGN.md §4): run whenever it is opened, no fixed day. */
 export default function ReviewPage() {
@@ -85,7 +86,7 @@ export default function ReviewPage() {
                   <span className="tabular-nums">{hoursOf(log).toFixed(1)} h</span>
                 )}
                 <span className="text-stone-500 dark:text-stone-400">
-                  {log.personIds.map((p) => state.people[p]?.name ?? 'someone').join(', ')}
+                  {log.personIds.map((p) => shortNamer(state)(p) ?? 'someone').join(', ')}
                 </span>
               </li>
             ))}

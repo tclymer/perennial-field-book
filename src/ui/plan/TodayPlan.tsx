@@ -17,6 +17,7 @@ import { backToList, keepForToday, rainDay } from '@/state/planActions'
 import { Button, Card } from '@/ui/components'
 import { QuickAdd } from '@/ui/tasks/QuickAdd'
 import { PlanRow, Rolled, useMe, type Notice } from './PlanParts'
+import { shortNamer } from '@/engine/people'
 
 /**
  * The top of the phone's home (DESIGN.md §3.10): anything that slid too far, today's tasks by
@@ -43,9 +44,10 @@ export function TodayPlan({
   const [opened, setOpened] = useState<string | null>(null)
   const [ahead, setAhead] = useState(false)
   const nextCount = plan.next.reduce((n, d) => n + d.open.length, 0)
+  const short = shortNamer(state)
   const nameOf = (id: string) => {
     const p = state.people[id]
-    return p && !p.deleted ? p.name : undefined
+    return p && !p.deleted ? short(id) : undefined
   }
   const dayRow = (d: PlanDay, label: string) => (
     <li key={d.date} className="py-1.5">

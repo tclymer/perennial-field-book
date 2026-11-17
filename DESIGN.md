@@ -550,6 +550,12 @@ the step and hid its checkbox (`placeTask` now leaves a step's bucket alone, and
 means a top-level task in the project list), and made a check-off on a day reversible at any
 time by tapping its box again (`uncheck`).
 
+**First names** (2026-11-17, 0.9.5). A small crew talks in first names, and a full name made the
+owner dropdown wider than its day column. `shortName` (`engine/people.ts`) gives the first
+name; two people who share one both get a last initial, and the full name only if that still
+clashes. It is used wherever the app names people day to day; Settings and the records
+exports keep full names. The owner dropdown is also capped at its column's width.
+
 **The plan day is not today** (2026-11-01, 0.9.4). On a day off, `planDay` is the next worked
 day, so the board has moved on, but a label must still say what the real date makes it:
 `dayLong(iso, today, planToday)` takes both, and on a Sunday the plan day reads "Tomorrow" and

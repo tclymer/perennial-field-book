@@ -38,6 +38,7 @@ import { TargetPicker } from '@/ui/tasks/TargetPicker'
 import { TaskRow, lastDoneText } from '@/ui/tasks/TaskRow'
 import { Toast } from '@/ui/tasks/Toast'
 import { useTaskDrag } from '@/ui/tasks/useTaskDrag'
+import { shortNamer } from '@/engine/people'
 
 const MONTHS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D']
 
@@ -89,6 +90,7 @@ export default function TaskPage() {
     .filter((l) => l.taskId === task.id)
     .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
   const people = live.people(state).filter((p) => p.active || p.id === task.ownerId)
+  const nameOf = shortNamer(state)
   const openSubtasks = subtasks.filter((t) => !t.done)
   // Hooks must run every render; the early return above has already handled a missing task.
   const drag = useTaskDrag(openSubtasks, { bucket: task.bucket, projectId: task.id })
@@ -250,7 +252,7 @@ export default function TaskPage() {
               <option value="">Anyone</option>
               {people.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.name}
+                  {nameOf(p.id)}
                 </option>
               ))}
             </select>
@@ -307,7 +309,7 @@ export default function TaskPage() {
         )}
         {task.addedBy && state.people[task.addedBy] && (
           <p className="text-xs text-stone-500 dark:text-stone-400">
-            Added by {state.people[task.addedBy]!.name}
+            Added by {nameOf(task.addedBy)}
           </p>
         )}
         <Field label="Where">
@@ -462,8 +464,7 @@ export default function TaskPage() {
               <li key={l.id} className="flex flex-wrap items-baseline gap-2 py-1.5">
                 <span className="tabular-nums">{l.date}</span>
                 <span className="text-stone-600 dark:text-stone-400">
-                  {l.personIds.map((p) => state.people[p]?.name ?? 'someone').join(', ') ||
-                    'nobody named'}
+                  {l.personIds.map((p) => nameOf(p) ?? 'someone').join(', ') || 'nobody named'}
                 </span>
                 {hoursOf(l) > 0 && <span className="tabular-nums">{hoursOf(l).toFixed(2)} h</span>}
                 {l.notes && <span className="text-stone-500 dark:text-stone-400">{l.notes}</span>}

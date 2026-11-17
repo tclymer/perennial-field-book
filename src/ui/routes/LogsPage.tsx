@@ -9,6 +9,7 @@ import { allCategories, categoryLabel } from '@/model/categories'
 import type { WorkLog } from '@/model/types'
 import { Button, Card, Field, PageHeader, inputClass } from '@/ui/components'
 import { DoneSheet, type DoneSheetResult } from '@/ui/tasks/DoneSheet'
+import { shortNamer } from '@/engine/people'
 
 /** Every work log, filtered, with totals and a CSV for the certifier or the planner. */
 export default function LogsPage() {
@@ -39,6 +40,7 @@ export default function LogsPage() {
   }, [state, person, category, block, from, to])
   const hours = logs.reduce((h, l) => h + hoursOf(l), 0)
   const people = live.people(state).sort((a, b) => a.name.localeCompare(b.name))
+  const nameOf = shortNamer(state)
   const blocks = live.blocks(state).sort((a, b) => a.code.localeCompare(b.code))
 
   const save = (values: DoneSheetResult) => {
@@ -94,7 +96,7 @@ export default function LogsPage() {
               <option value="">Anyone</option>
               {people.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.name}
+                  {nameOf(p.id)}
                 </option>
               ))}
             </select>
@@ -184,8 +186,7 @@ export default function LogsPage() {
                   </span>
                 )}
                 <span className="text-stone-500 dark:text-stone-400">
-                  {l.personIds.map((p) => state.people[p]?.name ?? 'someone').join(', ') ||
-                    'nobody named'}
+                  {l.personIds.map((p) => nameOf(p) ?? 'someone').join(', ') || 'nobody named'}
                 </span>
                 {hoursOf(l) > 0 && <span className="tabular-nums">{hoursOf(l).toFixed(2)} h</span>}
                 {l.materials?.length ? (

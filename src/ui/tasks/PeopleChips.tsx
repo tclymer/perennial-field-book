@@ -4,6 +4,7 @@ import { useFarmStore } from '@/state/store'
 import { live } from '@/events/reduce'
 import { createPerson, setCurrentPerson } from '@/state/people'
 import { inputClass } from '@/ui/components'
+import { shortNamer } from '@/engine/people'
 
 /** Who did the work: tap to toggle people, add one by name when someone is missing. */
 export function PeopleChips({
@@ -18,6 +19,7 @@ export function PeopleChips({
     .people(state)
     .filter((p) => p.active || selected.includes(p.id))
     .sort((a, b) => a.name.localeCompare(b.name))
+  const nameOf = shortNamer(state)
   const [adding, setAdding] = useState(false)
   const [name, setName] = useState('')
 
@@ -49,7 +51,7 @@ export function PeopleChips({
               : 'border-stone-300 dark:border-stone-600 text-stone-700 dark:text-stone-300',
           )}
         >
-          {p.name}
+          {nameOf(p.id)}
         </button>
       ))}
       {adding ? (

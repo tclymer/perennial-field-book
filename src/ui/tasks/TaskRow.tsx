@@ -10,6 +10,7 @@ import { categoryLabel } from '@/model/categories'
 import type { Task } from '@/model/types'
 import { SeasonDone, monthName } from './SeasonDone'
 import { useTaskDrag, type DropIndicator } from './useTaskDrag'
+import { shortNamer } from '@/engine/people'
 
 /** "last done 3 days ago", "never done", for a recurring task. */
 export function lastDoneText(
@@ -88,7 +89,7 @@ export function TaskRow({
   }
   for (const t of task.targets) chips.push({ text: targetLabel(state, t) })
   if (task.category) chips.push({ text: categoryLabel(task.category, state.farm?.categories) })
-  if (task.ownerId) chips.push({ text: state.people[task.ownerId]?.name ?? 'owner' })
+  if (task.ownerId) chips.push({ text: shortNamer(state)(task.ownerId) ?? 'owner' })
   if (task.season) chips.push({ text: task.season, tone: 'muted' })
   if (task.needsDiscussion) chips.push({ text: 'discuss', tone: 'warn' })
   if (showBucket) chips.push({ text: showBucket, tone: 'muted' })

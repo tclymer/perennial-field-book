@@ -7,6 +7,7 @@ import type { ParsedTitle } from '@/engine/tasks'
 import { categoryLabel } from '@/model/categories'
 import type { Bucket } from '@/model/types'
 import { inputClass } from '@/ui/components'
+import { shortNamer } from '@/engine/people'
 
 /**
  * One box: type or dictate, press Enter. While typing, chips show what the parser
@@ -53,7 +54,7 @@ export function QuickAdd({
   if (preview) {
     for (const t of preview.targets) chips.push(targetLabel(state, t))
     if (preview.category) chips.push(categoryLabel(preview.category, state.farm?.categories))
-    if (preview.ownerId) chips.push(state.people[preview.ownerId]?.name ?? 'owner')
+    if (preview.ownerId) chips.push(shortNamer(state)(preview.ownerId) ?? 'owner')
     if (preview.season) chips.push(preview.season)
     if (preview.needsDiscussion) chips.push('discuss')
   }

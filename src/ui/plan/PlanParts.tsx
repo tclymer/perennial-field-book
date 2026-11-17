@@ -28,6 +28,7 @@ import { inputClass } from '@/ui/components'
 import { DoneSheet } from '@/ui/tasks/DoneSheet'
 import { Toast } from '@/ui/tasks/Toast'
 import { TASK_DRAG_TYPE } from '@/ui/tasks/useTaskDrag'
+import { shortNamer } from '@/engine/people'
 
 export interface Notice {
   message: string
@@ -101,26 +102,28 @@ export function OwnerChip({ task, notify }: { task: Task; notify: (n: Notice) =>
   const state = useFarmStore((s) => s.state)
   const people = live.people(state).filter((p) => p.active || p.id === task.ownerId)
   const owner = task.ownerId ? state.people[task.ownerId] : undefined
+  const nameOf = shortNamer(state)
   return (
     <span className="inline-flex max-w-full flex-wrap items-center gap-1">
       <select
         aria-label={`Who does ${task.title}`}
         className={clsx(
           inputClass,
-          'w-auto rounded-full py-0 pl-2 pr-6 text-xs',
+          // Never wider than its column: a select is otherwise as wide as its longest name.
+          'w-auto min-w-0 max-w-full truncate rounded-full py-0 pl-2 pr-6 text-xs',
           !owner && 'text-stone-500 dark:text-stone-400',
         )}
         value={owner ? owner.id : ''}
         onChange={(e) => {
           const undo = assignTask(task.id, e.target.value || null)
-          const name = e.target.value ? state.people[e.target.value]?.name : 'Anyone'
+          const name = e.target.value ? nameOf(e.target.value) : 'Anyone'
           notify({ message: `${task.title}: ${name}.`, undo })
         }}
       >
         <option value="">Anyone</option>
         {people.map((p) => (
           <option key={p.id} value={p.id}>
-            {p.name}
+            {nameOf(p.id)}
           </option>
         ))}
       </select>

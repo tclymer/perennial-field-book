@@ -4,6 +4,15 @@ One entry per release of Perennial Field Book, newest first. The version is show
 under Settings. Each release is also a tag on GitHub (`v0.8.7` and so on), so the code as it
 stood at any release can be looked at or compared with another.
 
+## 0.9.5 (2026-11-17)
+
+- **People go by first name.** The owner dropdowns, Today's headings, the people buttons when
+  logging work, task pages and the records list now say "Tim" instead of "Tim Clymer". When
+  two people share a first name, both get a last initial ("Tim C.", "Tim R."). Settings and the
+  records exports keep full names.
+- The owner dropdown on the computer's Week view no longer spills out of its day column; a name
+  too long for the column is cut short with "…".
+
 ## 0.9.4 (2026-11-01)
 
 - **Today means today.** Planning on a weekend, the first day offered is now called Mon, or
